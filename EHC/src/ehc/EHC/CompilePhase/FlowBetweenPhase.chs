@@ -191,11 +191,11 @@ cpFlowEHSem1 modNm
 %%[[(8 codegen)
                  coreInh' = coreInh
 %%[[8
-                              { Core2GrSem.dataGam_Inh_CodeAGItf = EHSem.gathDataGam_Syn_AGItf ehSem
-                              , Core2GrSem.bindingMp_Inh_CodeAGItf   = EHSem.gathBindingMp_Syn_AGItf   ehSem
+                              { Core2GrSem.dataGam_Inh_CodeAGItf   = EHSem.gathDataGam_Syn_AGItf ehSem
+                              , Core2GrSem.bindingMp_Inh_CodeAGItf = EHSem.gathBindingMp_Syn_AGItf   ehSem
 %%][50
-                              { Core2GrSem.dataGam_Inh_CodeAGItf = EHSem.dataGam_Inh_AGItf     ehInh'
-                              , Core2GrSem.bindingMp_Inh_CodeAGItf   = lm `bindingMpUnionBindAspMp` Core2GrSem.bindingMp_Inh_CodeAGItf coreInh		-- assumption: no duplicates, otherwise merging as done later has to be done
+                              { Core2GrSem.dataGam_Inh_CodeAGItf   = EHSem.dataGam_Inh_AGItf     ehInh'
+                              , Core2GrSem.bindingMp_Inh_CodeAGItf = lm `bindingMpUnionBindAspMp` Core2GrSem.bindingMp_Inh_CodeAGItf coreInh		-- assumption: no duplicates, otherwise merging as done later has to be done
 %%]]
                               }
 %%]]

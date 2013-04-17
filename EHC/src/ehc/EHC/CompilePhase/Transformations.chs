@@ -65,7 +65,7 @@ cpTransformCore optimScope modNm
                              , trfcoreUniq          = crsiNextUID crsi
 %%[[50
                              , trfcoreExpNmOffMp    = crsiExpNmOffMp modNm crsi
-                             , trfcoreInhBindingMp      = Core2GrSem.bindingMp_Inh_CodeAGItf $ crsiCoreInh crsi
+                             , trfcoreInhBindingMp  = Core2GrSem.bindingMp_Inh_CodeAGItf $ crsiCoreInh crsi
 %%]]
                              }
               trfcoreOut = trfCore opts optimScope (Core2GrSem.dataGam_Inh_CodeAGItf $ crsiCoreInh crsi) modNm trfcoreIn

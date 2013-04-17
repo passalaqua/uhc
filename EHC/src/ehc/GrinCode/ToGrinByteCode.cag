@@ -56,7 +56,7 @@ grinMod2ByteCodeMod opts bindingMp allImpNmL {- impNmL -} impNmOffMpMp expNmOffM
                                , allImpNmL_Inh_GrAGItf      = allImpNmL
                                -- , impNmL_Inh_GrAGItf         = offMpKeysSorted impNmOffMpMp -- impNmL
                                , opts_Inh_GrAGItf           = opts
-                               , bindingMp_Inh_GrAGItf          = bindingMp
+                               , bindingMp_Inh_GrAGItf      = bindingMp
                                })
      in   (gbMod_Syn_GrAGItf t, errs_Syn_GrAGItf t)
 %%]
@@ -525,8 +525,8 @@ SEM GrExpr
   | *           loc         .   nmEnv           =   GB.NmEnv
                                                       { GB.neVAGam = @lhs.vaGam
 %%[[50
-                                                      , GB.neImpNmMp = @lhs.impNmOffMpMp
-                                                      , GB.neBindingMp   = @lhs.bindingMp
+                                                      , GB.neImpNmMp   = @lhs.impNmOffMpMp
+                                                      , GB.neBindingMp = @lhs.bindingMp
 %%]]
                                                       }
 
@@ -534,8 +534,8 @@ SEM GrBind
   | Bind        loc         .   nmEnv           =   GB.NmEnv
                                                       { GB.neVAGam = @lhs.vaGam
 %%[[50
-                                                      , GB.neImpNmMp = @lhs.impNmOffMpMp
-                                                      , GB.neBindingMp   = @lhs.bindingMp
+                                                      , GB.neImpNmMp   = @lhs.impNmOffMpMp
+                                                      , GB.neBindingMp = @lhs.bindingMp
 %%]]
                                                       }
 
@@ -543,8 +543,8 @@ SEM GrModule
   | Mod         loc         .   nmEnv           =   GB.NmEnv
                                                       { GB.neVAGam = @vaGam
 %%[[50
-                                                      , GB.neImpNmMp = @lhs.impNmOffMpMp
-                                                      , GB.neBindingMp   = @lhs.bindingMp
+                                                      , GB.neImpNmMp   = @lhs.impNmOffMpMp
+                                                      , GB.neBindingMp = @lhs.bindingMp
 %%]]
                                                       }
 %%]
