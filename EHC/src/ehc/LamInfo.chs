@@ -137,10 +137,10 @@ instance PP BindingInfoAsp where
 -- | per lambda implementation info
 data BindingInfo
   = BindingInfo
-      { laminfoArity				:: !Int					-- arity of function
-      , laminfoStackTrace  			:: !StackTraceInfo			-- stacktrace
-      , laminfoGrinByteCode			:: Maybe GrinByteCodeBindingInfo	-- GB specific info
-      , laminfoBindAspMp			:: !BindingInfoAspMp			-- info organized per/keyed on aspect
+      { bindinginfoArity			:: !Int					-- arity of function
+      , bindinginfoStackTrace  			:: !StackTraceInfo			-- stacktrace
+      , bindinginfoGrinByteCode			:: Maybe GrinByteCodeBindingInfo	-- GB specific info
+      , bindinginfoAspMp			:: !BindingInfoAspMp			-- info organized per/keyed on aspect
       }
   deriving ( Show
 %%[[50
@@ -160,10 +160,10 @@ instance PP BindingInfo where
   pp (BindingInfo ar _ bc m) = ppAssocL $ assocLMapKey ppACBaspKeyS $ Map.toList m
 %%]
 
-%%[(50 codegen) hs export(laminfo1stArgIsStackTrace)
-laminfo1stArgIsStackTrace :: BindingInfo -> Bool
-laminfo1stArgIsStackTrace (BindingInfo {laminfoStackTrace=StackTraceInfo_IsStackTraceEquiv _}) = True
-laminfo1stArgIsStackTrace _                                                                = False
+%%[(50 codegen) hs export(bindinginfo1stArgIsStackTrace)
+bindinginfo1stArgIsStackTrace :: BindingInfo -> Bool
+bindinginfo1stArgIsStackTrace (BindingInfo {bindinginfoStackTrace=StackTraceInfo_IsStackTraceEquiv _}) = True
+bindinginfo1stArgIsStackTrace _                                                                = False
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -182,7 +182,7 @@ emptyLamMp = Map.empty
 %%[(8 codegen) hs export(lamMpUnionBindAspMp,lamMpUnionsBindAspMp)
 -- union, including the aspect map, but arbitrary for the info itself
 lamMpUnionBindAspMp :: LamMp -> LamMp -> LamMp
-lamMpUnionBindAspMp = Map.unionWith (\i1 i2 -> i1 {laminfoBindAspMp = laminfoBindAspMp i1 `Map.union` laminfoBindAspMp i2})
+lamMpUnionBindAspMp = Map.unionWith (\i1 i2 -> i1 {bindinginfoAspMp = bindinginfoAspMp i1 `Map.union` bindinginfoAspMp i2})
 
 lamMpUnionsBindAspMp :: [LamMp] -> LamMp
 lamMpUnionsBindAspMp = foldr lamMpUnionBindAspMp Map.empty
@@ -213,7 +213,7 @@ lamMpMergeInto2 mergeL2RInfo mergeL2RMp newMp prevMp
 %%[(8 codegen) hs export(lamMpLookupAsp,lamMpLookupAsp2,lamMpLookupLam,lamMpLookupCaf)
 lamMpLookupAsp :: HsName -> ACoreBindAspectKeyS -> LamMp -> Maybe BindingInfoAsp
 lamMpLookupAsp n a m
-  = fmap snd $ mapLookup2' laminfoBindAspMp n a m
+  = fmap snd $ mapLookup2' bindinginfoAspMp n a m
 
 lamMpLookupAsp2 :: ACoreBindRef -> LamMp -> Maybe BindingInfoAsp
 lamMpLookupAsp2 (ACoreBindRef n (Just a)) m = lamMpLookupAsp n a m
@@ -221,24 +221,24 @@ lamMpLookupAsp2 (ACoreBindRef n (Just a)) m = lamMpLookupAsp n a m
 lamMpLookupLam :: HsName -> LamMp -> Maybe Int
 lamMpLookupLam n m
   = case Map.lookup n m of
-      j@(Just (BindingInfo {laminfoArity=a})) | a > 0
+      j@(Just (BindingInfo {bindinginfoArity=a})) | a > 0
         -> Just a
       _ -> Nothing
 
 lamMpLookupCaf :: HsName -> LamMp -> Maybe Int
 lamMpLookupCaf n m
   = case Map.lookup n m of
-      j@(Just (BindingInfo {laminfoArity=a})) | a == 0
+      j@(Just (BindingInfo {bindinginfoArity=a})) | a == 0
         -> Just a
       _ -> Nothing
 %%]
 
 %%[(8 codegen) hs export(lamMpFilterLam,lamMpFilterCaf)
 lamMpFilterLam :: LamMp -> LamMp
-lamMpFilterLam = Map.filter ((>0) . laminfoArity)
+lamMpFilterLam = Map.filter ((>0) . bindinginfoArity)
 
 lamMpFilterCaf :: LamMp -> LamMp
-lamMpFilterCaf = Map.filter ((==0) . laminfoArity)
+lamMpFilterCaf = Map.filter ((==0) . bindinginfoArity)
 %%]
 
 %%[(8 codegen) hs export(lamMpMergeFrom)
@@ -281,7 +281,7 @@ lamMpMergeFrom get set merge mergeMp empty m lm
 %%[(8 codegen grin) hs export(GrinByteCodeBindingInfo(..),emptyGrinByteCodeBindingInfo)
 data GrinByteCodeBindingInfo
   = GrinByteCodeBindingInfo
-      { gblaminfoFuninfoKey		:: !Int					-- index into FunctionInfo table, to be referred to outside this module only
+      { gbbindinginfoFuninfoKey		:: !Int					-- index into FunctionInfo table, to be referred to outside this module only
       }
   deriving
      ( Show
@@ -311,7 +311,7 @@ initLamMp
       ]
   where mk get mlev l
           = lamMpUnionsBindAspMp [ mk1 (mlev + 1) n (SysF.ty2TySysf $ get t) | (n,t) <- l ]
-          where mk1 l n e = Map.singleton n (emptyBindingInfo {laminfoBindAspMp = Map.fromList [(acbaspkeyDefaultSysfTy l, BindingInfoAsp_Core l e)]})
+          where mk1 l n e = Map.singleton n (emptyBindingInfo {bindinginfoAspMp = Map.fromList [(acbaspkeyDefaultSysfTy l, BindingInfoAsp_Core l e)]})
 %%][8
 initLamMp = emptyLamMp
 %%]]

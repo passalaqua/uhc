@@ -33,9 +33,9 @@ ATTR AGItf Expr AllDecl [ | | gathLamMp USE {`lamMpUnionBindAspMp`} {Map.empty}:
 SEM Decl
   | FusionDecl  lhs         .   gathLamMp           =   Map.singleton
                                                             @fuseNm
-                                                            (emptyBindingInfo {laminfoBindAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_Fuse)})
+                                                            (emptyBindingInfo {bindinginfoAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_Fuse)})
   | FusionConv  lhs         .   gathLamMp           =   Map.fromList
-                                                            [ ( @conNm, emptyBindingInfo {laminfoBindAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_BuildLeft)} )
-                                                            , ( @absNm, emptyBindingInfo {laminfoBindAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_BuildRight)} )
+                                                            [ ( @conNm, emptyBindingInfo {bindinginfoAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_BuildLeft)} )
+                                                            , ( @absNm, emptyBindingInfo {bindinginfoAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_BuildRight)} )
                                                             ]
 %%]

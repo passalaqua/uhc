@@ -87,7 +87,7 @@ SEM CodeAGItf
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeBindingInfo	=   (\(BindingInfo {laminfoArity=a}) i -> i {laminfoArity=a})
+  | AGItf       loc         .   howMergeBindingInfo	=   (\(BindingInfo {bindinginfoArity=a}) i -> i {bindinginfoArity=a})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -124,7 +124,7 @@ and assumed to propagate correctly when merged with this info.
 SEM CBound
   | Bind        lhs         .   bindLamMp
                                             =   Map.singleton @lhs.nm
-                                                              (emptyBindingInfo {laminfoArity = length @expr.grLamArgL})
+                                                              (emptyBindingInfo {bindinginfoArity = length @expr.grLamArgL})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

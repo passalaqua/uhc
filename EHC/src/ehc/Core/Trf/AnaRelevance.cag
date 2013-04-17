@@ -121,7 +121,7 @@ SEM CodeAGItf
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeBindingInfo	=   (\(BindingInfo {laminfoBindAspMp=m}) i -> i {laminfoBindAspMp = m `Map.union` laminfoBindAspMp i})
+  | AGItf       loc         .   howMergeBindingInfo	=   (\(BindingInfo {bindinginfoAspMp=m}) i -> i {bindinginfoAspMp = m `Map.union` bindinginfoAspMp i})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -133,7 +133,7 @@ SEM CBound
   | Bind        loc         .   doBindStrict    =   WhatToRelevInfer_InstToBot `elem` @lhs.whatTo
                 lhs         .   bindLamMp       =   let l = [ (acbaspkeyDefaultRelevTy, BindingInfoAsp_RelevTy @bindTy) ]
                                                             -- ++ (if @doBindStrict then [(acbaspkeyStrict, BindingInfoAsp_RelevTy @strictTy2)] else [])
-                                                    in  Map.singleton @lhs.nm (emptyBindingInfo {laminfoBindAspMp = Map.fromList l})
+                                                    in  Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList l})
                 loc         .   doBindStrict    :   Bool
 %%]
 

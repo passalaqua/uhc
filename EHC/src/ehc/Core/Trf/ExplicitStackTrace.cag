@@ -78,7 +78,7 @@ SEM CodeAGItf
 
 %%[(99 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeBindingInfo =   (\(BindingInfo {laminfoStackTrace=t}) i -> i {laminfoStackTrace=t})
+  | AGItf       loc         .   howMergeBindingInfo =   (\(BindingInfo {bindinginfoStackTrace=t}) i -> i {bindinginfoStackTrace=t})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -140,7 +140,7 @@ mbStackTrace opts isCand nm
 SEM CBound
   | Bind        (loc.mbStackTrace,lhs.bindLamMp)
                                             =   let mbt = mbStackTrace @lhs.opts @isTraceCandidate @lhs.nm
-                                                in  (mbt,Map.singleton @lhs.nm (emptyBindingInfo {laminfoStackTrace = mbt}))
+                                                in  (mbt,Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoStackTrace = mbt}))
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -181,7 +181,7 @@ SEM CBound
                                                          ]
                                                        , Just @nmStackTrace
                                                        , Map.fromList
-                                                           [ (dbNm, emptyBindingInfo {laminfoStackTrace = StackTraceInfo_IsStackTraceEquiv @lhs.nm})
+                                                           [ (dbNm, emptyBindingInfo {bindinginfoStackTrace = StackTraceInfo_IsStackTraceEquiv @lhs.nm})
                                                            ]
                                                        )
                                                   _ -> ([acoreBind1Asp1 @lhs.nm @cTrf], @lhs.mbInStackTraceCtxt, Map.empty)
@@ -195,7 +195,7 @@ ATTR CodeAGItf [ | | cTrf: CModule ]
 SEM CExpr
   | Let         lhs         .   cTrf        =   CExpr_Let @categ @binds.bindCTrfL @body.cTrf
   | Var         lhs         .   cTrf        =   case Map.lookup @nm @lhs.lamMp of
-                                                  Just (BindingInfo {laminfoStackTrace=StackTraceInfo_HasStackTraceEquiv dbNm})
+                                                  Just (BindingInfo {bindinginfoStackTrace=StackTraceInfo_HasStackTraceEquiv dbNm})
                                                     -> case @lhs.mbInStackTraceCtxt of
                                                          Just stTrNm
                                                            -> acore1App (acoreVar dbNm)

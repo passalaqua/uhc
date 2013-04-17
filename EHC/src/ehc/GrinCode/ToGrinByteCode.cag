@@ -947,7 +947,7 @@ SEM GrBind
 %%[[8
                                                                                       []
 %%][50
-                                                                                      (maybe [] (\i -> if laminfo1stArgIsStackTrace i then [GB.FunctionInfoFlag_1stArgIsStackTrace] else [])
+                                                                                      (maybe [] (\i -> if bindinginfo1stArgIsStackTrace i then [GB.FunctionInfoFlag_1stArgIsStackTrace] else [])
                                                                                        $ Map.lookup @nm @lhs.lamMp)
 %%]]
                                                                                       )

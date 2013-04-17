@@ -70,7 +70,7 @@ SEM CodeAGItf
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeBindingInfo =   (\(BindingInfo {laminfoBindAspMp=m}) i -> i {laminfoBindAspMp = m `Map.union` laminfoBindAspMp i})
+  | AGItf       loc         .   howMergeBindingInfo =   (\(BindingInfo {bindinginfoAspMp=m}) i -> i {bindinginfoAspMp = m `Map.union` bindinginfoAspMp i})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -90,7 +90,7 @@ SEM CBound
 %%[[(8 coresysf)
     Val
 %%]]
-                lhs         .   bindLamMp       =   Map.singleton @lhs.nm (emptyBindingInfo {laminfoBindAspMp = Map.fromList @bindLamL})
+                lhs         .   bindLamMp       =   Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList @bindLamL})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

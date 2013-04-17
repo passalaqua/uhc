@@ -747,8 +747,8 @@ nmEnvLookup nm env
               ; return (Val_ImpEntry mo eo
                                      {- (maybe (-1) id
                                       $ do { li <- Map.lookup nm $ neLamMp env
-                                           ; fi <- laminfoGrinByteCode li
-                                           ; return (gblaminfoFuninfoKey fi)
+                                           ; fi <- bindinginfoGrinByteCode li
+                                           ; return (gbbindinginfoFuninfoKey fi)
                                            }
                        ) -}            )
               }

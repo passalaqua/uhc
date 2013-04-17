@@ -315,7 +315,7 @@ cpTranslateByteCode modNm
                                ,functionInfoExportMp)
                                 = gbmod2C opts lkup $ panicJust "cpTranslateByteCode2" mbBytecode
                                 where lkup n = do { li <- Map.lookup n (Core2GrSem.lamMp_Inh_CodeAGItf coreInh)
-                                                  ; ex <- laminfoGrinByteCode li
+                                                  ; ex <- bindinginfoGrinByteCode li
                                                   ; return ex
                                                   }
 %%]]
@@ -329,7 +329,7 @@ cpTranslateByteCode modNm
 %%[[50
                       . ( let hii = ecuHIInfo ecu
                           in  ecuStoreHIInfo
-                                (hii { HI.hiiLamMp = lamMpMergeFrom laminfoGrinByteCode (\gbi i -> i {laminfoGrinByteCode=gbi}) const emptyBindingInfo' functionInfoExportMp $ HI.hiiLamMp hii
+                                (hii { HI.hiiLamMp = lamMpMergeFrom bindinginfoGrinByteCode (\gbi i -> i {bindinginfoGrinByteCode=gbi}) const emptyBindingInfo' functionInfoExportMp $ HI.hiiLamMp hii
                                      })
                         )
 %%]]

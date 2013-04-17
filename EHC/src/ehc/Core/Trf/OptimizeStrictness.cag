@@ -100,7 +100,7 @@ SEM CodeAGItf
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeBindingInfo =   (\(BindingInfo {laminfoBindAspMp=m}) i -> i {laminfoBindAspMp = m `Map.union` laminfoBindAspMp i})
+  | AGItf       loc         .   howMergeBindingInfo =   (\(BindingInfo {bindinginfoAspMp=m}) i -> i {bindinginfoAspMp = m `Map.union` bindinginfoAspMp i})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -110,7 +110,7 @@ SEM CodeAGItf
 %%[(8 codegen grin)
 SEM CBind
   | Bind        lhs         .   bindLamMp       =   case @mbStrictArgsRes of
-                                                      Just (t,_,_) -> Map.singleton @nm (emptyBindingInfo {laminfoBindAspMp = Map.fromList l})
+                                                      Just (t,_,_) -> Map.singleton @nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList l})
                                                                    where l = [(acbaspkeyStrict, BindingInfoAsp_RelevTy t)]
                                                       _            -> Map.empty
 %%]

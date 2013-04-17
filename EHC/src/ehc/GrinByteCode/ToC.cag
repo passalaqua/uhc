@@ -98,7 +98,7 @@ ATTR AGItf Module [ lkupGrinByteCodeBindingInfo: LookupGrinByteCodeBindingInfo |
 
 SEM Module
   | Mod         loc         .   lkupLookupFunctionInfoInx
-                                            =   \n -> fmap gblaminfoFuninfoKey
+                                            =   \n -> fmap gbbindinginfoFuninfoKey
 %%[[50
                                                       $ maybe (@lhs.lkupGrinByteCodeBindingInfo n) Just
 %%]]
