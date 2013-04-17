@@ -16,7 +16,7 @@
 %%[(8 codegen tycore) import({%{EH}EHC.Common})
 %%]
 
--- LamInfo
+-- BindingInfo
 %%[(8 codegen tycore) import({%{EH}LamInfo})
 %%]
 

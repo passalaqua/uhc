@@ -17,7 +17,7 @@
 %%[(8 codegen) import({%{EH}EHC.Common})
 %%]
 
--- LamInfo
+-- BindingInfo
 %%[(8 codegen) import({%{EH}LamInfo})
 %%]
 
@@ -282,7 +282,7 @@ trfCore opts optimScope dataGam modNm trfcore
                                                      -> (lamMpPropagate m s)
                                                           { trfcoreExtraExports   = exps `Set.union`
                                                                                     Set.fromList [ n
-                                                                                                 | (n,LamInfo {laminfoStackTrace=(StackTraceInfo_IsStackTraceEquiv _)}) <- Map.toList m
+                                                                                                 | (n,BindingInfo {laminfoStackTrace=(StackTraceInfo_IsStackTraceEquiv _)}) <- Map.toList m
                                                                                                  ]
                                                           }
                                                   )            $ \s -> cmodTrfExplicitStackTrace opts (trfcoreInhLamMp s)

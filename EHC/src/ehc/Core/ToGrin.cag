@@ -76,18 +76,18 @@ ATTR AllCodeNT CodeAGItf [ dataGam: DataGam | | ]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering LamInfo, providing hook for Core/CommonLamInfo
+%%% Gathering BindingInfo, providing hook for Core/CommonLamInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .	howUnionGathLamInfo
+  | AGItf       loc         .	howUnionGathBindingInfo
   												=	Map.union @gathLamMp
 %%]
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeLamInfo	=   (\(LamInfo {laminfoArity=a}) i -> i {laminfoArity=a})
+  | AGItf       loc         .   howMergeBindingInfo	=   (\(BindingInfo {laminfoArity=a}) i -> i {laminfoArity=a})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -114,7 +114,7 @@ SEM CPat
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Newly bound LamInfo
+%%% Newly bound BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Here we only gather arity info, stack trace info is assumed to be gathered earlier,
@@ -124,7 +124,7 @@ and assumed to propagate correctly when merged with this info.
 SEM CBound
   | Bind        lhs         .   bindLamMp
                                             =   Map.singleton @lhs.nm
-                                                              (emptyLamInfo {laminfoArity = length @expr.grLamArgL})
+                                                              (emptyBindingInfo {laminfoArity = length @expr.grLamArgL})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -68,7 +68,7 @@ Translation to another AST
 -- HI AST
 %%[(50 codegen grin) import(qualified {%{EH}HI} as HI)
 %%]
--- LamInfo
+-- BindingInfo
 %%[(50 codegen grin) import({%{EH}LamInfo})
 %%]
 
@@ -329,7 +329,7 @@ cpTranslateByteCode modNm
 %%[[50
                       . ( let hii = ecuHIInfo ecu
                           in  ecuStoreHIInfo
-                                (hii { HI.hiiLamMp = lamMpMergeFrom laminfoGrinByteCode (\gbi i -> i {laminfoGrinByteCode=gbi}) const emptyLamInfo' functionInfoExportMp $ HI.hiiLamMp hii
+                                (hii { HI.hiiLamMp = lamMpMergeFrom laminfoGrinByteCode (\gbi i -> i {laminfoGrinByteCode=gbi}) const emptyBindingInfo' functionInfoExportMp $ HI.hiiLamMp hii
                                      })
                         )
 %%]]

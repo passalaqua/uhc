@@ -1,10 +1,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Implementation information about lambda/function
+%%% Implementation information about the program
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[doesWhat doclatex
-Globally maintained info about the implementation of lambdas/function.
-This can not reside in one particular phase as each phase gathers additional info to be added to a LamInfo.
+Globally maintained info about AST elements.
+This can not reside in one particular phase as each phase gathers additional info to be added to a BindingInfo.
 Hence its separate and globally available definition.
 
 Currently the following is maintained:
@@ -91,26 +91,26 @@ instance PP FusionRole where
        where l = length "FusionRole_"
 %%]
 
-%%[(8 codegen) hs export(LamInfoBindAsp(..))
+%%[(8 codegen) hs export(BindingInfoAsp(..))
 -- | per aspect info
-data LamInfoBindAsp
-  = LamInfoBindAsp_RelevTy							-- relevance typing
+data BindingInfoAsp
+  = BindingInfoAsp_RelevTy						-- relevance typing
       { libindaspRelevTy 		:: !RelevTy
       }
-  | LamInfoBindAsp_Ty								-- plain good old type
+  | BindingInfoAsp_Ty							-- plain good old type
       { libindaspTy 			:: !Ty
       }
 %%[[(8888 coresysf)
-  | LamInfoBindAsp_SysfTy							-- system F type
+  | BindingInfoAsp_SysfTy						-- system F type
       { libindaspSysfTy 		:: !SysF.Ty
       }
 %%]]
-  | LamInfoBindAsp_Core								-- actual Core, should go paired with Ty (?? maybe pair them directly)
+  | BindingInfoAsp_Core							-- actual Core, should go paired with Ty (?? maybe pair them directly)
       { libindaspMetaLev		:: !MetaLev
       , libindaspCore			:: !CExpr
       }
 %%[[93
-  | LamInfoBindAsp_FusionRole						-- role in fusion
+  | BindingInfoAsp_FusionRole						-- role in fusion
       { libindaspFusionRole 	:: !FusionRole
       }
 %%]]
@@ -120,27 +120,27 @@ data LamInfoBindAsp
 %%]]
            )
 
-type LamInfoBindAspMp = Map.Map ACoreBindAspectKeyS LamInfoBindAsp
+type BindingInfoAspMp = Map.Map ACoreBindAspectKeyS BindingInfoAsp
 %%]
 
 %%[(8 codegen)
-instance PP LamInfoBindAsp where
-  pp (LamInfoBindAsp_RelevTy 	t) = "RTy"  >#< pp t
-  pp (LamInfoBindAsp_Ty      	t) = "Ty"   >#< pp t
-  pp (LamInfoBindAsp_Core    ml	c) = pp "Core" -- >#< pp c -- Core.Pretty uses LamInfo, so module cycle...
+instance PP BindingInfoAsp where
+  pp (BindingInfoAsp_RelevTy 	t) = "RTy"  >#< pp t
+  pp (BindingInfoAsp_Ty      	t) = "Ty"   >#< pp t
+  pp (BindingInfoAsp_Core    ml	c) = pp "Core" -- >#< pp c -- Core.Pretty uses BindingInfo, so module cycle...
 %%[[93
-  pp (LamInfoBindAsp_FusionRole	r) = "Fuse" >#< pp r
+  pp (BindingInfoAsp_FusionRole	r) = "Fuse" >#< pp r
 %%]]
 %%]
 
-%%[(8 codegen) hs export(LamInfo(..),emptyLamInfo,emptyLamInfo')
+%%[(8 codegen) hs export(BindingInfo(..),emptyBindingInfo,emptyBindingInfo')
 -- | per lambda implementation info
-data LamInfo
-  = LamInfo
-      { laminfoArity				:: !Int							-- arity of function
-      , laminfoStackTrace  			:: !StackTraceInfo				-- stacktrace
-      , laminfoGrinByteCode			:: Maybe GrinByteCodeLamInfo	-- GB specific info
-      , laminfoBindAspMp			:: !LamInfoBindAspMp			-- info organized per/keyed on aspect
+data BindingInfo
+  = BindingInfo
+      { laminfoArity				:: !Int					-- arity of function
+      , laminfoStackTrace  			:: !StackTraceInfo			-- stacktrace
+      , laminfoGrinByteCode			:: Maybe GrinByteCodeBindingInfo	-- GB specific info
+      , laminfoBindAspMp			:: !BindingInfoAspMp			-- info organized per/keyed on aspect
       }
   deriving ( Show
 %%[[50
@@ -148,21 +148,21 @@ data LamInfo
 %%]]
            )
 
-emptyLamInfo' :: LamInfo
-emptyLamInfo' = LamInfo 0 StackTraceInfo_None (Just emptyGrinByteCodeLamInfo) Map.empty
+emptyBindingInfo' :: BindingInfo
+emptyBindingInfo' = BindingInfo 0 StackTraceInfo_None (Just emptyGrinByteCodeBindingInfo) Map.empty
 
-emptyLamInfo :: LamInfo
-emptyLamInfo = LamInfo 0 StackTraceInfo_None Nothing Map.empty
+emptyBindingInfo :: BindingInfo
+emptyBindingInfo = BindingInfo 0 StackTraceInfo_None Nothing Map.empty
 %%]
 
 %%[(8 codegen)
-instance PP LamInfo where
-  pp (LamInfo ar _ bc m) = ppAssocL $ assocLMapKey ppACBaspKeyS $ Map.toList m
+instance PP BindingInfo where
+  pp (BindingInfo ar _ bc m) = ppAssocL $ assocLMapKey ppACBaspKeyS $ Map.toList m
 %%]
 
 %%[(50 codegen) hs export(laminfo1stArgIsStackTrace)
-laminfo1stArgIsStackTrace :: LamInfo -> Bool
-laminfo1stArgIsStackTrace (LamInfo {laminfoStackTrace=StackTraceInfo_IsStackTraceEquiv _}) = True
+laminfo1stArgIsStackTrace :: BindingInfo -> Bool
+laminfo1stArgIsStackTrace (BindingInfo {laminfoStackTrace=StackTraceInfo_IsStackTraceEquiv _}) = True
 laminfo1stArgIsStackTrace _                                                                = False
 %%]
 
@@ -173,7 +173,7 @@ laminfo1stArgIsStackTrace _                                                     
 20100822 AD: Note: lamMpMergeInto and lamMpMergeFrom probably can be combined, but currently subtly differ in the flow of info.
 
 %%[(8 codegen) hs export(LamMp,emptyLamMp)
-type LamMp    = Map.Map HsName LamInfo
+type LamMp    = Map.Map HsName BindingInfo
 
 emptyLamMp :: LamMp
 emptyLamMp = Map.empty
@@ -190,7 +190,7 @@ lamMpUnionsBindAspMp = foldr lamMpUnionBindAspMp Map.empty
 
 %%[(8 codegen) hs export(lamMpMergeInto)
 -- propagate from new (left) to prev (right), adding new entries if necessary, combining with mergeL2RInfo, finally combining/choosing maps with mergeL2RMp
-lamMpMergeInto :: (LamInfo -> LamInfo -> LamInfo) -> (LamMp -> LamMp -> LamMp) -> LamMp -> LamMp -> LamMp
+lamMpMergeInto :: (BindingInfo -> BindingInfo -> BindingInfo) -> (LamMp -> LamMp -> LamMp) -> LamMp -> LamMp -> LamMp
 lamMpMergeInto mergeL2RInfo mergeL2RMp newMp prevMp
   = mergeL2RMp newMpMerge prevMp
   where newMpMerge
@@ -198,7 +198,7 @@ lamMpMergeInto mergeL2RInfo mergeL2RMp newMp prevMp
               (\n i -> maybe i (mergeL2RInfo i) $ Map.lookup n prevMp
               ) newMp
 %%]
-lamMpMergeInto2 :: (LamInfo -> LamInfo -> LamInfo) -> (LamMp -> LamMp -> LamMp) -> LamMp -> LamMp -> LamMp
+lamMpMergeInto2 :: (BindingInfo -> BindingInfo -> BindingInfo) -> (LamMp -> LamMp -> LamMp) -> LamMp -> LamMp -> LamMp
 lamMpMergeInto2 mergeL2RInfo mergeL2RMp newMp prevMp
   = mergeL2RMp newMpMerge prevMp
   where newMpMerge
@@ -207,28 +207,28 @@ lamMpMergeInto2 mergeL2RInfo mergeL2RMp newMp prevMp
               (\(Just x) _ -> x)
               mergeL2RInfo
               mergeL2RMp
-              emptyLamInfo
+              emptyBindingInfo
               newMp prevMp
 
 %%[(8 codegen) hs export(lamMpLookupAsp,lamMpLookupAsp2,lamMpLookupLam,lamMpLookupCaf)
-lamMpLookupAsp :: HsName -> ACoreBindAspectKeyS -> LamMp -> Maybe LamInfoBindAsp
+lamMpLookupAsp :: HsName -> ACoreBindAspectKeyS -> LamMp -> Maybe BindingInfoAsp
 lamMpLookupAsp n a m
   = fmap snd $ mapLookup2' laminfoBindAspMp n a m
 
-lamMpLookupAsp2 :: ACoreBindRef -> LamMp -> Maybe LamInfoBindAsp
+lamMpLookupAsp2 :: ACoreBindRef -> LamMp -> Maybe BindingInfoAsp
 lamMpLookupAsp2 (ACoreBindRef n (Just a)) m = lamMpLookupAsp n a m
 
 lamMpLookupLam :: HsName -> LamMp -> Maybe Int
 lamMpLookupLam n m
   = case Map.lookup n m of
-      j@(Just (LamInfo {laminfoArity=a})) | a > 0
+      j@(Just (BindingInfo {laminfoArity=a})) | a > 0
         -> Just a
       _ -> Nothing
 
 lamMpLookupCaf :: HsName -> LamMp -> Maybe Int
 lamMpLookupCaf n m
   = case Map.lookup n m of
-      j@(Just (LamInfo {laminfoArity=a})) | a == 0
+      j@(Just (BindingInfo {laminfoArity=a})) | a == 0
         -> Just a
       _ -> Nothing
 %%]
@@ -242,13 +242,13 @@ lamMpFilterCaf = Map.filter ((==0) . laminfoArity)
 %%]
 
 %%[(8 codegen) hs export(lamMpMergeFrom)
--- | merge info from arbitrary map m into LamMp holding LamInfo's
+-- | merge info from arbitrary map m into LamMp holding BindingInfo's
 lamMpMergeFrom
-  :: (LamInfo -> Maybe x)					-- extract relevant info from a LamInfo
-     -> (Maybe x -> LamInfo -> LamInfo)		-- set the info
-     -> (z -> x -> x)						-- merge info from new map and old info
-     -> LamInfo								-- default, empty LamInfo
-     -> Map.Map HsName z					-- arbitrary map holding info to merge
+  :: (BindingInfo -> Maybe x)				-- extract relevant info from a BindingInfo
+     -> (Maybe x -> BindingInfo -> BindingInfo)		-- set the info
+     -> (z -> x -> x)					-- merge info from new map and old info
+     -> BindingInfo					-- default, empty BindingInfo
+     -> Map.Map HsName z				-- arbitrary map holding info to merge
      -> LamMp -> LamMp
 lamMpMergeFrom get set merge empty m lm
   = Map.foldrWithKey (\n z lm -> Map.alter (Just . upd z) n lm)
@@ -257,14 +257,14 @@ lamMpMergeFrom get set merge empty m lm
         upd z Nothing  = set (Just (merge z         emptyExtra           )) empty
         emptyExtra = panicJust "lamMpMergeFrom" $ get $ empty
 %%]
--- | merge info from arbitrary map m into LamMp holding LamInfo's
+-- | merge info from arbitrary map m into LamMp holding BindingInfo's
 lamMpMergeFrom
-  :: (LamInfo -> Maybe x)					-- extract relevant info from a LamInfo
-     -> (Maybe x -> LamInfo -> LamInfo)		-- set the info
-     -> (z -> x -> x)						-- merge info from new map and old info
+  :: (BindingInfo -> Maybe x)				-- extract relevant info from a BindingInfo
+     -> (Maybe x -> BindingInfo -> BindingInfo)		-- set the info
+     -> (z -> x -> x)					-- merge info from new map and old info
      -> (LamMp -> LamMp -> LamMp)			-- merge the new into given mp
-     -> LamInfo								-- default, empty LamInfo
-     -> Map.Map HsName z					-- arbitrary map holding info to merge
+     -> BindingInfo					-- default, empty BindingInfo
+     -> Map.Map HsName z				-- arbitrary map holding info to merge
      -> LamMp -> LamMp
 lamMpMergeFrom get set merge mergeMp empty m lm
   = mergeMp
@@ -275,12 +275,12 @@ lamMpMergeFrom get set merge mergeMp empty m lm
         emptyExtra = panicJust "lamMpMergeFrom" $ get $ empty
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Function Info to be exported as part of LamInfo
+%%% Function Info to be exported as part of BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen grin) hs export(GrinByteCodeLamInfo(..),emptyGrinByteCodeLamInfo)
-data GrinByteCodeLamInfo
-  = GrinByteCodeLamInfo
+%%[(8 codegen grin) hs export(GrinByteCodeBindingInfo(..),emptyGrinByteCodeBindingInfo)
+data GrinByteCodeBindingInfo
+  = GrinByteCodeBindingInfo
       { gblaminfoFuninfoKey		:: !Int					-- index into FunctionInfo table, to be referred to outside this module only
       }
   deriving
@@ -290,8 +290,8 @@ data GrinByteCodeLamInfo
 %%]]
      )
 
-emptyGrinByteCodeLamInfo :: GrinByteCodeLamInfo
-emptyGrinByteCodeLamInfo = GrinByteCodeLamInfo (-1)
+emptyGrinByteCodeBindingInfo :: GrinByteCodeBindingInfo
+emptyGrinByteCodeBindingInfo = GrinByteCodeBindingInfo (-1)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -311,7 +311,7 @@ initLamMp
       ]
   where mk get mlev l
           = lamMpUnionsBindAspMp [ mk1 (mlev + 1) n (SysF.ty2TySysf $ get t) | (n,t) <- l ]
-          where mk1 l n e = Map.singleton n (emptyLamInfo {laminfoBindAspMp = Map.fromList [(acbaspkeyDefaultSysfTy l, LamInfoBindAsp_Core l e)]})
+          where mk1 l n e = Map.singleton n (emptyBindingInfo {laminfoBindAspMp = Map.fromList [(acbaspkeyDefaultSysfTy l, BindingInfoAsp_Core l e)]})
 %%][8
 initLamMp = emptyLamMp
 %%]]
@@ -322,9 +322,9 @@ initLamMp = emptyLamMp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(50 codegen grin) hs
-instance Serialize GrinByteCodeLamInfo where
-  sput (GrinByteCodeLamInfo a) = sput a
-  sget = liftM  GrinByteCodeLamInfo sget
+instance Serialize GrinByteCodeBindingInfo where
+  sput (GrinByteCodeBindingInfo a) = sput a
+  sget = liftM  GrinByteCodeBindingInfo sget
 
 %%[[93
 instance Serialize FusionRole where
@@ -332,32 +332,32 @@ instance Serialize FusionRole where
   sget = sgetEnum8
 %%]]
 
-instance Serialize LamInfoBindAsp where
-  sput (LamInfoBindAsp_RelevTy  	a) = sputWord8 0 >> sput a
-  sput (LamInfoBindAsp_Ty 			a) = sputWord8 1 >> sput a
-  sput (LamInfoBindAsp_Core 	  a b) = sputWord8 2 >> sput a >> sput b
+instance Serialize BindingInfoAsp where
+  sput (BindingInfoAsp_RelevTy  	a) = sputWord8 0 >> sput a
+  sput (BindingInfoAsp_Ty 		a) = sputWord8 1 >> sput a
+  sput (BindingInfoAsp_Core 	a b) = sputWord8 2 >> sput a >> sput b
 %%[[93
-  sput (LamInfoBindAsp_FusionRole 	a) = sputWord8 3 >> sput a
+  sput (BindingInfoAsp_FusionRole 	a) = sputWord8 3 >> sput a
 %%]]
 %%[[(8888 coresysf)
-  sput (LamInfoBindAsp_SysfTy   	a) = sputWord8 4 >> sput a
+  sput (BindingInfoAsp_SysfTy   	a) = sputWord8 4 >> sput a
 %%]]
   sget = do
     t <- sgetWord8
     case t of
-      0 -> liftM  LamInfoBindAsp_RelevTy  	sget
-      1 -> liftM  LamInfoBindAsp_Ty 		sget
-      2 -> liftM2 LamInfoBindAsp_Core 		sget sget
+      0 -> liftM  BindingInfoAsp_RelevTy  	sget
+      1 -> liftM  BindingInfoAsp_Ty 		sget
+      2 -> liftM2 BindingInfoAsp_Core 		sget sget
 %%[[93
-      3 -> liftM  LamInfoBindAsp_FusionRole sget
+      3 -> liftM  BindingInfoAsp_FusionRole sget
 %%]]
 %%[[(8888 coresysf)
-      4 -> liftM  LamInfoBindAsp_SysfTy		sget
+      4 -> liftM  BindingInfoAsp_SysfTy		sget
 %%]]
 
-instance Serialize LamInfo where
-  sput (LamInfo a b c d) = sput a >> sput b >> sput c >> sput d
-  sget = liftM4 LamInfo  sget sget sget sget
+instance Serialize BindingInfo where
+  sput (BindingInfo a b c d) = sput a >> sput b >> sput c >> sput d
+  sget = liftM4 BindingInfo  sget sget sget sget
 
 instance Serialize StackTraceInfo where
   sput (StackTraceInfo_None                ) = sputWord8 0

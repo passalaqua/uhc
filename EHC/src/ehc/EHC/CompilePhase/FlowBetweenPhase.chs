@@ -52,7 +52,7 @@ XXX
 %%[9999 import({%{EH}Base.ForceEval})
 %%]
 
--- Misc info: LamInfo/LamMp
+-- Misc info: BindingInfo/LamMp
 %%[(8 codegen) hs import({%{EH}LamInfo})
 %%]
 

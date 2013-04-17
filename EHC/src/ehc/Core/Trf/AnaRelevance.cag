@@ -110,30 +110,30 @@ SEM CodeAGItf
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering LamInfo, providing hook for Core/CommonLamInfo
+%%% Gathering BindingInfo, providing hook for Core/CommonLamInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .	howUnionGathLamInfo
+  | AGItf       loc         .	howUnionGathBindingInfo
   												=	id
 %%]
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeLamInfo	=   (\(LamInfo {laminfoBindAspMp=m}) i -> i {laminfoBindAspMp = m `Map.union` laminfoBindAspMp i})
+  | AGItf       loc         .   howMergeBindingInfo	=   (\(BindingInfo {laminfoBindAspMp=m}) i -> i {laminfoBindAspMp = m `Map.union` laminfoBindAspMp i})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Newly bound LamInfo
+%%% Newly bound BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen grin)
 SEM CBound
   | Bind        loc         .   doBindStrict    =   WhatToRelevInfer_InstToBot `elem` @lhs.whatTo
-                lhs         .   bindLamMp       =   let l = [ (acbaspkeyDefaultRelevTy, LamInfoBindAsp_RelevTy @bindTy) ]
-                                                            -- ++ (if @doBindStrict then [(acbaspkeyStrict, LamInfoBindAsp_RelevTy @strictTy2)] else [])
-                                                    in  Map.singleton @lhs.nm (emptyLamInfo {laminfoBindAspMp = Map.fromList l})
+                lhs         .   bindLamMp       =   let l = [ (acbaspkeyDefaultRelevTy, BindingInfoAsp_RelevTy @bindTy) ]
+                                                            -- ++ (if @doBindStrict then [(acbaspkeyStrict, BindingInfoAsp_RelevTy @strictTy2)] else [])
+                                                    in  Map.singleton @lhs.nm (emptyBindingInfo {laminfoBindAspMp = Map.fromList l})
                 loc         .   doBindStrict    :   Bool
 %%]
 

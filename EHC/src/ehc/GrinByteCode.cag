@@ -368,7 +368,7 @@ emptyFunctionInfo = FunctionInfo "" hsnUnknown 1 []
 %%]
 
 %%[(50 codegen grin) hs export(FunctionInfoExportMp)
-type FunctionInfoExportMp = Map.Map HsName GrinByteCodeLamInfo			-- to index into table of FunctionInfos, to be included in HIInfo
+type FunctionInfoExportMp = Map.Map HsName GrinByteCodeBindingInfo			-- to index into table of FunctionInfos, to be included in HIInfo
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
