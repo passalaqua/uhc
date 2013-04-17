@@ -45,12 +45,12 @@ PRAGMA nocycle
 %%[(8 codegen coresysf) hs export(CheckEnv(..),emptyCheckEnv)
 data CheckEnv
   = CheckEnv
-      { cenvLamMp       :: LamMp
+      { cenvBindingMp       :: BindingMp
       }
 
 emptyCheckEnv
   = CheckEnv
-      emptyLamMp
+      emptyBindingMp
 %%]
 
 %%[(8 codegen coresysf) hs export(cmodSysfCheck)
@@ -168,7 +168,7 @@ Use:
 SEM CExpr
   | Var         loc         .   (st,undefNmMp)      =   let lk mlev r
                                                               =   gamLookupMetaLev mlev r @lhs.gam
-                                                              <|> fmap libindaspCore (lamMpLookupAsp (acbrefNm r) (acbaspkeyDefaultSysfTy mlev) (cenvLamMp @lhs.env))
+                                                              <|> fmap libindaspCore (lamMpLookupAsp (acbrefNm r) (acbaspkeyDefaultSysfTy mlev) (cenvBindingMp @lhs.env))
                                                         in  chkLkup' Map.empty (\l r -> Map.singleton l [r]) (@lhs.mlev+1) @ref lk
 %%]
 

@@ -47,7 +47,7 @@ grinMod2ByteCodeMod opts gmod
 %%]
 
 %%[(50 codegen grin) -8.grinMod2ByteCodeMod hs export(grinMod2ByteCodeMod)
-grinMod2ByteCodeMod :: EHCOpts -> LamMp -> [HsName] -> {- [HsName] -> -} HsName2OffsetMpMp -> HsName2OffsetMp -> GrModule -> (GB.Module,[Err])
+grinMod2ByteCodeMod :: EHCOpts -> BindingMp -> [HsName] -> {- [HsName] -> -} HsName2OffsetMpMp -> HsName2OffsetMp -> GrModule -> (GB.Module,[Err])
 grinMod2ByteCodeMod opts lamMp allImpNmL {- impNmL -} impNmOffMpMp expNmOffMp gmod
   =  let  t = wrap_GrAGItf  (sem_GrAGItf (GrAGItf_AGItf gmod))
                             (Inh_GrAGItf
@@ -107,7 +107,7 @@ PRAGMA nocycle
 ATTR AllBind AllGrExpr GrModule GrAGItf
   [ opts: EHCOpts
 %%[[50
-    lamMp: LamMp
+    lamMp: BindingMp
 %%]]
   | |
   ]
@@ -526,7 +526,7 @@ SEM GrExpr
                                                       { GB.neVAGam = @lhs.vaGam
 %%[[50
                                                       , GB.neImpNmMp = @lhs.impNmOffMpMp
-                                                      , GB.neLamMp   = @lhs.lamMp
+                                                      , GB.neBindingMp   = @lhs.lamMp
 %%]]
                                                       }
 
@@ -535,7 +535,7 @@ SEM GrBind
                                                       { GB.neVAGam = @lhs.vaGam
 %%[[50
                                                       , GB.neImpNmMp = @lhs.impNmOffMpMp
-                                                      , GB.neLamMp   = @lhs.lamMp
+                                                      , GB.neBindingMp   = @lhs.lamMp
 %%]]
                                                       }
 
@@ -544,7 +544,7 @@ SEM GrModule
                                                       { GB.neVAGam = @vaGam
 %%[[50
                                                       , GB.neImpNmMp = @lhs.impNmOffMpMp
-                                                      , GB.neLamMp   = @lhs.lamMp
+                                                      , GB.neBindingMp   = @lhs.lamMp
 %%]]
                                                       }
 %%]

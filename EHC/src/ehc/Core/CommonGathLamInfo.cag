@@ -25,16 +25,16 @@ Hook(s):
 ATTR
   CModule CExpr
   CodeAGItf
-    [ | | gathLamMp: LamMp ]
+    [ | | gathBindingMp: BindingMp ]
 
 SEM CExpr
-  | Let         lhs         .   gathLamMp 	=   @binds.bindLamMp `Map.union` @body.gathLamMp
+  | Let         lhs         .   gathBindingMp 	=   @binds.bindBindingMp `Map.union` @body.gathBindingMp
   | * - Let Ann CaseAltFail
-  				lhs         .   gathLamMp 	=   Map.empty
+  				lhs         .   gathBindingMp 	=   Map.empty
 %%]
 
 %%[(8 codegen)
-ATTR AllBind [ | | bindLamMp USE {`lamMpUnionBindAspMp`} {Map.empty}: LamMp ]
+ATTR AllBind [ | | bindBindingMp USE {`lamMpUnionBindAspMp`} {Map.empty}: BindingMp ]
 
 %%]
 
@@ -44,7 +44,7 @@ ATTR AllBind [ | | bindLamMp USE {`lamMpUnionBindAspMp`} {Map.empty}: LamMp ]
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   gathLamMp   =   lamMpMergeInto @howMergeBindingInfo const @module.gathLamMp @lhs.lamMp -- lamMpUpdateWith @lhs.lamMp @module.gathLamMp
+  | AGItf       loc         .   gathBindingMp   =   lamMpMergeInto @howMergeBindingInfo const @module.gathBindingMp @lhs.lamMp -- lamMpUpdateWith @lhs.lamMp @module.gathBindingMp
                 module      .   lamMp       =   @howUnionGathBindingInfo @lhs.lamMp
 %%]
 

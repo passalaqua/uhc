@@ -37,11 +37,11 @@ cmodTrfEraseExtractTysigCore
   :: EHCOpts
      -> CModule
      -> ( CModule
-        , LamMp
+        , BindingMp
         )
 cmodTrfEraseExtractTysigCore opts cmod
   = ( cTrf_Syn_CodeAGItf t
-    , gathLamMp_Syn_CodeAGItf t
+    , gathBindingMp_Syn_CodeAGItf t
     )
   where t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                            (Inh_CodeAGItf
@@ -90,7 +90,7 @@ SEM CBound
 %%[[(8 coresysf)
     Val
 %%]]
-                lhs         .   bindLamMp       =   Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList @bindLamL})
+                lhs         .   bindBindingMp       =   Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList @bindLamL})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

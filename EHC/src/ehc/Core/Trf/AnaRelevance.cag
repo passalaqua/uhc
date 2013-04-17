@@ -60,10 +60,10 @@ PRAGMA nocycle
 cmodTrfAnaRelevance
   :: EHCOpts
      -> DataGam
-     -> LamMp
+     -> BindingMp
      -> CModule
      -> ( CModule
-        , LamMp
+        , BindingMp
         )
 cmodTrfAnaRelevance
      opts dataGam
@@ -76,7 +76,7 @@ cmodTrfAnaRelevance
                                , lamMp_Inh_CodeAGItf = lamMp
                                })
      in   ( cTrf_Syn_CodeAGItf t
-          , gathLamMp_Syn_CodeAGItf t
+          , gathBindingMp_Syn_CodeAGItf t
           )
 %%]
 
@@ -131,7 +131,7 @@ SEM CodeAGItf
 %%[(8 codegen grin)
 SEM CBound
   | Bind        loc         .   doBindStrict    =   WhatToRelevInfer_InstToBot `elem` @lhs.whatTo
-                lhs         .   bindLamMp       =   let l = [ (acbaspkeyDefaultRelevTy, BindingInfoAsp_RelevTy @bindTy) ]
+                lhs         .   bindBindingMp   =   let l = [ (acbaspkeyDefaultRelevTy, BindingInfoAsp_RelevTy @bindTy) ]
                                                             -- ++ (if @doBindStrict then [(acbaspkeyStrict, BindingInfoAsp_RelevTy @strictTy2)] else [])
                                                     in  Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList l})
                 loc         .   doBindStrict    :   Bool
@@ -168,8 +168,8 @@ SEM *
 %%[(8 codegen) hs
 type REnv    = Gam HsName RelevTy
 
--- | lookup in REnv first, then global LamMp
-renvLookup :: HsName -> REnv -> LamMp -> Maybe RelevTy
+-- | lookup in REnv first, then global BindingMp
+renvLookup :: HsName -> REnv -> BindingMp -> Maybe RelevTy
 renvLookup n renv lammp = gamLookup n renv <|> (fmap libindaspRelevTy $ lamMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
 %%]
 

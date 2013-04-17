@@ -21,7 +21,7 @@ SEM Decl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR AGItf Expr AllDecl [ | | gathLamMp USE {`lamMpUnionBindAspMp`} {Map.empty}: LamMp ]
+ATTR AGItf Expr AllDecl [ | | gathBindingMp USE {`lamMpUnionBindAspMp`} {Map.empty}: BindingMp ]
 
 %%]
 
@@ -31,10 +31,10 @@ ATTR AGItf Expr AllDecl [ | | gathLamMp USE {`lamMpUnionBindAspMp`} {Map.empty}:
 
 %%[(93 codegen)
 SEM Decl
-  | FusionDecl  lhs         .   gathLamMp           =   Map.singleton
+  | FusionDecl  lhs         .   gathBindingMp           =   Map.singleton
                                                             @fuseNm
                                                             (emptyBindingInfo {bindinginfoAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_Fuse)})
-  | FusionConv  lhs         .   gathLamMp           =   Map.fromList
+  | FusionConv  lhs         .   gathBindingMp           =   Map.fromList
                                                             [ ( @conNm, emptyBindingInfo {bindinginfoAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_BuildLeft)} )
                                                             , ( @absNm, emptyBindingInfo {bindinginfoAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_BuildRight)} )
                                                             ]

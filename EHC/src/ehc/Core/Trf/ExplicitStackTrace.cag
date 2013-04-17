@@ -44,7 +44,7 @@ PRAGMA nocycle
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(99 codegen) hs export(cmodTrfExplicitStackTrace)
-cmodTrfExplicitStackTrace :: EHCOpts -> LamMp -> CModule -> (CModule,LamMp)
+cmodTrfExplicitStackTrace :: EHCOpts -> BindingMp -> CModule -> (CModule,BindingMp)
 cmodTrfExplicitStackTrace opts lamMp cmod
   =  let  t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                              (Inh_CodeAGItf
@@ -52,9 +52,9 @@ cmodTrfExplicitStackTrace opts lamMp cmod
                                , lamMp_Inh_CodeAGItf = lamMp
                                })
      in   ( cTrf_Syn_CodeAGItf t
-          , debugLamMp_Syn_CodeAGItf t `Map.union`
-            gathLamMp_Syn_CodeAGItf  t
-            -- [ | (n,) <- debugLamMp_Syn_CodeAGItf t ]
+          , debugBindingMp_Syn_CodeAGItf t `Map.union`
+            gathBindingMp_Syn_CodeAGItf  t
+            -- [ | (n,) <- debugBindingMp_Syn_CodeAGItf t ]
           )
 %%]
 
@@ -73,7 +73,7 @@ ATTR AllCodeNT CodeAGItf [ opts: EHCOpts | | ]
 %%[(99 codegen)
 SEM CodeAGItf
   | AGItf       loc         .	howUnionGathBindingInfo
-  												=	Map.union @gathLamMp
+  												=	Map.union @gathBindingMp
 %%]
 
 %%[(99 codegen)
@@ -138,7 +138,7 @@ mbStackTrace opts isCand nm
 
 %%[(99 codegen)
 SEM CBound
-  | Bind        (loc.mbStackTrace,lhs.bindLamMp)
+  | Bind        (loc.mbStackTrace,lhs.bindBindingMp)
                                             =   let mbt = mbStackTrace @lhs.opts @isTraceCandidate @lhs.nm
                                                 in  (mbt,Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoStackTrace = mbt}))
 %%]
@@ -168,7 +168,7 @@ SEM CBound
 ATTR AllBind [ | | bindCTrfL USE {++} {[]}: {[CBind]} ]
 
 SEM CBound
-  | Bind        (loc.bindCTrfL,loc.mbInStackTraceCtxt,loc.newLamMp)
+  | Bind        (loc.bindCTrfL,loc.mbInStackTraceCtxt,loc.newBindingMp)
                                             =   case @mbStackTrace of
                                                   StackTraceInfo_HasStackTraceEquiv dbNm | @isTraceCandidate
                                                     -> ( [ acoreBind1Cat CBindCateg_Plain dbNm (acoreLam1 @nmStackTrace @expr.cTrf) 
@@ -212,11 +212,11 @@ SEM CExpr
 ATTR
   AllCodeNT
   CodeAGItf
-    [ | | debugLamMp USE {`Map.union`} {Map.empty}: LamMp ]
+    [ | | debugBindingMp USE {`Map.union`} {Map.empty}: BindingMp ]
 
 SEM CBound
-  | Bind        lhs         .   debugLamMp
-                                            =   @newLamMp `Map.union` @expr.debugLamMp
+  | Bind        lhs         .   debugBindingMp
+                                            =   @newBindingMp `Map.union` @expr.debugBindingMp
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

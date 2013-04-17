@@ -23,7 +23,7 @@ Hook(s):
 ATTR
   AllCodeNT
   CodeAGItf
-    [ lamMp: LamMp | | ]
+    [ lamMp: BindingMp | | ]
 %%]
 
 %%[(8 codegen)

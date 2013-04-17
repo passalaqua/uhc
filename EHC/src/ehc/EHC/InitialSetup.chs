@@ -30,7 +30,7 @@ Initial values
 %%[50 import(qualified {%{EH}HS.ModImpExp} as HSSemMod)
 %%]
 
--- LamMp, SysF
+-- BindingMp, SysF
 %%[8 import({%{EH}LamInfo})
 %%]
 
@@ -99,7 +99,7 @@ initialCore2GrSem opts
       { Core2GrSem.gUniq_Inh_CodeAGItf           = uidStart
       , Core2GrSem.dataGam_Inh_CodeAGItf         = emptyGam
       , Core2GrSem.opts_Inh_CodeAGItf            = opts
-      , Core2GrSem.lamMp_Inh_CodeAGItf           = initLamMp
+      , Core2GrSem.lamMp_Inh_CodeAGItf           = initBindingMp
       }
 %%]
 

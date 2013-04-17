@@ -70,8 +70,8 @@ data TrfTyCore
       , trftycoreExpNmOffMp     :: !HsName2OffsetMp
 %%]]
 %%[[99
-      , trftycoreInhLamMp       :: !LamMp       -- from context
-      , trftycoreGathLamMp      :: !LamMp       -- gathered anew
+      , trftycoreInhBindingMp       :: !BindingMp       -- from context
+      , trftycoreGathBindingMp      :: !BindingMp       -- gathered anew
       , trftycoreExtraExports   :: !FvS         -- extra exported names, introduced by transformations
 %%]]
       }

@@ -37,7 +37,7 @@ WRAPPER
 %%]
 
 %%[(8 codegen) hs
-ppCModule :: EHCOpts -> {- LamMp -> -} CModule -> PP_Doc
+ppCModule :: EHCOpts -> {- BindingMp -> -} CModule -> PP_Doc
 ppCModule opts {- lamMp -} cmod
   =  let  t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                              (Inh_CodeAGItf
@@ -249,7 +249,7 @@ SEM ValBind
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8888 codegen)
-ATTR CodeAGItf AllCodeNT [ lamMp: LamMp | | ]
+ATTR CodeAGItf AllCodeNT [ lamMp: BindingMp | | ]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

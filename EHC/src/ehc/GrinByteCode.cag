@@ -726,7 +726,7 @@ data NmEnv
       { neVAGam     :: ValAccessGam
 %%[[50
       , neImpNmMp   :: HsName2OffsetMpMp
-      , neLamMp     :: LamMp
+      , neBindingMp     :: BindingMp
 %%]]
       }
 %%]
@@ -746,7 +746,7 @@ nmEnvLookup nm env
               ; eo <- Map.lookup nm entryMp
               ; return (Val_ImpEntry mo eo
                                      {- (maybe (-1) id
-                                      $ do { li <- Map.lookup nm $ neLamMp env
+                                      $ do { li <- Map.lookup nm $ neBindingMp env
                                            ; fi <- bindinginfoGrinByteCode li
                                            ; return (gbbindinginfoFuninfoKey fi)
                                            }

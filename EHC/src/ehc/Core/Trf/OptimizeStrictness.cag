@@ -52,10 +52,10 @@ PRAGMA nocycle novisit
 %%[(8 codegen) hs export(cmodTrfOptimizeStrictness)
 cmodTrfOptimizeStrictness
   :: EHCOpts
-     -> LamMp
+     -> BindingMp
      -> CModule
      -> ( CModule
-        , LamMp
+        , BindingMp
         )
 cmodTrfOptimizeStrictness
      opts
@@ -67,7 +67,7 @@ cmodTrfOptimizeStrictness
                                , lamMp_Inh_CodeAGItf = lamMp
                                })
      in   ( cTrf_Syn_CodeAGItf t
-          , gathLamMp_Syn_CodeAGItf t
+          , gathBindingMp_Syn_CodeAGItf t
           )
 %%]
 
@@ -95,7 +95,7 @@ ATTR CodeAGItf [ | | cTrf: CModule ]
 %%[(8 codegen)
 SEM CodeAGItf
   | AGItf       loc         .   howUnionGathBindingInfo
-                                                =   Map.union @gathLamMp
+                                                =   Map.union @gathBindingMp
 %%]
 
 %%[(8 codegen)
@@ -109,7 +109,7 @@ SEM CodeAGItf
 
 %%[(8 codegen grin)
 SEM CBind
-  | Bind        lhs         .   bindLamMp       =   case @mbStrictArgsRes of
+  | Bind        lhs         .   bindBindingMp   =   case @mbStrictArgsRes of
                                                       Just (t,_,_) -> Map.singleton @nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList l})
                                                                    where l = [(acbaspkeyStrict, BindingInfoAsp_RelevTy t)]
                                                       _            -> Map.empty

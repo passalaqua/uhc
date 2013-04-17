@@ -134,7 +134,7 @@ instance PP BindingInfoAsp where
 %%]
 
 %%[(8 codegen) hs export(BindingInfo(..),emptyBindingInfo,emptyBindingInfo')
--- | per lambda implementation info
+-- | per binding implementation info
 data BindingInfo
   = BindingInfo
       { bindinginfoArity			:: !Int					-- arity of function
@@ -167,30 +167,30 @@ bindinginfo1stArgIsStackTrace _                                                 
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% LamMp, map for maintaining implementation info about functions
+%%% BindingMp, map for maintaining implementation info about functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 20100822 AD: Note: lamMpMergeInto and lamMpMergeFrom probably can be combined, but currently subtly differ in the flow of info.
 
-%%[(8 codegen) hs export(LamMp,emptyLamMp)
-type LamMp    = Map.Map HsName BindingInfo
+%%[(8 codegen) hs export(BindingMp,emptyBindingMp)
+type BindingMp    = Map.Map HsName BindingInfo
 
-emptyLamMp :: LamMp
-emptyLamMp = Map.empty
+emptyBindingMp :: BindingMp
+emptyBindingMp = Map.empty
 %%]
 
 %%[(8 codegen) hs export(lamMpUnionBindAspMp,lamMpUnionsBindAspMp)
 -- union, including the aspect map, but arbitrary for the info itself
-lamMpUnionBindAspMp :: LamMp -> LamMp -> LamMp
+lamMpUnionBindAspMp :: BindingMp -> BindingMp -> BindingMp
 lamMpUnionBindAspMp = Map.unionWith (\i1 i2 -> i1 {bindinginfoAspMp = bindinginfoAspMp i1 `Map.union` bindinginfoAspMp i2})
 
-lamMpUnionsBindAspMp :: [LamMp] -> LamMp
+lamMpUnionsBindAspMp :: [BindingMp] -> BindingMp
 lamMpUnionsBindAspMp = foldr lamMpUnionBindAspMp Map.empty
 %%]
 
 %%[(8 codegen) hs export(lamMpMergeInto)
 -- propagate from new (left) to prev (right), adding new entries if necessary, combining with mergeL2RInfo, finally combining/choosing maps with mergeL2RMp
-lamMpMergeInto :: (BindingInfo -> BindingInfo -> BindingInfo) -> (LamMp -> LamMp -> LamMp) -> LamMp -> LamMp -> LamMp
+lamMpMergeInto :: (BindingInfo -> BindingInfo -> BindingInfo) -> (BindingMp -> BindingMp -> BindingMp) -> BindingMp -> BindingMp -> BindingMp
 lamMpMergeInto mergeL2RInfo mergeL2RMp newMp prevMp
   = mergeL2RMp newMpMerge prevMp
   where newMpMerge
@@ -198,7 +198,7 @@ lamMpMergeInto mergeL2RInfo mergeL2RMp newMp prevMp
               (\n i -> maybe i (mergeL2RInfo i) $ Map.lookup n prevMp
               ) newMp
 %%]
-lamMpMergeInto2 :: (BindingInfo -> BindingInfo -> BindingInfo) -> (LamMp -> LamMp -> LamMp) -> LamMp -> LamMp -> LamMp
+lamMpMergeInto2 :: (BindingInfo -> BindingInfo -> BindingInfo) -> (BindingMp -> BindingMp -> BindingMp) -> BindingMp -> BindingMp -> BindingMp
 lamMpMergeInto2 mergeL2RInfo mergeL2RMp newMp prevMp
   = mergeL2RMp newMpMerge prevMp
   where newMpMerge
@@ -211,21 +211,21 @@ lamMpMergeInto2 mergeL2RInfo mergeL2RMp newMp prevMp
               newMp prevMp
 
 %%[(8 codegen) hs export(lamMpLookupAsp,lamMpLookupAsp2,lamMpLookupLam,lamMpLookupCaf)
-lamMpLookupAsp :: HsName -> ACoreBindAspectKeyS -> LamMp -> Maybe BindingInfoAsp
+lamMpLookupAsp :: HsName -> ACoreBindAspectKeyS -> BindingMp -> Maybe BindingInfoAsp
 lamMpLookupAsp n a m
   = fmap snd $ mapLookup2' bindinginfoAspMp n a m
 
-lamMpLookupAsp2 :: ACoreBindRef -> LamMp -> Maybe BindingInfoAsp
+lamMpLookupAsp2 :: ACoreBindRef -> BindingMp -> Maybe BindingInfoAsp
 lamMpLookupAsp2 (ACoreBindRef n (Just a)) m = lamMpLookupAsp n a m
 
-lamMpLookupLam :: HsName -> LamMp -> Maybe Int
+lamMpLookupLam :: HsName -> BindingMp -> Maybe Int
 lamMpLookupLam n m
   = case Map.lookup n m of
       j@(Just (BindingInfo {bindinginfoArity=a})) | a > 0
         -> Just a
       _ -> Nothing
 
-lamMpLookupCaf :: HsName -> LamMp -> Maybe Int
+lamMpLookupCaf :: HsName -> BindingMp -> Maybe Int
 lamMpLookupCaf n m
   = case Map.lookup n m of
       j@(Just (BindingInfo {bindinginfoArity=a})) | a == 0
@@ -234,22 +234,22 @@ lamMpLookupCaf n m
 %%]
 
 %%[(8 codegen) hs export(lamMpFilterLam,lamMpFilterCaf)
-lamMpFilterLam :: LamMp -> LamMp
+lamMpFilterLam :: BindingMp -> BindingMp
 lamMpFilterLam = Map.filter ((>0) . bindinginfoArity)
 
-lamMpFilterCaf :: LamMp -> LamMp
+lamMpFilterCaf :: BindingMp -> BindingMp
 lamMpFilterCaf = Map.filter ((==0) . bindinginfoArity)
 %%]
 
 %%[(8 codegen) hs export(lamMpMergeFrom)
--- | merge info from arbitrary map m into LamMp holding BindingInfo's
+-- | merge info from arbitrary map m into BindingMp holding BindingInfo's
 lamMpMergeFrom
   :: (BindingInfo -> Maybe x)				-- extract relevant info from a BindingInfo
      -> (Maybe x -> BindingInfo -> BindingInfo)		-- set the info
      -> (z -> x -> x)					-- merge info from new map and old info
      -> BindingInfo					-- default, empty BindingInfo
      -> Map.Map HsName z				-- arbitrary map holding info to merge
-     -> LamMp -> LamMp
+     -> BindingMp -> BindingMp
 lamMpMergeFrom get set merge empty m lm
   = Map.foldrWithKey (\n z lm -> Map.alter (Just . upd z) n lm)
                     lm m
@@ -257,15 +257,15 @@ lamMpMergeFrom get set merge empty m lm
         upd z Nothing  = set (Just (merge z         emptyExtra           )) empty
         emptyExtra = panicJust "lamMpMergeFrom" $ get $ empty
 %%]
--- | merge info from arbitrary map m into LamMp holding BindingInfo's
+-- | merge info from arbitrary map m into BindingMp holding BindingInfo's
 lamMpMergeFrom
   :: (BindingInfo -> Maybe x)				-- extract relevant info from a BindingInfo
      -> (Maybe x -> BindingInfo -> BindingInfo)		-- set the info
      -> (z -> x -> x)					-- merge info from new map and old info
-     -> (LamMp -> LamMp -> LamMp)			-- merge the new into given mp
+     -> (BindingMp -> BindingMp -> BindingMp)			-- merge the new into given mp
      -> BindingInfo					-- default, empty BindingInfo
      -> Map.Map HsName z				-- arbitrary map holding info to merge
-     -> LamMp -> LamMp
+     -> BindingMp -> BindingMp
 lamMpMergeFrom get set merge mergeMp empty m lm
   = mergeMp
       (Map.mapWithKey (\n z -> upd z $ Map.lookup n lm) m)
@@ -295,13 +295,13 @@ emptyGrinByteCodeBindingInfo = GrinByteCodeBindingInfo (-1)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Initial LamMp
+%%% Initial BindingMp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(initLamMp)
-initLamMp :: LamMp
+%%[(8 codegen) hs export(initBindingMp)
+initBindingMp :: BindingMp
 %%[[(8 coresysf)
-initLamMp
+initBindingMp
   = lamMpUnionsBindAspMp
       [ mk tkgiKi         metaLevTy [ (n,x) | (TyKiKey_Name n,x) <- gamToAssocL initTyKiGam]
       {-
@@ -313,7 +313,7 @@ initLamMp
           = lamMpUnionsBindAspMp [ mk1 (mlev + 1) n (SysF.ty2TySysf $ get t) | (n,t) <- l ]
           where mk1 l n e = Map.singleton n (emptyBindingInfo {bindinginfoAspMp = Map.fromList [(acbaspkeyDefaultSysfTy l, BindingInfoAsp_Core l e)]})
 %%][8
-initLamMp = emptyLamMp
+initBindingMp = emptyBindingMp
 %%]]
 %%]
 

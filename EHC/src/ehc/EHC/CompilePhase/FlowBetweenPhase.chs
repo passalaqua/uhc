@@ -52,7 +52,7 @@ XXX
 %%[9999 import({%{EH}Base.ForceEval})
 %%]
 
--- Misc info: BindingInfo/LamMp
+-- Misc info: BindingInfo/BindingMp
 %%[(8 codegen) hs import({%{EH}LamInfo})
 %%]
 
@@ -150,7 +150,7 @@ cpFlowEHSem1 modNm
                  cs       = prepFlow $! EHSem.gathChrStore_Syn_AGItf   ehSem
 %%]]
 %%[[(50 hmtyinfer)
-                 lm       = prepFlow $! EHSem.gathLamMp_Syn_AGItf      ehSem
+                 lm       = prepFlow $! EHSem.gathBindingMp_Syn_AGItf      ehSem
 %%]]
 %%[[50
                  mmi      = panicJust "cpFlowEHSem1.crsiModMp" $ Map.lookup modNm $ crsiModMp crsi
@@ -184,7 +184,7 @@ cpFlowEHSem1 modNm
                               , HI.hiiClGam         = clg
                               , HI.hiiClDfGam       = dfg
                               , HI.hiiCHRStore      = {- HI.hiiScopedPredStoreToList -} cs
-                              -- , HI.hiiLamMp         = lm
+                              -- , HI.hiiBindingMp         = lm
 %%]]
                               }
 %%]]
@@ -192,7 +192,7 @@ cpFlowEHSem1 modNm
                  coreInh' = coreInh
 %%[[8
                               { Core2GrSem.dataGam_Inh_CodeAGItf = EHSem.gathDataGam_Syn_AGItf ehSem
-                              , Core2GrSem.lamMp_Inh_CodeAGItf   = EHSem.gathLamMp_Syn_AGItf   ehSem
+                              , Core2GrSem.lamMp_Inh_CodeAGItf   = EHSem.gathBindingMp_Syn_AGItf   ehSem
 %%][50
                               { Core2GrSem.dataGam_Inh_CodeAGItf = EHSem.dataGam_Inh_AGItf     ehInh'
                               , Core2GrSem.lamMp_Inh_CodeAGItf   = lm `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh		-- assumption: no duplicates, otherwise merging as done later has to be done
@@ -256,7 +256,7 @@ cpFlowHISem modNm
 %%[[(50 codegen)
                  coreInh  = crsiCoreInh crsi
                  coreInh' = coreInh
-                              { Core2GrSem.lamMp_Inh_CodeAGItf   = (HI.hiiLamMp hiInfo) `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh
+                              { Core2GrSem.lamMp_Inh_CodeAGItf   = (HI.hiiBindingMp hiInfo) `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh
                               }
 %%]]
                  optim    = crsiOptim crsi
@@ -290,7 +290,7 @@ cpFlowCoreSem modNm
                  
                  coreInh  = crsiCoreInh crsi
                  hii      = ecuHIInfo ecu
-                 am       = prepFlow $! Core2GrSem.gathLamMp_Syn_CodeAGItf coreSem
+                 am       = prepFlow $! Core2GrSem.gathBindingMp_Syn_CodeAGItf coreSem
                  coreInh' = coreInh
                               { Core2GrSem.lamMp_Inh_CodeAGItf   = am `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh	-- assumption: old info can be overridden, otherwise merge should be done here
                               }
@@ -298,7 +298,7 @@ cpFlowCoreSem modNm
 %%[[(50 codegen grin)
                               { -- 20100717 AD: required here because of inlining etc, TBD
                                 {- -} HI.hiiHIUsedImpModS = usedImpS
-                              , {- -} HI.hiiLamMp         = am
+                              , {- -} HI.hiiBindingMp         = am
                               }
 %%]]
          ;  when (isJust (ecuMbCoreSem ecu))
@@ -312,16 +312,16 @@ cpFlowCoreSem modNm
          }
 %%]
 
-%%[(50 codegen) export(cpFlowHILamMp)
-cpFlowHILamMp :: HsName -> EHCompilePhase ()
-cpFlowHILamMp modNm
+%%[(50 codegen) export(cpFlowHIBindingMp)
+cpFlowHIBindingMp :: HsName -> EHCompilePhase ()
+cpFlowHIBindingMp modNm
   = do { cr <- get
        ; let  (ecu,crsi,opts,_) = crBaseInfo modNm cr
               coreInh  = crsiCoreInh crsi
               hii      = ecuHIInfo ecu
 
          -- put back result: call info map (lambda arity, ...), overwriting previous entries
-       ; cpUpdSI (\crsi -> crsi {crsiCoreInh = coreInh {Core2GrSem.lamMp_Inh_CodeAGItf = HI.hiiLamMp hii `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh}})
+       ; cpUpdSI (\crsi -> crsi {crsiCoreInh = coreInh {Core2GrSem.lamMp_Inh_CodeAGItf = HI.hiiBindingMp hii `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh}})
        }
 %%]
 
