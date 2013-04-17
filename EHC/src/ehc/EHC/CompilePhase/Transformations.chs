@@ -65,7 +65,7 @@ cpTransformCore optimScope modNm
                              , trfcoreUniq          = crsiNextUID crsi
 %%[[50
                              , trfcoreExpNmOffMp    = crsiExpNmOffMp modNm crsi
-                             , trfcoreInhBindingMp      = Core2GrSem.lamMp_Inh_CodeAGItf $ crsiCoreInh crsi
+                             , trfcoreInhBindingMp      = Core2GrSem.bindingMp_Inh_CodeAGItf $ crsiCoreInh crsi
 %%]]
                              }
               trfcoreOut = trfCore opts optimScope (Core2GrSem.dataGam_Inh_CodeAGItf $ crsiCoreInh crsi) modNm trfcoreIn
@@ -79,10 +79,10 @@ cpTransformCore optimScope modNm
 %%[[50
          -- put back result: call info map (lambda arity, ...)
        ; let hii   = ecuHIInfo ecu
-             lamMp = HI.hiiBindingMp hii
+             bindingMp = HI.hiiBindingMp hii
        ; cpUpdCU modNm
            ( ecuStoreHIInfo
-               (hii { HI.hiiBindingMp = trfcoreGathBindingMp trfcoreOut `Map.union` lamMp
+               (hii { HI.hiiBindingMp = trfcoreGathBindingMp trfcoreOut `Map.union` bindingMp
                     })
            )
 %%]]   
@@ -117,7 +117,7 @@ cpTransformTyCore modNm
                               , trftycoreExpNmOffMp    = crsiExpNmOffMp modNm crsi
 %%]]
 %%[[99
-                              , trftycoreInhBindingMp  = Core2GrSem.lamMp_Inh_CodeAGItf $ crsiCoreInh crsi
+                              , trftycoreInhBindingMp  = Core2GrSem.bindingMp_Inh_CodeAGItf $ crsiCoreInh crsi
 %%]]
                               }
               trftycoreOut = trfTyCore opts modNm trftycoreIn
@@ -136,10 +136,10 @@ cpTransformTyCore modNm
 %%[[99
          -- put back result: call info map (lambda arity, ...)
        ; let hii   = ecuHIInfo ecu
-             lamMp = HI.hiiBindingMp hii
+             bindingMp = HI.hiiBindingMp hii
        ; cpUpdCU modNm
            ( ecuStoreHIInfo
-               (hii { HI.hiiBindingMp = trftycoreGathBindingMp trftycoreOut `Map.union` lamMp
+               (hii { HI.hiiBindingMp = trftycoreGathBindingMp trftycoreOut `Map.union` bindingMp
                     })
            )
        

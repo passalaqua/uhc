@@ -67,13 +67,13 @@ cmodTrfAnaRelevance
         )
 cmodTrfAnaRelevance
      opts dataGam
-     lamMp
+     bindingMp
      cmod
   =  let  t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                              (Inh_CodeAGItf
                                { opts_Inh_CodeAGItf = opts
                                , dataGam_Inh_CodeAGItf = dataGam
-                               , lamMp_Inh_CodeAGItf = lamMp
+                               , bindingMp_Inh_CodeAGItf = bindingMp
                                })
      in   ( cTrf_Syn_CodeAGItf t
           , gathBindingMp_Syn_CodeAGItf t
@@ -170,7 +170,7 @@ type REnv    = Gam HsName RelevTy
 
 -- | lookup in REnv first, then global BindingMp
 renvLookup :: HsName -> REnv -> BindingMp -> Maybe RelevTy
-renvLookup n renv lammp = gamLookup n renv <|> (fmap libindaspRelevTy $ lamMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
+renvLookup n renv lammp = gamLookup n renv <|> (fmap libindaspRelevTy $ bindingMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -200,7 +200,7 @@ SEM CBound
   | Bind        expr        .   env             =   gamAddGam @exprEnv @lhs.env
 
 SEM CExpr
-  | Var         loc         .   mbEnvTy         =   fmap (relevtyInst @lUniq) (renvLookup @nm @lhs.env @lhs.lamMp)
+  | Var         loc         .   mbEnvTy         =   fmap (relevtyInst @lUniq) (renvLookup @nm @lhs.env @lhs.bindingMp)
                             .   (envTy,envQualS)=   maybe (top, Set.empty) id @mbEnvTy
                 loc         .   envTy           :   RelevTy
                 loc         .   envQualS        :   RelevQualS
@@ -399,7 +399,7 @@ ATTR AllBind [ | | altMbScrutTy USE {<|>} {Nothing} : MbRelevTy ]
 
 SEM CBound
   | Bind        lhs         .   altMbScrutTy    =   do v <- @expr.mbVar
-                                                       renvLookup v @lhs.env Map.empty -- @lhs.lamMp
+                                                       renvLookup v @lhs.env Map.empty -- @lhs.bindingMp
 
 SEM CAlt CBound CModule MbCExpr CPatFld
   | *           loc         .   altMbScrutTy    =   Nothing

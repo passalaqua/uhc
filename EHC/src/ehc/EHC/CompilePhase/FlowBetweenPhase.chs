@@ -192,10 +192,10 @@ cpFlowEHSem1 modNm
                  coreInh' = coreInh
 %%[[8
                               { Core2GrSem.dataGam_Inh_CodeAGItf = EHSem.gathDataGam_Syn_AGItf ehSem
-                              , Core2GrSem.lamMp_Inh_CodeAGItf   = EHSem.gathBindingMp_Syn_AGItf   ehSem
+                              , Core2GrSem.bindingMp_Inh_CodeAGItf   = EHSem.gathBindingMp_Syn_AGItf   ehSem
 %%][50
                               { Core2GrSem.dataGam_Inh_CodeAGItf = EHSem.dataGam_Inh_AGItf     ehInh'
-                              , Core2GrSem.lamMp_Inh_CodeAGItf   = lm `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh		-- assumption: no duplicates, otherwise merging as done later has to be done
+                              , Core2GrSem.bindingMp_Inh_CodeAGItf   = lm `bindingMpUnionBindAspMp` Core2GrSem.bindingMp_Inh_CodeAGItf coreInh		-- assumption: no duplicates, otherwise merging as done later has to be done
 %%]]
                               }
 %%]]
@@ -256,7 +256,7 @@ cpFlowHISem modNm
 %%[[(50 codegen)
                  coreInh  = crsiCoreInh crsi
                  coreInh' = coreInh
-                              { Core2GrSem.lamMp_Inh_CodeAGItf   = (HI.hiiBindingMp hiInfo) `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh
+                              { Core2GrSem.bindingMp_Inh_CodeAGItf   = (HI.hiiBindingMp hiInfo) `bindingMpUnionBindAspMp` Core2GrSem.bindingMp_Inh_CodeAGItf coreInh
                               }
 %%]]
                  optim    = crsiOptim crsi
@@ -292,7 +292,7 @@ cpFlowCoreSem modNm
                  hii      = ecuHIInfo ecu
                  am       = prepFlow $! Core2GrSem.gathBindingMp_Syn_CodeAGItf coreSem
                  coreInh' = coreInh
-                              { Core2GrSem.lamMp_Inh_CodeAGItf   = am `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh	-- assumption: old info can be overridden, otherwise merge should be done here
+                              { Core2GrSem.bindingMp_Inh_CodeAGItf   = am `bindingMpUnionBindAspMp` Core2GrSem.bindingMp_Inh_CodeAGItf coreInh	-- assumption: old info can be overridden, otherwise merge should be done here
                               }
                  hii'     = hii
 %%[[(50 codegen grin)
@@ -321,7 +321,7 @@ cpFlowHIBindingMp modNm
               hii      = ecuHIInfo ecu
 
          -- put back result: call info map (lambda arity, ...), overwriting previous entries
-       ; cpUpdSI (\crsi -> crsi {crsiCoreInh = coreInh {Core2GrSem.lamMp_Inh_CodeAGItf = HI.hiiBindingMp hii `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh}})
+       ; cpUpdSI (\crsi -> crsi {crsiCoreInh = coreInh {Core2GrSem.bindingMp_Inh_CodeAGItf = HI.hiiBindingMp hii `bindingMpUnionBindAspMp` Core2GrSem.bindingMp_Inh_CodeAGItf coreInh}})
        }
 %%]
 

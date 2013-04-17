@@ -168,7 +168,7 @@ Use:
 SEM CExpr
   | Var         loc         .   (st,undefNmMp)      =   let lk mlev r
                                                               =   gamLookupMetaLev mlev r @lhs.gam
-                                                              <|> fmap libindaspCore (lamMpLookupAsp (acbrefNm r) (acbaspkeyDefaultSysfTy mlev) (cenvBindingMp @lhs.env))
+                                                              <|> fmap libindaspCore (bindingMpLookupAsp (acbrefNm r) (acbaspkeyDefaultSysfTy mlev) (cenvBindingMp @lhs.env))
                                                         in  chkLkup' Map.empty (\l r -> Map.singleton l [r]) (@lhs.mlev+1) @ref lk
 %%]
 

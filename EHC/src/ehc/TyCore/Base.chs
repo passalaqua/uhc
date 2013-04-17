@@ -425,26 +425,26 @@ fvsLev lm lDflt fvs = foldr (\n l -> fvLev n lm `max` l) lDflt $ Set.toList $ fv
 type ArityMp = Map.Map HsName Int
 %%]
 
-%%[(8 codegen tycore) hs export(lamMpLookupLam,lamMpLookupCaf)
-lamMpLookupLam :: HsName -> ArityMp -> Maybe Int
-lamMpLookupLam n m
+%%[(8 codegen tycore) hs export(bindingMpLookupLam,bindingMpLookupCaf)
+bindingMpLookupLam :: HsName -> ArityMp -> Maybe Int
+bindingMpLookupLam n m
   = case Map.lookup n m of
       j@(Just a) | a > 0 -> j
       _                  -> Nothing
 
-lamMpLookupCaf :: HsName -> ArityMp -> Maybe Int
-lamMpLookupCaf n m
+bindingMpLookupCaf :: HsName -> ArityMp -> Maybe Int
+bindingMpLookupCaf n m
   = case Map.lookup n m of
       j@(Just a) | a == 0 -> j
       _                   -> Nothing
 %%]
 
-%%[(8 codegen tycore) hs export(lamMpFilterLam,lamMpFilterCaf)
-lamMpFilterLam :: ArityMp -> ArityMp
-lamMpFilterLam = Map.filter (>0)
+%%[(8 codegen tycore) hs export(bindingMpFilterLam,bindingMpFilterCaf)
+bindingMpFilterLam :: ArityMp -> ArityMp
+bindingMpFilterLam = Map.filter (>0)
 
-lamMpFilterCaf :: ArityMp -> ArityMp
-lamMpFilterCaf = Map.filter (==0)
+bindingMpFilterCaf :: ArityMp -> ArityMp
+bindingMpFilterCaf = Map.filter (==0)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

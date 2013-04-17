@@ -99,7 +99,7 @@ initialCore2GrSem opts
       { Core2GrSem.gUniq_Inh_CodeAGItf           = uidStart
       , Core2GrSem.dataGam_Inh_CodeAGItf         = emptyGam
       , Core2GrSem.opts_Inh_CodeAGItf            = opts
-      , Core2GrSem.lamMp_Inh_CodeAGItf           = initBindingMp
+      , Core2GrSem.bindingMp_Inh_CodeAGItf       = initBindingMp
       }
 %%]
 

@@ -234,7 +234,7 @@ trfCore opts optimScope dataGam modNm trfcore
                         }
                   where (c',extra,errl) = t s c
 
-        lamMpPropagate l s@(TrfCore {trfcoreGathBindingMp=gl, trfcoreInhBindingMp=il})
+        bindingMpPropagate l s@(TrfCore {trfcoreGathBindingMp=gl, trfcoreInhBindingMp=il})
           = s {trfcoreGathBindingMp = gl', trfcoreInhBindingMp = Map.union gl' il}
           where gl' = Map.union l gl
         
@@ -249,7 +249,7 @@ trfCore opts optimScope dataGam modNm trfcore
         t_sysf_check    = liftTrfCheck  osm "sysf-type-check"  $ \s -> cmodSysfCheck opts (emptyCheckEnv {cenvBindingMp = trfcoreInhBindingMp s})
 %%]]
         t_eta_red       = liftTrfMod  osm "eta-red"            $ cmodTrfEtaRed
-        t_erase_ty      = liftTrfInfoModExtra osm "erase-ty" lamMpPropagate
+        t_erase_ty      = liftTrfInfoModExtra osm "erase-ty" bindingMpPropagate
                                                                $ \_ -> cmodTrfEraseExtractTysigCore opts
         t_ann_simpl     = liftTrfMod  osm "ann-simpl"          $ cmodTrfAnnBasedSimplify opts
         t_ren_uniq    o = liftTrfMod  osm "ren-uniq"           $ cmodTrfRenUniq o
@@ -269,9 +269,9 @@ trfCore opts optimScope dataGam modNm trfcore
 %%[[(8 wholeprogAnal)
         t_find_null     = liftTrfMod  osm "find-null"          $ cmodTrfFindNullaries
 %%]]
-        t_ana_relev     = liftTrfInfoModExtra osm "ana-relev" lamMpPropagate
+        t_ana_relev     = liftTrfInfoModExtra osm "ana-relev" bindingMpPropagate
                                                                $ \s -> cmodTrfAnaRelevance opts dataGam (trfcoreInhBindingMp s)
-        t_opt_strict    = liftTrfInfoModExtra osm "optim-strict" lamMpPropagate
+        t_opt_strict    = liftTrfInfoModExtra osm "optim-strict" bindingMpPropagate
                                                                $ \s -> cmodTrfOptimizeStrictness opts (trfcoreInhBindingMp s)
 %%[[(9 wholeprogAnal)
         t_fix_dictfld   = liftTrfMod  osm "fix-dictfld"        $ cmodTrfFixDictFields
@@ -279,7 +279,7 @@ trfCore opts optimScope dataGam modNm trfcore
 %%[[99        
         t_expl_trace    = liftTrfInfoModExtra osm "expl-sttrace"
                                                   (\m s@(TrfCore {trfcoreExtraExports=exps})
-                                                     -> (lamMpPropagate m s)
+                                                     -> (bindingMpPropagate m s)
                                                           { trfcoreExtraExports   = exps `Set.union`
                                                                                     Set.fromList [ n
                                                                                                  | (n,BindingInfo {bindinginfoStackTrace=(StackTraceInfo_IsStackTraceEquiv _)}) <- Map.toList m

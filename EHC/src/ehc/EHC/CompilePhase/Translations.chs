@@ -244,7 +244,7 @@ cpTranslateGrin2Bytecode modNm
                (bc,errs)
                       = grinMod2ByteCodeMod opts
 %%[[50
-                          (Core2GrSem.lamMp_Inh_CodeAGItf $ crsiCoreInh crsi) -- (HI.hiiBindingMp $ ecuHIInfo ecu)
+                          (Core2GrSem.bindingMp_Inh_CodeAGItf $ crsiCoreInh crsi) -- (HI.hiiBindingMp $ ecuHIInfo ecu)
                           (if ecuIsMainMod ecu then [ m | (m,_) <- sortOn snd $ Map.toList $ Map.map fst modOffMp ] else [])
                           -- (ecuImpNmL ecu)
                           (Map.fromList [ (n,(o,mp))
@@ -314,7 +314,7 @@ cpTranslateByteCode modNm
 %%]]
                                ,functionInfoExportMp)
                                 = gbmod2C opts lkup $ panicJust "cpTranslateByteCode2" mbBytecode
-                                where lkup n = do { li <- Map.lookup n (Core2GrSem.lamMp_Inh_CodeAGItf coreInh)
+                                where lkup n = do { li <- Map.lookup n (Core2GrSem.bindingMp_Inh_CodeAGItf coreInh)
                                                   ; ex <- bindinginfoGrinByteCode li
                                                   ; return ex
                                                   }
@@ -329,14 +329,14 @@ cpTranslateByteCode modNm
 %%[[50
                       . ( let hii = ecuHIInfo ecu
                           in  ecuStoreHIInfo
-                                (hii { HI.hiiBindingMp = lamMpMergeFrom bindinginfoGrinByteCode (\gbi i -> i {bindinginfoGrinByteCode=gbi}) const emptyBindingInfo' functionInfoExportMp $ HI.hiiBindingMp hii
+                                (hii { HI.hiiBindingMp = bindingMpMergeFrom bindinginfoGrinByteCode (\gbi i -> i {bindinginfoGrinByteCode=gbi}) const emptyBindingInfo' functionInfoExportMp $ HI.hiiBindingMp hii
                                      })
                         )
 %%]]
                       )
 {-
                    ; when (ehcOptVerbosity opts >= VerboseDebug)
-                          (lift $ do { putStrLn ("cpTranslateByteCode.lamMp: " ++ show (HI.hiiBindingMp hii))
+                          (lift $ do { putStrLn ("cpTranslateByteCode.bindingMp: " ++ show (HI.hiiBindingMp hii))
                                      ; putStrLn ("cpTranslateByteCode.functionInfoExportMp: " ++ show functionInfoExportMp)
                                      })
 -}

@@ -45,11 +45,11 @@ PRAGMA nocycle
 
 %%[(99 codegen) hs export(cmodTrfExplicitStackTrace)
 cmodTrfExplicitStackTrace :: EHCOpts -> BindingMp -> CModule -> (CModule,BindingMp)
-cmodTrfExplicitStackTrace opts lamMp cmod
+cmodTrfExplicitStackTrace opts bindingMp cmod
   =  let  t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                              (Inh_CodeAGItf
                                { opts_Inh_CodeAGItf = opts
-                               , lamMp_Inh_CodeAGItf = lamMp
+                               , bindingMp_Inh_CodeAGItf = bindingMp
                                })
      in   ( cTrf_Syn_CodeAGItf t
           , debugBindingMp_Syn_CodeAGItf t `Map.union`
@@ -194,7 +194,7 @@ ATTR CodeAGItf [ | | cTrf: CModule ]
 
 SEM CExpr
   | Let         lhs         .   cTrf        =   CExpr_Let @categ @binds.bindCTrfL @body.cTrf
-  | Var         lhs         .   cTrf        =   case Map.lookup @nm @lhs.lamMp of
+  | Var         lhs         .   cTrf        =   case Map.lookup @nm @lhs.bindingMp of
                                                   Just (BindingInfo {bindinginfoStackTrace=StackTraceInfo_HasStackTraceEquiv dbNm})
                                                     -> case @lhs.mbInStackTraceCtxt of
                                                          Just stTrNm

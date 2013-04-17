@@ -59,12 +59,12 @@ cmodTrfOptimizeStrictness
         )
 cmodTrfOptimizeStrictness
      opts
-     lamMp
+     bindingMp
      cmod
   =  let  t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                              (Inh_CodeAGItf
                                { opts_Inh_CodeAGItf = opts
-                               , lamMp_Inh_CodeAGItf = lamMp
+                               , bindingMp_Inh_CodeAGItf = bindingMp
                                })
      in   ( cTrf_Syn_CodeAGItf t
           , gathBindingMp_Syn_CodeAGItf t
@@ -232,7 +232,7 @@ SEM CBind
 %%[(8 codegen)
 SEM CExpr
   | Var         loc         .   strictRef       =   acbrefAspAnd acbaspkeyStrict @ref
-                            .   mbStrict        =   case fmap libindaspRelevTy $ lamMpLookupAsp2 @strictRef @lhs.lamMp of
+                            .   mbStrict        =   case fmap libindaspRelevTy $ bindingMpLookupAsp2 @strictRef @lhs.bindingMp of
                                                       Just (t@(RelevTy_Fun _ _ _ a r))
                                                         -> Just (t, map relevtyAnaEval a, relevtyAnaEval r)
                                                       _ -> Nothing

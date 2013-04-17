@@ -34,7 +34,7 @@ SEM CExpr
 %%]
 
 %%[(8 codegen)
-ATTR AllBind [ | | bindBindingMp USE {`lamMpUnionBindAspMp`} {Map.empty}: BindingMp ]
+ATTR AllBind [ | | bindBindingMp USE {`bindingMpUnionBindAspMp`} {Map.empty}: BindingMp ]
 
 %%]
 
@@ -44,8 +44,8 @@ ATTR AllBind [ | | bindBindingMp USE {`lamMpUnionBindAspMp`} {Map.empty}: Bindin
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   gathBindingMp   =   lamMpMergeInto @howMergeBindingInfo const @module.gathBindingMp @lhs.lamMp -- lamMpUpdateWith @lhs.lamMp @module.gathBindingMp
-                module      .   lamMp       =   @howUnionGathBindingInfo @lhs.lamMp
+  | AGItf       loc         .   gathBindingMp   =   bindingMpMergeInto @howMergeBindingInfo const @module.gathBindingMp @lhs.bindingMp -- bindingMpUpdateWith @lhs.bindingMp @module.gathBindingMp
+                module      .   bindingMp       =   @howUnionGathBindingInfo @lhs.bindingMp
 %%]
 
 

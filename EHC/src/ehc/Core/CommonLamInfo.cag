@@ -23,11 +23,11 @@ Hook(s):
 ATTR
   AllCodeNT
   CodeAGItf
-    [ lamMp: BindingMp | | ]
+    [ bindingMp: BindingMp | | ]
 %%]
 
 %%[(8 codegen)
 SEM CExpr
-  | Lam         body        .   lamMp       =   Map.delete @argNm @lhs.lamMp
+  | Lam         body        .   bindingMp       =   Map.delete @argNm @lhs.bindingMp
 %%]
 

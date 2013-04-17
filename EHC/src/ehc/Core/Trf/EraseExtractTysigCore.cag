@@ -46,7 +46,7 @@ cmodTrfEraseExtractTysigCore opts cmod
   where t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                            (Inh_CodeAGItf
                              { opts_Inh_CodeAGItf = opts
-                             , lamMp_Inh_CodeAGItf = Map.empty
+                             , bindingMp_Inh_CodeAGItf = Map.empty
                              })
 %%]
 

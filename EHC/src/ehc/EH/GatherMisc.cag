@@ -21,7 +21,7 @@ SEM Decl
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR AGItf Expr AllDecl [ | | gathBindingMp USE {`lamMpUnionBindAspMp`} {Map.empty}: BindingMp ]
+ATTR AGItf Expr AllDecl [ | | gathBindingMp USE {`bindingMpUnionBindAspMp`} {Map.empty}: BindingMp ]
 
 %%]
 
