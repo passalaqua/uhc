@@ -22,7 +22,7 @@ Currently the following is maintained:
 \end{itemize}
 %%]
 
-%%[(8 codegen) module {%{EH}LamInfo} import({%{EH}Base.Common})
+%%[(8 codegen) module {%{EH}BindingInfo} import({%{EH}Base.Common})
 %%]
 
 -- Core, Ty

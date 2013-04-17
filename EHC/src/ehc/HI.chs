@@ -18,7 +18,7 @@
 
 %%[(50 codegen) hs import({%{EH}Base.Target})
 %%]
-%%[(50 codegen) hs import({%{EH}Core}, {%{EH}LamInfo})
+%%[(50 codegen) hs import({%{EH}Core}, {%{EH}BindingInfo})
 %%]
 %%[(50 codegen tycore) hs import(qualified {%{EH}TyCore} as C)
 %%]

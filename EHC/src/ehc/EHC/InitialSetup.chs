@@ -31,7 +31,7 @@ Initial values
 %%]
 
 -- BindingMp, SysF
-%%[8 import({%{EH}LamInfo})
+%%[8 import({%{EH}BindingInfo})
 %%]
 
 %%[9 import(qualified {%{EH}Gam.ClGam} as Pr(initClGam))

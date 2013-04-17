@@ -15,7 +15,7 @@
 %%]
 %%[(8 codegen grin) hs import({%{EH}Base.Common}, {%{EH}Base.TermLike}, {%{EH}Opts}, qualified {%{EH}Config} as Cfg, {%{EH}Base.Builtin},{%{EH}Base.Builtin2})
 %%]
-%%[(8 codegen grin) hs import({%{EH}LamInfo}, {%{EH}Core}, {%{EH}Ty}, {%{EH}Gam.Full}, {%{EH}GrinCode})
+%%[(8 codegen grin) hs import({%{EH}BindingInfo}, {%{EH}Core}, {%{EH}Ty}, {%{EH}Gam.Full}, {%{EH}GrinCode})
 %%]
 %%[(8 codegen grin) hs import({%{EH}Core.FFI})
 %%]
@@ -33,7 +33,7 @@
 %%% Wrapper
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen grin).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonLevLet},{Core/CommonPred},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/CommonFFI},{Core/CommonLamInfo},{Core/CommonGathLamInfo},{Core/Trf/CommonFv})
+%%[(8 codegen grin).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonLevLet},{Core/CommonPred},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/CommonFFI},{Core/CommonBindingInfo},{Core/CommonGathBindingInfo},{Core/Trf/CommonFv})
 WRAPPER CodeAGItf
 %%]
 
@@ -76,7 +76,7 @@ ATTR AllCodeNT CodeAGItf [ dataGam: DataGam | | ]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering BindingInfo, providing hook for Core/CommonLamInfo
+%%% Gathering BindingInfo, providing hook for Core/CommonBindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
@@ -122,7 +122,7 @@ and assumed to propagate correctly when merged with this info.
 
 %%[(8 codegen grin)
 SEM CBound
-  | Bind        lhs         .   bindBindingMp
+  | Bind        lhs         .   bindingMp
                                             =   Map.singleton @lhs.nm
                                                               (emptyBindingInfo {bindinginfoArity = length @expr.grLamArgL})
 %%]

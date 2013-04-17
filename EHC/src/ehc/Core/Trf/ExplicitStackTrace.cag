@@ -22,7 +22,7 @@ However, ideally, this trf should be placed before that, but this currently brea
 
 %%[(99 codegen) hs module {%{EH}Core.Trf.ExplicitStackTrace}
 %%]
-%%[(99 codegen) hs import({%{EH}Base.Builtin},{%{EH}Base.Common},{%{EH}Opts},{%{EH}Core},{%{EH}Ty},{%{EH}LamInfo})
+%%[(99 codegen) hs import({%{EH}Base.Builtin},{%{EH}Base.Common},{%{EH}Opts},{%{EH}Core},{%{EH}Ty},{%{EH}BindingInfo})
 %%]
 
 %%[(99 codegen) hs import({%{EH}AbstractCore})
@@ -31,7 +31,7 @@ However, ideally, this trf should be placed before that, but this currently brea
 %%[(99 codegen) hs import(Data.Maybe, qualified Data.Map as Map)
 %%]
 
-%%[(99 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonLevLet},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/CommonLamInfo},{Core/CommonGathLamInfo})
+%%[(99 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonLevLet},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/CommonBindingInfo},{Core/CommonGathBindingInfo})
 WRAPPER CodeAGItf
 %%]
 
@@ -67,7 +67,7 @@ ATTR AllCodeNT CodeAGItf [ opts: EHCOpts | | ]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering BindingInfo, providing hook for Core/CommonLamInfo
+%%% Gathering BindingInfo, providing hook for Core/CommonBindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(99 codegen)
@@ -138,7 +138,7 @@ mbStackTrace opts isCand nm
 
 %%[(99 codegen)
 SEM CBound
-  | Bind        (loc.mbStackTrace,lhs.bindBindingMp)
+  | Bind        (loc.mbStackTrace,lhs.bindingMp)
                                             =   let mbt = mbStackTrace @lhs.opts @isTraceCandidate @lhs.nm
                                                 in  (mbt,Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoStackTrace = mbt}))
 %%]

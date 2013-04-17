@@ -53,7 +53,7 @@ XXX
 %%]
 
 -- Misc info: BindingInfo/BindingMp
-%%[(8 codegen) hs import({%{EH}LamInfo})
+%%[(8 codegen) hs import({%{EH}BindingInfo})
 %%]
 
 -- for debug

@@ -69,7 +69,7 @@ Translation to another AST
 %%[(50 codegen grin) import(qualified {%{EH}HI} as HI)
 %%]
 -- BindingInfo
-%%[(50 codegen grin) import({%{EH}LamInfo})
+%%[(50 codegen grin) import({%{EH}BindingInfo})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

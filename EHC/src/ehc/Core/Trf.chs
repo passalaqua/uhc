@@ -18,7 +18,7 @@
 %%]
 
 -- BindingInfo
-%%[(8 codegen) import({%{EH}LamInfo})
+%%[(8 codegen) import({%{EH}BindingInfo})
 %%]
 
 -- Core

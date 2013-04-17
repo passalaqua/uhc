@@ -16,7 +16,7 @@ Note (20120525): bindingMp use removed because of cyclic module import
 
 %%[(8 codegen) hs import({%{EH}AnaDomain.Pretty})
 %%]
-%%[(8888 codegen) hs import({%{EH}LamInfo})
+%%[(8888 codegen) hs import({%{EH}BindingInfo})
 %%]
 
 %%[(8 codegen) hs import(qualified Data.Map as Map,qualified Data.Set as Set,{%{EH}Ty.Pretty})

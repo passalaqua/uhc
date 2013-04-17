@@ -33,7 +33,7 @@ Analyse Core, using relevance analysis, to relate properties (like relevance) of
 %%[(8 codegen) hs import({%{EH}Gam},{%{EH}Gam.DataGam})
 %%]
 
-%%[(8 codegen) hs import({%{EH}LamInfo})
+%%[(8 codegen) hs import({%{EH}BindingInfo})
 %%]
 
 %%[(8 codegen) hs import({%{EH}AnaDomain.Trf.Instantiate})
@@ -43,7 +43,7 @@ Analyse Core, using relevance analysis, to relate properties (like relevance) of
 %%[(8 codegen) hs import({%{EH}Base.Debug},UHC.Util.Pretty,{%{EH}AnaDomain.Pretty})
 %%]
 
-%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonFFI},{Core/CommonBindNm},{Core/Trf/CommonStructureInfo},{Core/CommonCtxtPred},{Core/Trf/CommonFv},{Core/CommonLamInfo},{Core/CommonGathLamInfo})
+%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonFFI},{Core/CommonBindNm},{Core/Trf/CommonStructureInfo},{Core/CommonCtxtPred},{Core/Trf/CommonFv},{Core/CommonBindingInfo},{Core/CommonGathBindingInfo})
 WRAPPER CodeAGItf
 %%]
 
@@ -110,7 +110,7 @@ SEM CodeAGItf
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering BindingInfo, providing hook for Core/CommonLamInfo
+%%% Gathering BindingInfo, providing hook for Core/CommonBindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
@@ -131,7 +131,7 @@ SEM CodeAGItf
 %%[(8 codegen grin)
 SEM CBound
   | Bind        loc         .   doBindStrict    =   WhatToRelevInfer_InstToBot `elem` @lhs.whatTo
-                lhs         .   bindBindingMp   =   let l = [ (acbaspkeyDefaultRelevTy, BindingInfoAsp_RelevTy @bindTy) ]
+                lhs         .   bindingMp   =   let l = [ (acbaspkeyDefaultRelevTy, BindingInfoAsp_RelevTy @bindTy) ]
                                                             -- ++ (if @doBindStrict then [(acbaspkeyStrict, BindingInfoAsp_RelevTy @strictTy2)] else [])
                                                     in  Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList l})
                 loc         .   doBindStrict    :   Bool

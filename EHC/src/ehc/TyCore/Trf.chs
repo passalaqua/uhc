@@ -17,7 +17,7 @@
 %%]
 
 -- BindingInfo
-%%[(8 codegen tycore) import({%{EH}LamInfo})
+%%[(8 codegen tycore) import({%{EH}BindingInfo})
 %%]
 
 -- TyCore
