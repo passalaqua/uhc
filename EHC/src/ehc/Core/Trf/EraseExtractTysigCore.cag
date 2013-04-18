@@ -12,7 +12,7 @@
 
 %%[(8 codegen) hs import({%{EH}AbstractCore})
 %%]
-%%[(8 codegen) hs import({%{EH}LamInfo})
+%%[(8 codegen) hs import({%{EH}BindingInfo})
 %%]
 %%[(8 codegen) hs import({%{EH}Core.BindExtract})
 %%]
@@ -20,7 +20,7 @@
 %%[(8 codegen) hs import(Data.Maybe, qualified Data.Map as Map, qualified Data.Set as Set)
 %%]
 
-%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonBindNm},{Core/CommonLamInfo},{Core/CommonGathLamInfo},{Core/CommonBindExtract})
+%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonBindNm},{Core/CommonBindingInfo},{Core/CommonGathBindingInfo},{Core/CommonBindExtract})
 WRAPPER CodeAGItf
 %%]
 
@@ -37,16 +37,16 @@ cmodTrfEraseExtractTysigCore
   :: EHCOpts
      -> CModule
      -> ( CModule
-        , LamMp
+        , BindingMp
         )
 cmodTrfEraseExtractTysigCore opts cmod
   = ( cTrf_Syn_CodeAGItf t
-    , gathLamMp_Syn_CodeAGItf t
+    , gathBindingMp_Syn_CodeAGItf t
     )
   where t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                            (Inh_CodeAGItf
                              { opts_Inh_CodeAGItf = opts
-                             , lamMp_Inh_CodeAGItf = Map.empty
+                             , bindingMp_Inh_CodeAGItf = Map.empty
                              })
 %%]
 
@@ -59,38 +59,38 @@ ATTR AllCodeNT CodeAGItf [ opts: EHCOpts | | ]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering LamInfo, providing hook for Core/CommonLamInfo
+%%% Gathering BindingInfo, providing hook for Core/CommonBindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howUnionGathLamInfo
+  | AGItf       loc         .   howUnionGathBindingInfo
                                                 =   id
 %%]
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeLamInfo =   (\(LamInfo {laminfoBindAspMp=m}) i -> i {laminfoBindAspMp = m `Map.union` laminfoBindAspMp i})
+  | AGItf       loc         .   howMergeBindingInfo =   (\(BindingInfo {bindinginfoAspMp=m}) i -> i {bindinginfoAspMp = m `Map.union` bindinginfoAspMp i})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Newly bound LamInfo
+%%% Newly bound BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen grin)
 SEM CBound
-  | Ty          loc         .   bindLamL        =   [ (Set.union acbaspkeyTy @aspectKeyS, LamInfoBindAsp_Ty @ty) ]
-  | Bind        loc         .   bindLamL        =   [] -- [ (acbaspkeyDefaultCore, LamInfoBindAsp_Core metaLevVal @expr.cTrf) ]
+  | Ty          loc         .   bindLamL        =   [ (Set.union acbaspkeyTy @aspectKeyS, BindingInfoAsp_Ty @ty) ]
+  | Bind        loc         .   bindLamL        =   [] -- [ (acbaspkeyDefaultCore, BindingInfoAsp_Core metaLevVal @expr.cTrf) ]
 %%[[(8 coresysf)
   | Val         loc         .   bindLamL        =   if ehcOptCoreSysF @lhs.opts && @mlev >= metaLevTy
-                                                    then [(Set.union (acbaspkeySysfTy @mlev) @aspectKeyS, LamInfoBindAsp_Core @mlev @expr.cTrf)]
+                                                    then [(Set.union (acbaspkeySysfTy @mlev) @aspectKeyS, BindingInfoAsp_Core @mlev @expr.cTrf)]
                                                     else []
 %%]]
   | Ty Bind
 %%[[(8 coresysf)
     Val
 %%]]
-                lhs         .   bindLamMp       =   Map.singleton @lhs.nm (emptyLamInfo {laminfoBindAspMp = Map.fromList @bindLamL})
+                lhs         .   bindingMp       =   Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList @bindLamL})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

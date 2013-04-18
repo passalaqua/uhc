@@ -17,25 +17,25 @@ SEM Decl
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering LamInfo relevant to any subsequent code generation
+%%% Gathering BindingInfo relevant to any subsequent code generation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR AGItf Expr AllDecl [ | | gathLamMp USE {`lamMpUnionBindAspMp`} {Map.empty}: LamMp ]
+ATTR AGItf Expr AllDecl [ | | gathBindingMp USE {`bindingMpUnionBindAspMp`} {Map.empty}: BindingMp ]
 
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering Fusion related LamInfo (probably better in separate file)
+%%% Gathering Fusion related BindingInfo (probably better in separate file)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(93 codegen)
 SEM Decl
-  | FusionDecl  lhs         .   gathLamMp           =   Map.singleton
+  | FusionDecl  lhs         .   gathBindingMp           =   Map.singleton
                                                             @fuseNm
-                                                            (emptyLamInfo {laminfoBindAspMp = Map.singleton acbaspkeyFusionRole (LamInfoBindAsp_FusionRole FusionRole_Fuse)})
-  | FusionConv  lhs         .   gathLamMp           =   Map.fromList
-                                                            [ ( @conNm, emptyLamInfo {laminfoBindAspMp = Map.singleton acbaspkeyFusionRole (LamInfoBindAsp_FusionRole FusionRole_BuildLeft)} )
-                                                            , ( @absNm, emptyLamInfo {laminfoBindAspMp = Map.singleton acbaspkeyFusionRole (LamInfoBindAsp_FusionRole FusionRole_BuildRight)} )
+                                                            (emptyBindingInfo {bindinginfoAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_Fuse)})
+  | FusionConv  lhs         .   gathBindingMp           =   Map.fromList
+                                                            [ ( @conNm, emptyBindingInfo {bindinginfoAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_BuildLeft)} )
+                                                            , ( @absNm, emptyBindingInfo {bindinginfoAspMp = Map.singleton acbaspkeyFusionRole (BindingInfoAsp_FusionRole FusionRole_BuildRight)} )
                                                             ]
 %%]

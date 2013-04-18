@@ -245,7 +245,7 @@ cpEhcCoreFullProgPostModulePhases opts modNmL (impModNmL,mainModNm)
   = cpSeq ([ cpSeq [cpGetPrevCore m | m <- modNmL]
            , mergeIntoOneBigCore
            , cpTransformCore OptimizationScope_WholeCore mainModNm
-           , cpFlowHILamMp mainModNm
+           , cpFlowHIBindingMp mainModNm
            , cpProcessCoreFold mainModNm -- redo folding for replaced main module
            ]
            -- ++ (if ehcOptDumpCoreStages opts then [cpOutputCore False "" "full.core" mainModNm] else [])
@@ -1025,7 +1025,7 @@ cpProcessCoreBasic modNm
        ; let (_,_,opts,_) = crBaseInfo modNm cr
        ; cpSeq [ cpTransformCore OptimizationScope_PerModule modNm
 %%[[50
-               , cpFlowHILamMp modNm
+               , cpFlowHIBindingMp modNm
 %%]]
                -- , when (ehcOptEmitCore opts) (cpOutputCore True "" "core" modNm)
                , cpOutputCore True "" "core" modNm
@@ -1096,7 +1096,7 @@ cpProcessBytecode modNm
        ; cpSeq [ cpMsg modNm VerboseALot "Translate ByteCode"
                , cpTranslateByteCode modNm
 %%[[50
-               , cpFlowHILamMp modNm
+               , cpFlowHIBindingMp modNm
 %%]]
 %%[[99
                , cpCleanupFoldBytecode modNm

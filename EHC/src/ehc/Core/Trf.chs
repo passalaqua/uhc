@@ -17,8 +17,8 @@
 %%[(8 codegen) import({%{EH}EHC.Common})
 %%]
 
--- LamInfo
-%%[(8 codegen) import({%{EH}LamInfo})
+-- BindingInfo
+%%[(8 codegen) import({%{EH}BindingInfo})
 %%]
 
 -- Core
@@ -81,8 +81,8 @@ data TrfCore
       { trfcoreCore             :: !CModule
       , trfcoreCoreStages       :: [(String,Maybe CModule,ErrL)]
       , trfcoreUniq             :: !UID
-      , trfcoreInhLamMp         :: LamMp        -- from context, possibly overridden from gathered one
-      , trfcoreGathLamMp        :: !LamMp       -- gathered anew
+      , trfcoreInhBindingMp     :: BindingMp        -- from context, possibly overridden from gathered one
+      , trfcoreGathBindingMp    :: !BindingMp       -- gathered anew
 %%[[50
       , trfcoreExpNmOffMp       :: !HsName2OffsetMp
 %%]]
@@ -234,8 +234,8 @@ trfCore opts optimScope dataGam modNm trfcore
                         }
                   where (c',extra,errl) = t s c
 
-        lamMpPropagate l s@(TrfCore {trfcoreGathLamMp=gl, trfcoreInhLamMp=il})
-          = s {trfcoreGathLamMp = gl', trfcoreInhLamMp = Map.union gl' il}
+        bindingMpPropagate l s@(TrfCore {trfcoreGathBindingMp=gl, trfcoreInhBindingMp=il})
+          = s {trfcoreGathBindingMp = gl', trfcoreInhBindingMp = Map.union gl' il}
           where gl' = Map.union l gl
         
         -- bump uniq counter
@@ -246,10 +246,10 @@ trfCore opts optimScope dataGam modNm trfcore
         -- actual transformations
         t_initial       = liftTrfMod  osmw "initial"            $ id
 %%[[(8 coresysf)
-        t_sysf_check    = liftTrfCheck  osm "sysf-type-check"  $ \s -> cmodSysfCheck opts (emptyCheckEnv {cenvLamMp = trfcoreInhLamMp s})
+        t_sysf_check    = liftTrfCheck  osm "sysf-type-check"  $ \s -> cmodSysfCheck opts (emptyCheckEnv {cenvBindingMp = trfcoreInhBindingMp s})
 %%]]
         t_eta_red       = liftTrfMod  osm "eta-red"            $ cmodTrfEtaRed
-        t_erase_ty      = liftTrfInfoModExtra osm "erase-ty" lamMpPropagate
+        t_erase_ty      = liftTrfInfoModExtra osm "erase-ty" bindingMpPropagate
                                                                $ \_ -> cmodTrfEraseExtractTysigCore opts
         t_ann_simpl     = liftTrfMod  osm "ann-simpl"          $ cmodTrfAnnBasedSimplify opts
         t_ren_uniq    o = liftTrfMod  osm "ren-uniq"           $ cmodTrfRenUniq o
@@ -269,23 +269,23 @@ trfCore opts optimScope dataGam modNm trfcore
 %%[[(8 wholeprogAnal)
         t_find_null     = liftTrfMod  osm "find-null"          $ cmodTrfFindNullaries
 %%]]
-        t_ana_relev     = liftTrfInfoModExtra osm "ana-relev" lamMpPropagate
-                                                               $ \s -> cmodTrfAnaRelevance opts dataGam (trfcoreInhLamMp s)
-        t_opt_strict    = liftTrfInfoModExtra osm "optim-strict" lamMpPropagate
-                                                               $ \s -> cmodTrfOptimizeStrictness opts (trfcoreInhLamMp s)
+        t_ana_relev     = liftTrfInfoModExtra osm "ana-relev" bindingMpPropagate
+                                                               $ \s -> cmodTrfAnaRelevance opts dataGam (trfcoreInhBindingMp s)
+        t_opt_strict    = liftTrfInfoModExtra osm "optim-strict" bindingMpPropagate
+                                                               $ \s -> cmodTrfOptimizeStrictness opts (trfcoreInhBindingMp s)
 %%[[(9 wholeprogAnal)
         t_fix_dictfld   = liftTrfMod  osm "fix-dictfld"        $ cmodTrfFixDictFields
 %%]]
 %%[[99        
         t_expl_trace    = liftTrfInfoModExtra osm "expl-sttrace"
                                                   (\m s@(TrfCore {trfcoreExtraExports=exps})
-                                                     -> (lamMpPropagate m s)
+                                                     -> (bindingMpPropagate m s)
                                                           { trfcoreExtraExports   = exps `Set.union`
                                                                                     Set.fromList [ n
-                                                                                                 | (n,LamInfo {laminfoStackTrace=(StackTraceInfo_IsStackTraceEquiv _)}) <- Map.toList m
+                                                                                                 | (n,BindingInfo {bindinginfoStackTrace=(StackTraceInfo_IsStackTraceEquiv _)}) <- Map.toList m
                                                                                                  ]
                                                           }
-                                                  )            $ \s -> cmodTrfExplicitStackTrace opts (trfcoreInhLamMp s)
+                                                  )            $ \s -> cmodTrfExplicitStackTrace opts (trfcoreInhBindingMp s)
 %%]]
         -- abbreviations for optimatisation scope
         osm  = [OptimizationScope_PerModule]

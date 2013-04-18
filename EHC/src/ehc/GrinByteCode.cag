@@ -26,7 +26,7 @@
 %%[(8 codegen grin) ag import({GrinByteCode/AbsSyn})
 %%]
 
-%%[(50 codegen grin) hs import({%{EH}Core(HsName2OffsetMpMp)},{%{EH}LamInfo})
+%%[(50 codegen grin) hs import({%{EH}Core(HsName2OffsetMpMp)},{%{EH}BindingInfo})
 %%]
 
 %%[50 hs import(Control.Monad)
@@ -368,7 +368,7 @@ emptyFunctionInfo = FunctionInfo "" hsnUnknown 1 []
 %%]
 
 %%[(50 codegen grin) hs export(FunctionInfoExportMp)
-type FunctionInfoExportMp = Map.Map HsName GrinByteCodeLamInfo			-- to index into table of FunctionInfos, to be included in HIInfo
+type FunctionInfoExportMp = Map.Map HsName GrinByteCodeBindingInfo			-- to index into table of FunctionInfos, to be included in HIInfo
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -726,7 +726,7 @@ data NmEnv
       { neVAGam     :: ValAccessGam
 %%[[50
       , neImpNmMp   :: HsName2OffsetMpMp
-      , neLamMp     :: LamMp
+      , neBindingMp     :: BindingMp
 %%]]
       }
 %%]
@@ -746,9 +746,9 @@ nmEnvLookup nm env
               ; eo <- Map.lookup nm entryMp
               ; return (Val_ImpEntry mo eo
                                      {- (maybe (-1) id
-                                      $ do { li <- Map.lookup nm $ neLamMp env
-                                           ; fi <- laminfoGrinByteCode li
-                                           ; return (gblaminfoFuninfoKey fi)
+                                      $ do { li <- Map.lookup nm $ neBindingMp env
+                                           ; fi <- bindinginfoGrinByteCode li
+                                           ; return (gbbindinginfoFuninfoKey fi)
                                            }
                        ) -}            )
               }

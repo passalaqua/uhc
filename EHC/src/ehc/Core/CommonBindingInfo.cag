@@ -4,7 +4,7 @@
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Common AG for Core LamInfo gathering & propagation
+%%% Common AG for Core BindingInfo gathering & propagation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[doesWhat doclatex
@@ -16,18 +16,18 @@ Hook(s):
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Distributing LamInfo
+%%% Distributing BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
 ATTR
   AllCodeNT
   CodeAGItf
-    [ lamMp: LamMp | | ]
+    [ bindingMp: BindingMp | | ]
 %%]
 
 %%[(8 codegen)
 SEM CExpr
-  | Lam         body        .   lamMp       =   Map.delete @argNm @lhs.lamMp
+  | Lam         body        .   bindingMp       =   Map.delete @argNm @lhs.bindingMp
 %%]
 

@@ -6,7 +6,7 @@
 %%[doesWhat doclatex
 Core AST as Haskell datatype.
 
-Datatype LamInfo holds the implementation info to be exported from a module.
+Datatype BindingInfo holds the implementation info to be exported from a module.
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

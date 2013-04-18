@@ -22,7 +22,7 @@ However, ideally, this trf should be placed before that, but this currently brea
 
 %%[(99 codegen) hs module {%{EH}Core.Trf.ExplicitStackTrace}
 %%]
-%%[(99 codegen) hs import({%{EH}Base.Builtin},{%{EH}Base.Common},{%{EH}Opts},{%{EH}Core},{%{EH}Ty},{%{EH}LamInfo})
+%%[(99 codegen) hs import({%{EH}Base.Builtin},{%{EH}Base.Common},{%{EH}Opts},{%{EH}Core},{%{EH}Ty},{%{EH}BindingInfo})
 %%]
 
 %%[(99 codegen) hs import({%{EH}AbstractCore})
@@ -31,7 +31,7 @@ However, ideally, this trf should be placed before that, but this currently brea
 %%[(99 codegen) hs import(Data.Maybe, qualified Data.Map as Map)
 %%]
 
-%%[(99 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonLevLet},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/CommonLamInfo},{Core/CommonGathLamInfo})
+%%[(99 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonLevLet},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/CommonBindingInfo},{Core/CommonGathBindingInfo})
 WRAPPER CodeAGItf
 %%]
 
@@ -44,17 +44,17 @@ PRAGMA nocycle
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(99 codegen) hs export(cmodTrfExplicitStackTrace)
-cmodTrfExplicitStackTrace :: EHCOpts -> LamMp -> CModule -> (CModule,LamMp)
-cmodTrfExplicitStackTrace opts lamMp cmod
+cmodTrfExplicitStackTrace :: EHCOpts -> BindingMp -> CModule -> (CModule,BindingMp)
+cmodTrfExplicitStackTrace opts bindingMp cmod
   =  let  t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                              (Inh_CodeAGItf
                                { opts_Inh_CodeAGItf = opts
-                               , lamMp_Inh_CodeAGItf = lamMp
+                               , bindingMp_Inh_CodeAGItf = bindingMp
                                })
      in   ( cTrf_Syn_CodeAGItf t
-          , debugLamMp_Syn_CodeAGItf t `Map.union`
-            gathLamMp_Syn_CodeAGItf  t
-            -- [ | (n,) <- debugLamMp_Syn_CodeAGItf t ]
+          , debugBindingMp_Syn_CodeAGItf t `Map.union`
+            gathBindingMp_Syn_CodeAGItf  t
+            -- [ | (n,) <- debugBindingMp_Syn_CodeAGItf t ]
           )
 %%]
 
@@ -67,18 +67,18 @@ ATTR AllCodeNT CodeAGItf [ opts: EHCOpts | | ]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering LamInfo, providing hook for Core/CommonLamInfo
+%%% Gathering BindingInfo, providing hook for Core/CommonBindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(99 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .	howUnionGathLamInfo
-  												=	Map.union @gathLamMp
+  | AGItf       loc         .	howUnionGathBindingInfo
+  												=	Map.union @gathBindingMp
 %%]
 
 %%[(99 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeLamInfo =   (\(LamInfo {laminfoStackTrace=t}) i -> i {laminfoStackTrace=t})
+  | AGItf       loc         .   howMergeBindingInfo =   (\(BindingInfo {bindinginfoStackTrace=t}) i -> i {bindinginfoStackTrace=t})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -123,7 +123,7 @@ SEM CModule
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Newly bound LamInfo
+%%% Newly bound BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Only stack trace info is gathered, and assumed to propagate correctly.
@@ -138,9 +138,9 @@ mbStackTrace opts isCand nm
 
 %%[(99 codegen)
 SEM CBound
-  | Bind        (loc.mbStackTrace,lhs.bindLamMp)
+  | Bind        (loc.mbStackTrace,lhs.bindingMp)
                                             =   let mbt = mbStackTrace @lhs.opts @isTraceCandidate @lhs.nm
-                                                in  (mbt,Map.singleton @lhs.nm (emptyLamInfo {laminfoStackTrace = mbt}))
+                                                in  (mbt,Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoStackTrace = mbt}))
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -168,7 +168,7 @@ SEM CBound
 ATTR AllBind [ | | bindCTrfL USE {++} {[]}: {[CBind]} ]
 
 SEM CBound
-  | Bind        (loc.bindCTrfL,loc.mbInStackTraceCtxt,loc.newLamMp)
+  | Bind        (loc.bindCTrfL,loc.mbInStackTraceCtxt,loc.newBindingMp)
                                             =   case @mbStackTrace of
                                                   StackTraceInfo_HasStackTraceEquiv dbNm | @isTraceCandidate
                                                     -> ( [ acoreBind1Cat CBindCateg_Plain dbNm (acoreLam1 @nmStackTrace @expr.cTrf) 
@@ -181,7 +181,7 @@ SEM CBound
                                                          ]
                                                        , Just @nmStackTrace
                                                        , Map.fromList
-                                                           [ (dbNm, emptyLamInfo {laminfoStackTrace = StackTraceInfo_IsStackTraceEquiv @lhs.nm})
+                                                           [ (dbNm, emptyBindingInfo {bindinginfoStackTrace = StackTraceInfo_IsStackTraceEquiv @lhs.nm})
                                                            ]
                                                        )
                                                   _ -> ([acoreBind1Asp1 @lhs.nm @cTrf], @lhs.mbInStackTraceCtxt, Map.empty)
@@ -194,8 +194,8 @@ ATTR CodeAGItf [ | | cTrf: CModule ]
 
 SEM CExpr
   | Let         lhs         .   cTrf        =   CExpr_Let @categ @binds.bindCTrfL @body.cTrf
-  | Var         lhs         .   cTrf        =   case Map.lookup @nm @lhs.lamMp of
-                                                  Just (LamInfo {laminfoStackTrace=StackTraceInfo_HasStackTraceEquiv dbNm})
+  | Var         lhs         .   cTrf        =   case Map.lookup @nm @lhs.bindingMp of
+                                                  Just (BindingInfo {bindinginfoStackTrace=StackTraceInfo_HasStackTraceEquiv dbNm})
                                                     -> case @lhs.mbInStackTraceCtxt of
                                                          Just stTrNm
                                                            -> acore1App (acoreVar dbNm)
@@ -205,18 +205,18 @@ SEM CExpr
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering newly introduced bindings to LamInfo
+%%% Gathering newly introduced bindings to BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(99 codegen)
 ATTR
   AllCodeNT
   CodeAGItf
-    [ | | debugLamMp USE {`Map.union`} {Map.empty}: LamMp ]
+    [ | | debugBindingMp USE {`Map.union`} {Map.empty}: BindingMp ]
 
 SEM CBound
-  | Bind        lhs         .   debugLamMp
-                                            =   @newLamMp `Map.union` @expr.debugLamMp
+  | Bind        lhs         .   debugBindingMp
+                                            =   @newBindingMp `Map.union` @expr.debugBindingMp
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

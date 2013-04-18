@@ -33,7 +33,7 @@ Analyse Core, using relevance analysis, to relate properties (like relevance) of
 %%[(8 codegen) hs import({%{EH}Gam},{%{EH}Gam.DataGam})
 %%]
 
-%%[(8 codegen) hs import({%{EH}LamInfo})
+%%[(8 codegen) hs import({%{EH}BindingInfo})
 %%]
 
 %%[(8 codegen) hs import({%{EH}AnaDomain.Trf.Instantiate})
@@ -43,7 +43,7 @@ Analyse Core, using relevance analysis, to relate properties (like relevance) of
 %%[(8 codegen) hs import({%{EH}Base.Debug},UHC.Util.Pretty,{%{EH}AnaDomain.Pretty})
 %%]
 
-%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonFFI},{Core/CommonBindNm},{Core/Trf/CommonStructureInfo},{Core/CommonCtxtPred},{Core/Trf/CommonFv},{Core/CommonLamInfo},{Core/CommonGathLamInfo})
+%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonFFI},{Core/CommonBindNm},{Core/Trf/CommonStructureInfo},{Core/CommonCtxtPred},{Core/Trf/CommonFv},{Core/CommonBindingInfo},{Core/CommonGathBindingInfo})
 WRAPPER CodeAGItf
 %%]
 
@@ -60,23 +60,23 @@ PRAGMA nocycle
 cmodTrfAnaRelevance
   :: EHCOpts
      -> DataGam
-     -> LamMp
+     -> BindingMp
      -> CModule
      -> ( CModule
-        , LamMp
+        , BindingMp
         )
 cmodTrfAnaRelevance
      opts dataGam
-     lamMp
+     bindingMp
      cmod
   =  let  t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                              (Inh_CodeAGItf
                                { opts_Inh_CodeAGItf = opts
                                , dataGam_Inh_CodeAGItf = dataGam
-                               , lamMp_Inh_CodeAGItf = lamMp
+                               , bindingMp_Inh_CodeAGItf = bindingMp
                                })
      in   ( cTrf_Syn_CodeAGItf t
-          , gathLamMp_Syn_CodeAGItf t
+          , gathBindingMp_Syn_CodeAGItf t
           )
 %%]
 
@@ -110,30 +110,30 @@ SEM CodeAGItf
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering LamInfo, providing hook for Core/CommonLamInfo
+%%% Gathering BindingInfo, providing hook for Core/CommonBindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .	howUnionGathLamInfo
+  | AGItf       loc         .	howUnionGathBindingInfo
   												=	id
 %%]
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeLamInfo	=   (\(LamInfo {laminfoBindAspMp=m}) i -> i {laminfoBindAspMp = m `Map.union` laminfoBindAspMp i})
+  | AGItf       loc         .   howMergeBindingInfo	=   (\(BindingInfo {bindinginfoAspMp=m}) i -> i {bindinginfoAspMp = m `Map.union` bindinginfoAspMp i})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Newly bound LamInfo
+%%% Newly bound BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen grin)
 SEM CBound
   | Bind        loc         .   doBindStrict    =   WhatToRelevInfer_InstToBot `elem` @lhs.whatTo
-                lhs         .   bindLamMp       =   let l = [ (acbaspkeyDefaultRelevTy, LamInfoBindAsp_RelevTy @bindTy) ]
-                                                            -- ++ (if @doBindStrict then [(acbaspkeyStrict, LamInfoBindAsp_RelevTy @strictTy2)] else [])
-                                                    in  Map.singleton @lhs.nm (emptyLamInfo {laminfoBindAspMp = Map.fromList l})
+                lhs         .   bindingMp   =   let l = [ (acbaspkeyDefaultRelevTy, BindingInfoAsp_RelevTy @bindTy) ]
+                                                            -- ++ (if @doBindStrict then [(acbaspkeyStrict, BindingInfoAsp_RelevTy @strictTy2)] else [])
+                                                    in  Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList l})
                 loc         .   doBindStrict    :   Bool
 %%]
 
@@ -168,9 +168,9 @@ SEM *
 %%[(8 codegen) hs
 type REnv    = Gam HsName RelevTy
 
--- | lookup in REnv first, then global LamMp
-renvLookup :: HsName -> REnv -> LamMp -> Maybe RelevTy
-renvLookup n renv lammp = gamLookup n renv <|> (fmap libindaspRelevTy $ lamMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
+-- | lookup in REnv first, then global BindingMp
+renvLookup :: HsName -> REnv -> BindingMp -> Maybe RelevTy
+renvLookup n renv lammp = gamLookup n renv <|> (fmap libindaspRelevTy $ bindingMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -200,7 +200,7 @@ SEM CBound
   | Bind        expr        .   env             =   gamAddGam @exprEnv @lhs.env
 
 SEM CExpr
-  | Var         loc         .   mbEnvTy         =   fmap (relevtyInst @lUniq) (renvLookup @nm @lhs.env @lhs.lamMp)
+  | Var         loc         .   mbEnvTy         =   fmap (relevtyInst @lUniq) (renvLookup @nm @lhs.env @lhs.bindingMp)
                             .   (envTy,envQualS)=   maybe (top, Set.empty) id @mbEnvTy
                 loc         .   envTy           :   RelevTy
                 loc         .   envQualS        :   RelevQualS
@@ -399,7 +399,7 @@ ATTR AllBind [ | | altMbScrutTy USE {<|>} {Nothing} : MbRelevTy ]
 
 SEM CBound
   | Bind        lhs         .   altMbScrutTy    =   do v <- @expr.mbVar
-                                                       renvLookup v @lhs.env Map.empty -- @lhs.lamMp
+                                                       renvLookup v @lhs.env Map.empty -- @lhs.bindingMp
 
 SEM CAlt CBound CModule MbCExpr CPatFld
   | *           loc         .   altMbScrutTy    =   Nothing

@@ -15,7 +15,7 @@
 %%]
 %%[(8 codegen grin) hs import({%{EH}Base.Common}, {%{EH}Base.TermLike}, {%{EH}Opts}, qualified {%{EH}Config} as Cfg, {%{EH}Base.Builtin},{%{EH}Base.Builtin2})
 %%]
-%%[(8 codegen grin) hs import({%{EH}LamInfo}, {%{EH}Core}, {%{EH}Ty}, {%{EH}Gam.Full}, {%{EH}GrinCode})
+%%[(8 codegen grin) hs import({%{EH}BindingInfo}, {%{EH}Core}, {%{EH}Ty}, {%{EH}Gam.Full}, {%{EH}GrinCode})
 %%]
 %%[(8 codegen grin) hs import({%{EH}Core.FFI})
 %%]
@@ -33,7 +33,7 @@
 %%% Wrapper
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen grin).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonLevLet},{Core/CommonPred},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/CommonFFI},{Core/CommonLamInfo},{Core/CommonGathLamInfo},{Core/Trf/CommonFv})
+%%[(8 codegen grin).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonLevLet},{Core/CommonPred},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/CommonFFI},{Core/CommonBindingInfo},{Core/CommonGathBindingInfo},{Core/Trf/CommonFv})
 WRAPPER CodeAGItf
 %%]
 
@@ -43,7 +43,7 @@ WRAPPER CodeAGItf
 
 %%[99
 SEM CModule
-  | Mod         expr        .   gathLamMp           <   expr.gUniq
+  | Mod         expr        .   gathBindingMp           <   expr.gUniq
 %%]
 SEM CBound
   | Bind        lhs         .   opts                <   expr.gUniq
@@ -76,18 +76,18 @@ ATTR AllCodeNT CodeAGItf [ dataGam: DataGam | | ]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering LamInfo, providing hook for Core/CommonLamInfo
+%%% Gathering BindingInfo, providing hook for Core/CommonBindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .	howUnionGathLamInfo
-  												=	Map.union @gathLamMp
+  | AGItf       loc         .	howUnionGathBindingInfo
+  												=	Map.union @gathBindingMp
 %%]
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeLamInfo	=   (\(LamInfo {laminfoArity=a}) i -> i {laminfoArity=a})
+  | AGItf       loc         .   howMergeBindingInfo	=   (\(BindingInfo {bindinginfoArity=a}) i -> i {bindinginfoArity=a})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -114,7 +114,7 @@ SEM CPat
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Newly bound LamInfo
+%%% Newly bound BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Here we only gather arity info, stack trace info is assumed to be gathered earlier,
@@ -122,9 +122,9 @@ and assumed to propagate correctly when merged with this info.
 
 %%[(8 codegen grin)
 SEM CBound
-  | Bind        lhs         .   bindLamMp
+  | Bind        lhs         .   bindingMp
                                             =   Map.singleton @lhs.nm
-                                                              (emptyLamInfo {laminfoArity = length @expr.grLamArgL})
+                                                              (emptyBindingInfo {bindinginfoArity = length @expr.grLamArgL})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -133,11 +133,11 @@ SEM CBound
 
 %%[(8 codegen grin)
 SEM CExpr
-  | Var         loc         .   mbLam       =   case lamMpLookupLam @nm @lhs.lamMp of
+  | Var         loc         .   mbLam       =   case bindingMpLookupLam @nm @lhs.bindingMp of
                                                     j@(Just arity) | @lhs.isTopApp
                                                         -> j
                                                     _   -> Nothing
-  | App         loc         .   mbLam       =   lamMpLookupLam @grAppFun @lhs.lamMp
+  | App         loc         .   mbLam       =   bindingMpLookupLam @grAppFun @lhs.bindingMp
                             .   appArity    =   length @grAppArgL
 %%]
 
@@ -233,14 +233,14 @@ mkSq e1 p e2 = GrExpr_Seq e1 (GrPatLam_Var p) e2
 %%]
 
 %%[(8 codegen grin) hs
-simplArgL :: HsName -> UID -> LamMp -> GrValL -> (GrValL,GrExpr->GrExpr)
-simplArgL modNm uniq lamMp vL
+simplArgL :: HsName -> UID -> BindingMp -> GrValL -> (GrValL,GrExpr->GrExpr)
+simplArgL modNm uniq bindingMp vL
   =  let  nL = map (uidQualHNm modNm) . mkNewUIDL (length vL) $ uniq
      in   foldr  (\(n,a) (aL,wG)
                     ->  case a of
                             GrVal_Var v | isJust mbArity
                                 -> (GrVal_Var n : aL,mkSq a' n . wG)
-                                where mbArity = lamMpLookupLam v lamMp
+                                where mbArity = bindingMpLookupLam v bindingMp
                                       a' = GrExpr_Store (mkNdPApp v (fromJust mbArity) [])
                             GrVal_Node _ _
                                 -> (GrVal_Var n : aL,mkSq (GrExpr_Store a) n . wG)
@@ -339,7 +339,7 @@ SEM CExpr
                                                           mkE  = retStrict @lhs.isStrict
                                                           n = uidQualHNm @lhs.modNm @lUniq
                                                           -- 20100824 AD: TBD taking care of yes/no building closures inside simplArgL, i.e. not for FFI
-                                                          (argL',wrapGr) = simplArgL @lhs.modNm @lUniq2 @lhs.lamMp argL
+                                                          (argL',wrapGr) = simplArgL @lhs.modNm @lUniq2 @lhs.bindingMp argL
                                                      in   case @func.appFunKind of
                                                             -- tuple/constructor application
                                                             AppFunKind_Tag t
@@ -416,7 +416,7 @@ SEM CExpr
 %%[[10
   | TupIns TupUpd TupDel
                 loc         .   grExpr      =   if @lhs.isTopTup
-                                                then  mkGrAdapt @lhs.modNm @lUniq @lhs.lamMp @lhs.isStrict (reverse @grTupFldL) (maybe hsnUnknown id (grV2HNm @grTupRec))
+                                                then  mkGrAdapt @lhs.modNm @lUniq @lhs.bindingMp @lhs.isStrict (reverse @grTupFldL) (maybe hsnUnknown id (grV2HNm @grTupRec))
                                                 else  GrExpr_Unit GrVal_Empty GrType_None
 %%]]
   | * - Let Case App Var Tup Int Char Ann FFI CaseAltFail
@@ -437,12 +437,12 @@ SEM CBound
 %%[(10 codegen grin) hs
 type TupAdaptFldL = [(GrVal,GrVal,GrVal->GrVal->GrAdapt)]
 
-mkGrAdapt :: HsName -> UID -> LamMp -> Bool -> TupAdaptFldL -> HsName -> GrExpr
-mkGrAdapt modNm u lamMp isStrict tupFldL tupRecNm
+mkGrAdapt :: HsName -> UID -> BindingMp -> Bool -> TupAdaptFldL -> HsName -> GrExpr
+mkGrAdapt modNm u bindingMp isStrict tupFldL tupRecNm
   =  let  [u1,u2] = mkNewUIDL 2 (uidChild u)
           (oL,vL,mkAL) = unzip3 tupFldL
           (oL',wrO) = unboxArgL modNm u1 hsnInt oL
-          (vL',wrV) = simplArgL modNm u2 lamMp vL
+          (vL',wrV) = simplArgL modNm u2 bindingMp vL
      in   wrV . wrO . retStrict isStrict
           . GrVal_NodeAdapt tupRecNm
           . zipWith3 ($) mkAL oL' $ vL'

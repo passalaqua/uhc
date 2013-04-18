@@ -113,7 +113,7 @@ cpOutputCoreModule binary nmsuff suff modNm cMod
                  fpC     = mkOutputFPath opts modNm fp (suff ++ nmsuff) -- for now nmsuff after suff, but should be inside name
                  fnC     = fpathToStr fpC
                  coreInh = crsiCoreInh crsi
-                 lm      = Core2GrSem.lamMp_Inh_CodeAGItf coreInh
+                 lm      = Core2GrSem.bindingMp_Inh_CodeAGItf coreInh
 %%[[8
          ;  lift $ putPPFPath fpC (ppCModule opts {- lm -} cMod) 100
 %%][50

@@ -31,13 +31,13 @@ Specific transformations:
 %%[(8 codegen) hs import(UHC.Util.Utils)
 %%]
 
-%%[(8 codegen) hs import({%{EH}LamInfo})
+%%[(8 codegen) hs import({%{EH}BindingInfo})
 %%]
 
 %%[(8 codegen) hs import({%{EH}Base.Debug},{%{EH}Base.Builtin})
 %%]
 
-%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLamInfo},{Core/CommonGathLamInfo},{Core/CommonBindNm},{Core/CommonPred})
+%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonBindingInfo},{Core/CommonGathBindingInfo},{Core/CommonBindNm},{Core/CommonPred})
 WRAPPER CodeAGItf
 %%]
 
@@ -52,22 +52,22 @@ PRAGMA nocycle novisit
 %%[(8 codegen) hs export(cmodTrfOptimizeStrictness)
 cmodTrfOptimizeStrictness
   :: EHCOpts
-     -> LamMp
+     -> BindingMp
      -> CModule
      -> ( CModule
-        , LamMp
+        , BindingMp
         )
 cmodTrfOptimizeStrictness
      opts
-     lamMp
+     bindingMp
      cmod
   =  let  t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                              (Inh_CodeAGItf
                                { opts_Inh_CodeAGItf = opts
-                               , lamMp_Inh_CodeAGItf = lamMp
+                               , bindingMp_Inh_CodeAGItf = bindingMp
                                })
      in   ( cTrf_Syn_CodeAGItf t
-          , gathLamMp_Syn_CodeAGItf t
+          , gathBindingMp_Syn_CodeAGItf t
           )
 %%]
 
@@ -89,29 +89,29 @@ ATTR CodeAGItf [ | | cTrf: CModule ]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Gathering LamInfo, providing hook for Core/CommonLamInfo
+%%% Gathering BindingInfo, providing hook for Core/CommonBindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howUnionGathLamInfo
-                                                =   Map.union @gathLamMp
+  | AGItf       loc         .   howUnionGathBindingInfo
+                                                =   Map.union @gathBindingMp
 %%]
 
 %%[(8 codegen)
 SEM CodeAGItf
-  | AGItf       loc         .   howMergeLamInfo =   (\(LamInfo {laminfoBindAspMp=m}) i -> i {laminfoBindAspMp = m `Map.union` laminfoBindAspMp i})
+  | AGItf       loc         .   howMergeBindingInfo =   (\(BindingInfo {bindinginfoAspMp=m}) i -> i {bindinginfoAspMp = m `Map.union` bindinginfoAspMp i})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Newly bound LamInfo
+%%% Newly bound BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen grin)
 SEM CBind
-  | Bind        lhs         .   bindLamMp       =   case @mbStrictArgsRes of
-                                                      Just (t,_,_) -> Map.singleton @nm (emptyLamInfo {laminfoBindAspMp = Map.fromList l})
-                                                                   where l = [(acbaspkeyStrict, LamInfoBindAsp_RelevTy t)]
+  | Bind        lhs         .   bindingMp   =   case @mbStrictArgsRes of
+                                                      Just (t,_,_) -> Map.singleton @nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList l})
+                                                                   where l = [(acbaspkeyStrict, BindingInfoAsp_RelevTy t)]
                                                       _            -> Map.empty
 %%]
 
@@ -232,7 +232,7 @@ SEM CBind
 %%[(8 codegen)
 SEM CExpr
   | Var         loc         .   strictRef       =   acbrefAspAnd acbaspkeyStrict @ref
-                            .   mbStrict        =   case fmap libindaspRelevTy $ lamMpLookupAsp2 @strictRef @lhs.lamMp of
+                            .   mbStrict        =   case fmap libindaspRelevTy $ bindingMpLookupAsp2 @strictRef @lhs.bindingMp of
                                                       Just (t@(RelevTy_Fun _ _ _ a r))
                                                         -> Just (t, map relevtyAnaEval a, relevtyAnaEval r)
                                                       _ -> Nothing
