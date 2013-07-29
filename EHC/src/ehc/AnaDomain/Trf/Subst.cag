@@ -22,10 +22,10 @@ Substitution for AnaDomain.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen) ag import({AnaDomain/AbsSyn})
-WRAPPER TyAGItf QualAGItf CoeAGItf
+WRAPPER TyAGItf
 %%]
 
-%%[(8 codegen) hs export(relevtyAppVarLookup)
+%%[(8 codegen) hs export(anaTySchAppVarLookup)
 relevtyAppVarLookup :: VarLookup m UID RVarMpInfo => m -> RelevTy -> RelevTy
 relevtyAppVarLookup varmp ty
   = repl_Syn_TyAGItf t
@@ -33,36 +33,14 @@ relevtyAppVarLookup varmp ty
               (sem_TyAGItf (TyAGItf_AGItf ty))
               (Inh_TyAGItf {rvarLookup_Inh_TyAGItf = varlookupFix varmp})
 %%]
-relevtyAppVarLookup :: RVarMp -> RelevTy -> RelevTy
-
-%%[(8 codegen) hs export(relevqualAppVarLookup)
-relevqualAppVarLookup :: VarLookup m UID RVarMpInfo => m -> RelevQual -> RelevQual
-relevqualAppVarLookup varmp qual
-  = repl_Syn_QualAGItf t
-  where t = wrap_QualAGItf
-              (sem_QualAGItf (QualAGItf_AGItf qual))
-              (Inh_QualAGItf {rvarLookup_Inh_QualAGItf = varlookupFix varmp})
-%%]
-relevqualAppVarLookup :: RVarMp -> RelevQual -> RelevQual
-
-%%[(8 codegen) hs export(relevcoeAppVarLookup)
-relevcoeAppVarLookup :: VarLookup m UID RVarMpInfo => m -> RelevCoe -> RelevCoe
-relevcoeAppVarLookup varmp coe
-  = repl_Syn_CoeAGItf t
-  where t = wrap_CoeAGItf
-              (sem_CoeAGItf (CoeAGItf_AGItf coe))
-              (Inh_CoeAGItf {rvarLookup_Inh_CoeAGItf = varlookupFix varmp})
-%%]
-relevcoeAppVarLookup :: RVarMp -> RelevCoe -> RelevCoe
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% VarMp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR TyAGItf QualAGItf CoeAGItf AllNT [ rvarLookup: {VarLookupFix UID RVarMpInfo} | | ]
+ATTR TyAGItf AllNT [ rvarLookup: {VarLookupFix UID RVarMpInfo} | | ]
 %%]
-ATTR TyAGItf QualAGItf CoeAGItf AllNT [ rvarMp: RVarMp | | ]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Replacement
@@ -81,9 +59,7 @@ SEM AnaEval
 
 %%[(8 codegen).TySubst
 ATTR AllNT     [ | | repl: SELF  		]
-ATTR TyAGItf   [ | | repl: RelevTy    	]
-ATTR QualAGItf [ | | repl: RelevQual   	]
-ATTR CoeAGItf  [ | | repl: RelevCoe   	]
+ATTR TyAGItf   [ | | repl: AnaTyScheme    	]
 %%]
 
 %%[(8 codegen)

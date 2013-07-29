@@ -9,82 +9,31 @@
 
 %%[(8 codegen)
 DATA TyAGItf
-  | AGItf       relevTy         : RelevTy
-%%]
-
-%%[(8 codegen)
-DATA QualAGItf
-  | AGItf       relevQual       : RelevQual
-%%]
-
-%%[(8 codegen)
-DATA CoeAGItf
-  | AGItf       relevCoe        : RelevCoe
-%%]
-
-%%[(8888 codegen)
-DATA AnaEvalAGItf
-  | AGItf       anaEval         : AnaEval
+  | AGItf       relevTy         : AnaTyScheme
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Evaluation state
+%%% Type Schemes
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-DATA AnaEval
-  -- variable, for propagation
-  | Var         av				: {UID}
+DATA AnaTyScheme
+  -- Inner type
+  | Tau         ty				: AnaTy
 
-  -- evaluated (Bot)
-  | WHNF
+  -- Alpha (type variables) quantifications
+  | FAAlpha     ty                              : AnaTyScheme
+                alpha                           : {UID}
   
-  -- unknown (Top)
-  | Lazy
-  
-  -- meet & join are explicitly encoded because of delayed or impossible simplification
-  | Meet		opnds			: AnaEvalL
-  | Join		opnds			: AnaEvalL
+  -- Beta (relevance ann variables) quantifications
+  | FABeta      ty                              : AnaTyScheme
+                beta                            : {UID}
 
-TYPE AnaEvalL	=	[AnaEval]
+  -- Gamma (applicativeness ann variables) quantifications
+  | FAGamma     ty                              : AnaTyScheme
+                gamma                           : {UID}
 
-SET AllAna 		= 	AnaEval AnaEvalL
-%%]
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Coercion between Ana's
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%[(8 codegen)
-DATA RelevCoe
-  -- no coercion
-  | Id
-
-  -- err coercion
-  | Err			str				: String
-
-  -- composition of coercion
-  | Comp		l				: RelevCoe
-  				r				: RelevCoe
-
-  -- coercion for function
-  | Fun 		args			: RelevCoeL
-  				res				: RelevCoe
-
-  -- coercion going in the 'wrong' direction of lattice, delegating the corresponding 'cast' to the outside
-  | Cast		coe 			: RelevCoe
-  
-  -- coercion casting between types
-  | CastTy		l	 			: RelevTy
-  				r				: RelevTy
-  
-  -- the real coercion, for each Ana lattice, may require substitutions later on
-  | Eval		from			: AnaEval
-  				to				: AnaEval
-
-TYPE RelevCoeL	=	[RelevCoe]
-
-SET AllCoe		=	RelevCoe RelevCoeL
+TYPE AnaTySchemeL	=	[AnaTyScheme]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -92,43 +41,56 @@ SET AllCoe		=	RelevCoe RelevCoeL
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-DATA RelevQual
-  -- less than or equal in AnaEval lattice
-  | SubEval		l				: AnaEval
-  				r				: AnaEval
+DATA AnaTy
+  -- Base type for values
+  | Unit
+  -- Type variable
+  | Alpha               v                               : {UID}
+  -- Arrow types
+  | Arrow               phi                             : Relev  -- Relevance of the argument
+                        psi                             : Psi    -- Applicativeness of this arrow
+                        arg                             : AnaTy  -- Argument type
+                        res                             : AnaTy  -- Result type
+
+TYPE AnaTyL	=	[AnaTy]
+
+SET AllAnaTy    =       AnaTyScheme AnaTySchemeL AnaTy AnaTyL
 %%]
-  -- a qual which bridges an alternative and its surroundings
-  | Alt			qual			: RelevQual
-  				altId			: UID
-  				altNr			: Int
-  				altMax			: Int
-  				altMbTag		: {Maybe CTag}			-- tag to which this alt belongs
-  				altMbScrutTy	: MbRelevTy				-- the ty for which this tag is taken/chosen
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Annotations
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-TYPE RelevQualL	=	[RelevQual]
+-- Relevance annotation
+DATA Relev
+  -- Top: No conclusion can be drawn or it is known to be lazy
+  | Top
+  -- Rel: We can safely say it is relevant
+  | Rel
+  -- Beta: It is a variable and may assume either value
+  | Beta                v                               : {UID}
 
-DATA RelevTy
-  -- no ty (for now)
-  | None
-  -- error ty (for now)
-  | Err			str				: String
+-- Identified applicativeness annotation
+DATA Psi
+  -- Applicativeness with their dependencies
+  | Psi                 gamma                           : {UID}
+                        deps                            : RhoL
+TYPE PsiL      =       [Psi]
 
-  -- analysis info is base case of ty
-  | Ana         eval			: AnaEval
-  				-- put others here
+-- Group of applications with their associated unleashed applications
+DATA Rho
+  | Rho                 psis                            : Psis
+TYPE RhoL      =       [Rho]
 
-  -- function structure
-  | Fun			quant			: {RQuant}
-  				quants			: {[UID]}
-  				quals			: RelevQualL
-  				args			: RelevTyL
-  				res				: RelevTy
+DATA Applic
+  -- Top: No conclusion can be drawn or it is known to not be applied
+  | Top
+  -- App: We can safely say it was applied
+  | App
+  -- Gamma: Defined within Psi above, helps us with dependencies
 
-TYPE RelevTyL	=	[RelevTy]
-TYPE MbRelevTy	=	MAYBE RelevTy
-
-SET AllRelevTy	=	RelevTy RelevTyL MbRelevTy RelevQual RelevQualL
+SET AllAnaAnnTy		= 	 Relev Rho RhoL Applic
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -136,6 +98,6 @@ SET AllRelevTy	=	RelevTy RelevTyL MbRelevTy RelevQual RelevQualL
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-SET AllNT = AllRelevTy AllAna AllCoe
+SET AllNT = AllAnaTy AllAnaAnn
 %%]
 
