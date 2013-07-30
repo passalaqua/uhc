@@ -60,9 +60,9 @@ SEM AnaTyScheme
 
 %%[(8 codegen)
 SEM AnaTyScheme
-  | FAAlpha     loc         .   freshTv     = mkNewLevUID @lUniq
-  | FABeta      loc         .   freshTv     = mkNewLevUID @lUniq
-  | FAGamma     loc         .   freshTv     = mkNewLevUID @lUniq
+  | FAAlpha     loc         .   freshTv     = fst $ mkNewLevUID @lUniq
+  | FABeta      loc         .   freshTv     = fst $ mkNewLevUID @lUniq
+  | FAGamma     loc         .   freshTv     = fst $ mkNewLevUID @lUniq
 %%]
 
 %%[(8 codegen)
@@ -83,7 +83,7 @@ SEM AnaTyScheme
 
 %%[(8 codegen)
 ATTR AllNT [ | | repl: SELF ]
-ATTR TyAGItf [ | | repl: RelevTy ]
+ATTR TyAGItf [ | | repl: AnaTyScheme ]
 %%]
 
 %%[(8 codegen)
@@ -103,6 +103,6 @@ SEM AnaTy
 %%[(8 codegen)
 SEM Relev
   | Beta        loc         .   repl     = Relev_Beta $ Map.findWithDefault @v @v @lhs.freshMp
-SEM Psi
-  | Psi         loc         .   repl     = Psi_Psi $ Map.findWithDefault @v @v @lhs.freshMp
+SEM Applic
+  | Gamma       loc         .   repl     = Applic_Gamma (Map.findWithDefault @v @v @lhs.freshMp) @deps.repl
 %%]

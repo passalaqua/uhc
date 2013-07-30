@@ -26,8 +26,8 @@ WRAPPER TyAGItf
 %%]
 
 %%[(8 codegen) hs export(anaTySchAppVarLookup)
-relevtyAppVarLookup :: VarLookup m UID RVarMpInfo => m -> RelevTy -> RelevTy
-relevtyAppVarLookup varmp ty
+anaTySchAppVarLookup :: VarLookup m UID RVarMpInfo => m -> AnaTyScheme -> AnaTyScheme
+anaTySchAppVarLookup varmp ty
   = repl_Syn_TyAGItf t
   where t = wrap_TyAGItf
               (sem_TyAGItf (TyAGItf_AGItf ty))
@@ -46,23 +46,23 @@ ATTR TyAGItf AllNT [ rvarLookup: {VarLookupFix UID RVarMpInfo} | | ]
 %%% Replacement
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%%[(8 codegen)
 SEM AnaEval
   | Var             inst    .   repl'       :   AnaEval
                     (loc.replv,loc.isRepl)  =   maybe (@repl,False) (\t -> (t,True)) $ rvmiMbEval $? @lhs.rvarLookup @av
                     inst    .   repl'       =   if @isRepl then @replv else AnaEval_WHNF
-%%]
+%%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Apply substitution
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen).TySubst
+%%[(8 codegen)
 ATTR AllNT     [ | | repl: SELF  		]
 ATTR TyAGItf   [ | | repl: AnaTyScheme    	]
 %%]
 
-%%[(8 codegen)
+%%%[(8 codegen)
 SEM RelevTy
   | Fun				loc		.	rvarLookup	=	varlookupFixDel @quants @lhs.rvarLookup
 
@@ -70,5 +70,4 @@ SEM AnaEval
   | Var             lhs     .   repl        =   if @isRepl
                                                 then @repl'.repl
                                                 else @repl
-%%]
-
+%%%]

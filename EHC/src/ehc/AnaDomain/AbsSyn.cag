@@ -45,12 +45,14 @@ DATA AnaTy
   -- Base type for values
   | Unit
   -- Type variable
-  | Alpha               v                               : {UID}
+  | Alpha       v                               : {UID}
   -- Arrow types
-  | Arrow               phi                             : Relev  -- Relevance of the argument
-                        psi                             : Psi    -- Applicativeness of this arrow
-                        arg                             : AnaTy  -- Argument type
-                        res                             : AnaTy  -- Result type
+  | Arrow       phi                             : Relev  -- Relevance of the argument
+                psi                             : Applic -- Applicativeness of this arrow
+                arg                             : AnaTy  -- Argument type
+                res                             : AnaTy  -- Result type
+  -- Datatypes
+  | Data        params                          : AnaTyL -- Type parameters
 
 TYPE AnaTyL	=	[AnaTy]
 
@@ -69,28 +71,22 @@ DATA Relev
   -- Rel: We can safely say it is relevant
   | Rel
   -- Beta: It is a variable and may assume either value
-  | Beta                v                               : {UID}
+  | Beta         v                               : {UID}
 
--- Identified applicativeness annotation
-DATA Psi
-  -- Applicativeness with their dependencies
-  | Psi                 gamma                           : {UID}
-                        deps                            : RhoL
-TYPE PsiL      =       [Psi]
-
--- Group of applications with their associated unleashed applications
-DATA Rho
-  | Rho                 psis                            : Psis
-TYPE RhoL      =       [Rho]
+-- Set of applications
+-- Using lists because UUAG plays better with them
+TYPE Rho         =       [Applic]
 
 DATA Applic
   -- Top: No conclusion can be drawn or it is known to not be applied
   | Top
   -- App: We can safely say it was applied
   | App
-  -- Gamma: Defined within Psi above, helps us with dependencies
+  -- Gamma: It is a variable and has dependencies
+  | Gamma        v                               : {UID}
+                 deps                            : Rho
 
-SET AllAnaAnnTy		= 	 Relev Rho RhoL Applic
+SET AllAnaAnnTy	 =       Relev Rho Applic
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -98,6 +94,6 @@ SET AllAnaAnnTy		= 	 Relev Rho RhoL Applic
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-SET AllNT = AllAnaTy AllAnaAnn
+SET AllNT = AllAnaTy AllAnaAnnTy
 %%]
 
