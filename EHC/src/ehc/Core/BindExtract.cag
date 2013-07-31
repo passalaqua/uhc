@@ -23,7 +23,7 @@ data BoundSel
   = BoundSel
       { selBind         :: Bool
       , selMeta         :: ACoreBindAspectKeyS -> Bool
-      , selRelevTy      :: ACoreBindAspectKeyS -> RelevTy -> Bool
+      , selRelevTy      :: ACoreBindAspectKeyS -> AnaTyScheme -> Bool
       , selVal          :: ACoreBindAspectKeyS -> MetaLev -> CLbl -> Bool
       , selTy           :: ACoreBindAspectKeyS -> Bool
 %%[[90

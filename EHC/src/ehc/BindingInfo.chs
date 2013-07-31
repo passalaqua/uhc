@@ -95,7 +95,7 @@ instance PP FusionRole where
 -- | per aspect info
 data BindingInfoAsp
   = BindingInfoAsp_RelevTy						-- relevance typing
-      { libindaspRelevTy 		:: !RelevTy
+      { libindaspRelevTy 		:: !AnaTyScheme
       }
   | BindingInfoAsp_Ty							-- plain good old type
       { libindaspTy 			:: !Ty

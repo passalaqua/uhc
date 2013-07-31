@@ -50,9 +50,7 @@ ppCExpr :: CExpr -> PP_Doc
 ppCExpr ce
   =  let  t = wrap_CExpr (sem_CExpr ce)
                          (Inh_CExpr
-                            { varPPMp_Inh_CExpr = Map.empty
-                            -- , bindingMp_Inh_CExpr = Map.empty
-                            , ppHow_Inh_CExpr = howHor
+                            { ppHow_Inh_CExpr = howHor
                             , opts_Inh_CExpr = emptyEHCOpts
                             , mlev_Inh_CExpr = metaLevVal
                             })
@@ -62,9 +60,7 @@ ppCBound :: CBound -> PP_Doc
 ppCBound ce
   =  let  t = wrap_CBound (sem_CBound ce)
                           (Inh_CBound
-                            { varPPMp_Inh_CBound = Map.empty
-                            -- , bindingMp_Inh_CBound = Map.empty
-                            , ppHow_Inh_CBound = howHor
+                            { ppHow_Inh_CBound = howHor
                             , opts_Inh_CBound = emptyEHCOpts
                             , nm_Inh_CBound = hsnUnknown
                             , minMetaLev_Inh_CBound = metaLevVal -- gathMinMetaLev_Syn_CBound t
@@ -84,9 +80,7 @@ ppCBind :: CBind -> PP_Doc
 ppCBind ce
   =  let  t = wrap_CBind (sem_CBind ce)
                          (Inh_CBind
-                            { varPPMp_Inh_CBind = Map.empty
-                            -- , bindingMp_Inh_CBind = Map.empty
-                            , ppHow_Inh_CBind = howHor
+                            { ppHow_Inh_CBind = howHor
                             , opts_Inh_CBind = emptyEHCOpts
                             , minMetaLev_Inh_CBind = metaLevVal -- gathMinMetaLev_Syn_CBind t
                             , mlev_Inh_CBind = metaLevVal -- gathMinMetaLev_Syn_CBind t
@@ -420,7 +414,7 @@ SEM CExpr
   | Ann         loc         .   pp          =   ppParens (@expr.pp >#< @ann.pp)
 
 SEM CExprAnn
-  | AnnTy       loc         .   pp          =   "::" >#< ppAnnTySch @ty
+  | AnnTy       loc         .   pp          =   "::" >#< ppAnaTySch @ty
   | Debug       loc         .   pp          =   ppCmt $ pp @info
 %%]
 
@@ -471,21 +465,9 @@ SEM CBound
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR AllExprBase [ varPPMp: VarPPMp | | ]
-
-SEM CModule
-  | Mod         expr        .   varPPMp     =   Map.empty
-%%]
-
-%%[(8 codegen)
-ATTR AllBound [ | | gathVarPPMp USE {`Map.union`} {Map.empty}: VarPPMp ]
-
 SEM CBound
-  | RelevTy     (loc.tyPP,lhs.gathVarPPMp)  =   ppRelevTy Map.empty @relevTy        -- circular when given desired @lhs.varPPMp
+  | RelevTy     loc         .   tyPP        =   ppAnaTySch @relevTy
   | Ty          loc         .   tyPP        =   ppTy @ty
-
-SEM CBind
-  | Bind        bindAspects .   varPPMp     =   Map.union @bindAspects.gathVarPPMp @lhs.varPPMp
 %%]
 
 %%]
