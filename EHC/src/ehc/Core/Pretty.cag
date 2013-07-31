@@ -268,7 +268,7 @@ ppBound isSingleNoNm mbLev s pv
 
 %%[(8 codegen)
 ATTR CodeAGItf AllCodeNT [ | | pp USE {>-<} {empty} : PP_Doc ]
-ATTR CPatFldL CBindL CAltL CBoundL CBindAnnL [ | | ppL: {[PP_Doc]} ]
+ATTR CPatFldL CBindL CAltL CBoundL [ | | ppL: {[PP_Doc]} ]
 ATTR CExpr [ | | lamBodyPP: PP_Doc  lamArgPPL: {[PP_Doc]} ]
 ATTR CExpr [ | | appFunPP : PP_Doc  appArgPPL: {[PP_Doc]} ]
 
@@ -362,7 +362,7 @@ SEM CBound
   | Val         loc         .   pp          =   ppBound True (Just @lev) @sep @ppBound
   | * - Val     loc         .   pp          =   @ppBound
 
-SEM CBoundL CBindL CPatFldL CAltL CBindAnnL
+SEM CBoundL CBindL CPatFldL CAltL
   | Nil         lhs         .   ppL         =   []
   | Cons        lhs         .   ppL         =   @hd.pp : @tl.ppL
 
@@ -378,7 +378,6 @@ SEM CPat
 
 SEM CPatFld
   | Fld         lhs         .   pp          =   ppCurlysCommas' [ppCNm @lhs.opts @lbl,@offset.pp {- ,ppCNm @lhs.opts @nm -}] >|< "=" >|< @bind.pp
-                                                >|< (if null @fldAnns.ppL then empty else ppParensCommas' @fldAnns.ppL)
 
 SEM CPatRest
   | Var         lhs         .   pp          =   ppCNm @lhs.opts @nm
@@ -421,12 +420,8 @@ SEM CExpr
   | Ann         loc         .   pp          =   ppParens (@expr.pp >#< @ann.pp)
 
 SEM CExprAnn
-  | Ty          loc         .   pp          =   "::" >#< ppTyWithCfg' CfgPP_Plain @ty
-  | Coe         loc         .   pp          =   "~" >#< ppRelevCoe @lhs.varPPMp @coe
+  | AnnTy       loc         .   pp          =   "::" >#< ppAnnTySch @ty
   | Debug       loc         .   pp          =   ppCmt $ pp @info
-
-SEM CBindAnn
-  | Coe         loc         .   pp          =   "~" >#< ppRelevCoe @lhs.varPPMp @coe
 %%]
 
 %%[(9 codegen)
