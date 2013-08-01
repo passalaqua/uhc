@@ -414,7 +414,7 @@ SEM CExpr
   | Ann         loc         .   pp          =   ppParens (@expr.pp >#< @ann.pp)
 
 SEM CExprAnn
-  | AnnTy       loc         .   pp          =   "::" >#< ppAnaTySch @ty
+  | AnnTy       loc         .   pp          =   "::" >#< ppRelTySch @ty
   | Debug       loc         .   pp          =   ppCmt $ pp @info
 %%]
 
@@ -466,7 +466,7 @@ SEM CBound
 
 %%[(8 codegen)
 SEM CBound
-  | RelevTy     loc         .   tyPP        =   ppAnaTySch @relevTy
+  | RelevTy     loc         .   tyPP        =   ppRelTySch @relevTy
   | Ty          loc         .   tyPP        =   ppTy @ty
 %%]
 

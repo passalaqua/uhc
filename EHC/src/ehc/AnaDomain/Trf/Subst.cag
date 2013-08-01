@@ -25,9 +25,9 @@ Substitution for AnaDomain.
 WRAPPER TyAGItf
 %%]
 
-%%[(8 codegen) hs export(anaTySchAppVarLookup)
-anaTySchAppVarLookup :: VarLookup m UID RVarMpInfo => m -> AnaTyScheme -> AnaTyScheme
-anaTySchAppVarLookup varmp ty
+%%[(8 codegen) hs export(relTySchAppVarLookup)
+relTySchAppVarLookup :: VarLookup m UID RVarMpInfo => m -> RelTyScheme -> RelTyScheme
+relTySchAppVarLookup varmp ty
   = repl_Syn_TyAGItf t
   where t = wrap_TyAGItf
               (sem_TyAGItf (TyAGItf_AGItf ty))
@@ -59,7 +59,7 @@ SEM AnaEval
 
 %%[(8 codegen)
 ATTR AllNT     [ | | repl: SELF  		]
-ATTR TyAGItf   [ | | repl: AnaTyScheme    	]
+ATTR TyAGItf   [ | | repl: RelTyScheme    	]
 %%]
 
 %%%[(8 codegen)

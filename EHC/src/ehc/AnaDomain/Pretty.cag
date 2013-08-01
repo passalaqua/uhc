@@ -18,32 +18,32 @@
 
 %%[(8 codegen).WRAPPER ag import({AnaDomain/AbsSyn})
 WRAPPER
-  AnaTyScheme AnaTy
+  RelTyScheme RelTy
 %%]
 
-%%[(8 codegen) hs export(ppAnaTySch)
-ppAnaTySch :: AnaTyScheme -> PP_Doc
-ppAnaTySch x
-  =  let  t = wrap_AnaTyScheme (sem_AnaTyScheme x)
-                               (Inh_AnaTyScheme { alphas_Inh_AnaTyScheme = Set.empty
-                                                , betas_Inh_AnaTyScheme = Set.empty
-                                                , gammas_Inh_AnaTyScheme = Set.empty
+%%[(8 codegen) hs export(ppRelTySch)
+ppRelTySch :: RelTyScheme -> PP_Doc
+ppRelTySch x
+  =  let  t = wrap_RelTyScheme (sem_RelTyScheme x)
+                               (Inh_RelTyScheme { alphas_Inh_RelTyScheme = Set.empty
+                                                , betas_Inh_RelTyScheme = Set.empty
+                                                , gammas_Inh_RelTyScheme = Set.empty
                                                 })
-     in   pp_Syn_AnaTyScheme t
+     in   pp_Syn_RelTyScheme t
 
-instance PP AnaTyScheme where
-  pp = ppAnaTySch
+instance PP RelTyScheme where
+  pp = ppRelTySch
 %%]
 
-%%[(8 codegen) hs export(ppAnaTy)
-ppAnaTy :: AnaTy -> PP_Doc
-ppAnaTy x
-  =  let  t = wrap_AnaTy (sem_AnaTy x)
-                         (Inh_AnaTy  )
-     in   pp_Syn_AnaTy t
+%%[(8 codegen) hs export(ppRelTy)
+ppRelTy :: RelTy -> PP_Doc
+ppRelTy x
+  =  let  t = wrap_RelTy (sem_RelTy x)
+                         (Inh_RelTy  )
+     in   pp_Syn_RelTy t
 
-instance PP AnaTy where
-  pp = ppAnaTy
+instance PP RelTy where
+  pp = ppRelTy
 %%]
 
 %%[(8 codegen) hs
@@ -63,11 +63,11 @@ instance PP RVarMpInfo where
 %%[(8 codegen)
 ATTR AllNT [ | | pp USE {>-<} {empty} : PP_Doc ]
 
-ATTR TyAGItf AnaTyScheme AnaTySchemeL [ alphas : {UIDS} | | ]
-ATTR TyAGItf AnaTyScheme AnaTySchemeL [ betas  : {UIDS} | | ]
-ATTR TyAGItf AnaTyScheme AnaTySchemeL [ gammas : {UIDS} | | ]
+ATTR TyAGItf RelTyScheme RelTySchemeL [ alphas : {UIDS} | | ]
+ATTR TyAGItf RelTyScheme RelTySchemeL [ betas  : {UIDS} | | ]
+ATTR TyAGItf RelTyScheme RelTySchemeL [ gammas : {UIDS} | | ]
 
-SEM AnaTyScheme
+SEM RelTyScheme
   | Tau         lhs         .   pp          =   @loc.alpha >#< @loc.beta >#< @loc.gamma >#< @ty.pp
                 loc         .   alpha       =   if Set.null @lhs.alphas then empty else pp "\\a/" >|< ppParens (show @lhs.alphas)
                 loc         .   beta        =   if Set.null @lhs.betas  then empty else pp "\\b/" >|< ppParens (show @lhs.betas)
@@ -77,7 +77,7 @@ SEM AnaTyScheme
   | FABeta      ty          .   betas       =   Set.insert @beta @lhs.betas
   | FAGamma     ty          .   gammas      =   Set.insert @gamma @lhs.gammas
 
-SEM AnaTy
+SEM RelTy
   | Unit        lhs         .   pp          =   pp "()"
   | Alpha       lhs         .   pp          =   pp @v
   | Arrow       lhs         .   pp          =   @arg.pp >|< pp "-(" >|< @phi.pp >|< pp "," >|< @psi.pp >|< pp ")->" >|< @res.pp
@@ -95,7 +95,7 @@ SEM Applic
 %%]
 
 %%[(8 codegen)
-SEM AnaTySchemeL AnaTyL Rho [ | | ppL: {[PP_Doc]} ]
+SEM RelTySchemeL RelTyL Rho [ | | ppL: {[PP_Doc]} ]
   | Nil         lhs         .   ppL         =   []
   | Cons        lhs         .   ppL         =   @hd.pp : @tl.ppL
 %%]

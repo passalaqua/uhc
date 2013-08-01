@@ -21,16 +21,16 @@ Instantiation replaces quantification with fresh type vars.
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% anaTySchInst interface
+%%% relTySchInst interface
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen) ag import({AnaDomain/AbsSyn})
 WRAPPER TyAGItf
 %%]
 
-%%[(8 codegen) hs export(anaTySchInst)
-anaTySchInst :: UID -> AnaTyScheme -> AnaTyScheme
-anaTySchInst uniq ty
+%%[(8 codegen) hs export(relTySchInst)
+relTySchInst :: UID -> RelTyScheme -> RelTyScheme
+relTySchInst uniq ty
   = ty'
   where t = wrap_TyAGItf
               (sem_TyAGItf (TyAGItf_AGItf ty))
@@ -48,7 +48,7 @@ anaTySchInst uniq ty
 ATTR AllNT [ | gUniq: UID | ]
 ATTR TyAGItf [ gUniq: UID | | ]
 
-SEM AnaTyScheme
+SEM RelTyScheme
   | FAAlpha     loc         .   lUniq       : UNIQUEREF gUniq
   | FABeta      loc         .   lUniq       : UNIQUEREF gUniq
   | FAGamma     loc         .   lUniq       : UNIQUEREF gUniq
@@ -59,7 +59,7 @@ SEM AnaTyScheme
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-SEM AnaTyScheme
+SEM RelTyScheme
   | FAAlpha     loc         .   freshTv     = fst $ mkNewLevUID @lUniq
   | FABeta      loc         .   freshTv     = fst $ mkNewLevUID @lUniq
   | FAGamma     loc         .   freshTv     = fst $ mkNewLevUID @lUniq
@@ -71,7 +71,7 @@ ATTR AllNT [ freshMp: {Map.Map UID UID} | | ]
 SEM TyAGItf
   | AGItf       loc         .   freshMp     = Map.empty
 
-SEM AnaTyScheme
+SEM RelTyScheme
   | FAAlpha     loc         .   freshMp     = Map.insert @alpha @loc.freshTv @lhs.freshMp
   | FABeta      loc         .   freshMp     = Map.insert @beta  @loc.freshTv @lhs.freshMp
   | FAGamma     loc         .   freshMp     = Map.insert @gamma @loc.freshTv @lhs.freshMp
@@ -83,21 +83,21 @@ SEM AnaTyScheme
 
 %%[(8 codegen)
 ATTR AllNT [ | | repl: SELF ]
-ATTR TyAGItf [ | | repl: AnaTyScheme ]
+ATTR TyAGItf [ | | repl: RelTyScheme ]
 %%]
 
 %%[(8 codegen)
-SEM AnaTyScheme
-  | Tau         loc         .   repl     = AnaTyScheme_Tau @ty.repl
+SEM RelTyScheme
+  | Tau         loc         .   repl     = RelTyScheme_Tau @ty.repl
   | FAAlpha     loc         .   repl     = @ty.repl
   | FABeta      loc         .   repl     = @ty.repl
   | FAGamma     loc         .   repl     = @ty.repl
 %%]
 
 %%[(8 codegen)
-SEM AnaTy
-  | Alpha       loc         .   repl     = AnaTy_Alpha $ Map.findWithDefault @v @v @lhs.freshMp
-  | Arrow       loc         .   repl     = AnaTy_Arrow @phi.repl @psi.repl @arg.repl @res.repl
+SEM RelTy
+  | Alpha       loc         .   repl     = RelTy_Alpha $ Map.findWithDefault @v @v @lhs.freshMp
+  | Arrow       loc         .   repl     = RelTy_Arrow @phi.repl @psi.repl @arg.repl @res.repl
 %%]
 
 %%[(8 codegen)

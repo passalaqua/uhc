@@ -205,7 +205,7 @@ DATA CExpr
 %%[(8 codegen)
 -- | ann for CExpr
 DATA CExprAnn
-  | AnnTy		ty			: {AnaTyScheme}
+  | AnnTy		ty			: {RelTyScheme}
   | Debug		info			: {String}
 %%]
 
@@ -235,7 +235,7 @@ DATA CBound
   
   -- a (keyed) RelevTy
   | RelevTy		aspectKeyS		: {ACoreBindAspectKeyS}
-                        relevTy			: {AnaTyScheme}
+                        relevTy			: {RelTyScheme}
   
   -- a (keyed) CExpr
   | Val		    aspectKeyS		: {ACoreBindAspectKeyS}

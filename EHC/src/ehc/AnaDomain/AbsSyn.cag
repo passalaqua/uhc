@@ -9,7 +9,7 @@
 
 %%[(8 codegen)
 DATA TyAGItf
-  | AGItf       relevTy         : AnaTyScheme
+  | AGItf       relevTy         : RelTyScheme
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -17,23 +17,23 @@ DATA TyAGItf
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-DATA AnaTyScheme
+DATA RelTyScheme
   -- Inner type
-  | Tau         ty				: AnaTy
+  | Tau         ty				: RelTy
 
   -- Alpha (type variables) quantifications
-  | FAAlpha     ty                              : AnaTyScheme
+  | FAAlpha     ty                              : RelTyScheme
                 alpha                           : {UID}
   
   -- Beta (relevance ann variables) quantifications
-  | FABeta      ty                              : AnaTyScheme
+  | FABeta      ty                              : RelTyScheme
                 beta                            : {UID}
 
   -- Gamma (applicativeness ann variables) quantifications
-  | FAGamma     ty                              : AnaTyScheme
+  | FAGamma     ty                              : RelTyScheme
                 gamma                           : {UID}
 
-TYPE AnaTySchemeL	=	[AnaTyScheme]
+TYPE RelTySchemeL	=	[RelTyScheme]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -41,7 +41,7 @@ TYPE AnaTySchemeL	=	[AnaTyScheme]
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-DATA AnaTy
+DATA RelTy
   -- Base type for values
   | Unit
   -- Type variable
@@ -49,14 +49,14 @@ DATA AnaTy
   -- Arrow types
   | Arrow       phi                             : Relev  -- Relevance of the argument
                 psi                             : Applic -- Applicativeness of this arrow
-                arg                             : AnaTy  -- Argument type
-                res                             : AnaTy  -- Result type
+                arg                             : RelTy  -- Argument type
+                res                             : RelTy  -- Result type
   -- Datatypes
-  | Data        params                          : AnaTyL -- Type parameters
+  | Data        params                          : RelTyL -- Type parameters
 
-TYPE AnaTyL	=	[AnaTy]
+TYPE RelTyL	=	[RelTy]
 
-SET AllAnaTy    =       AnaTyScheme AnaTySchemeL AnaTy AnaTyL
+SET AllRelTy    =       RelTyScheme RelTySchemeL RelTy RelTyL
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -94,6 +94,6 @@ SET AllAnaAnnTy	 =       Relev Rho Applic
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-SET AllNT = AllAnaTy AllAnaAnnTy
+SET AllNT = AllRelTy AllAnaAnnTy
 %%]
 

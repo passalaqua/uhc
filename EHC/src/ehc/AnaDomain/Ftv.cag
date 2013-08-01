@@ -26,7 +26,7 @@ WRAPPER TyAGItf
 %%]
 
 %%[(8 codegen) hs export(tyFv)
-tyFv :: AnaTyScheme -> UIDS
+tyFv :: RelTyScheme -> UIDS
 tyFv ty
   = tyFv_Syn_TyAGItf t
   where t = wrap_TyAGItf
@@ -35,7 +35,7 @@ tyFv ty
 %%]
 
 %%[(8 codegen) hs export(relFv)
-relFv :: AnaTyScheme -> UIDS
+relFv :: RelTyScheme -> UIDS
 relFv ty
   = relFv_Syn_TyAGItf t
   where t = wrap_TyAGItf
@@ -44,7 +44,7 @@ relFv ty
 %%]
 
 %%[(8 codegen) hs export(appFv)
-appFv :: AnaTyScheme -> UIDS
+appFv :: RelTyScheme -> UIDS
 appFv ty
   = appFv_Syn_TyAGItf t
   where t = wrap_TyAGItf
@@ -63,7 +63,7 @@ ATTR AllNT TyAGItf [ | | appFv USE {`Set.union`} {Set.empty} : UIDS ]
 %%]
 
 %%[(8 codegen)
-SEM AnaTyScheme
+SEM RelTyScheme
   | FAAlpha         lhs.tyFv  = Set.delete @alpha @ty.tyFv
   | FABeta          lhs.relFv = Set.delete @beta @ty.relFv
   | FAGamma         lhs.appFv = Set.delete @gamma @ty.appFv
