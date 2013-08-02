@@ -63,19 +63,11 @@ instance PP RVarMpInfo where
 %%[(8 codegen)
 ATTR AllNT [ | | pp USE {>-<} {empty} : PP_Doc ]
 
-ATTR TyAGItf RelTyScheme RelTySchemeL [ alphas : {UIDS} | | ]
-ATTR TyAGItf RelTyScheme RelTySchemeL [ betas  : {UIDS} | | ]
-ATTR TyAGItf RelTyScheme RelTySchemeL [ gammas : {UIDS} | | ]
-
 SEM RelTyScheme
-  | Tau         lhs         .   pp          =   @loc.alpha >#< @loc.beta >#< @loc.gamma >#< @ty.pp
-                loc         .   alpha       =   if Set.null @lhs.alphas then empty else pp "\\a/" >|< ppParens (show @lhs.alphas)
-                loc         .   beta        =   if Set.null @lhs.betas  then empty else pp "\\b/" >|< ppParens (show @lhs.betas)
-                loc         .   gamma       =   if Set.null @lhs.gammas then empty else pp "\\g/" >|< ppParens (show @lhs.gammas)
-  | * - Tau     lhs         .   pp          =   @ty.pp
-  | FAAlpha     ty          .   alphas      =   Set.insert @alpha @lhs.alphas
-  | FABeta      ty          .   betas       =   Set.insert @beta @lhs.betas
-  | FAGamma     ty          .   gammas      =   Set.insert @gamma @lhs.gammas
+  | Ty          lhs         .   pp          =   @loc.alpha >#< @loc.beta >#< @loc.gamma >#< @ty.pp
+                loc         .   alpha       =   if Set.null @alphas then empty else pp "\\a/" >|< ppParens (show @alphas)
+                loc         .   beta        =   if Set.null @betas  then empty else pp "\\b/" >|< ppParens (show @betas)
+                loc         .   gamma       =   if Set.null @gammas then empty else pp "\\g/" >|< ppParens (show @gammas)
 
 SEM RelTy
   | Unit        lhs         .   pp          =   pp "()"
@@ -95,7 +87,7 @@ SEM Applic
 %%]
 
 %%[(8 codegen)
-SEM RelTySchemeL RelTyL Rho [ | | ppL: {[PP_Doc]} ]
+SEM RelTyL Rho [ | | ppL: {[PP_Doc]} ]
   | Nil         lhs         .   ppL         =   []
   | Cons        lhs         .   ppL         =   @hd.pp : @tl.ppL
 %%]

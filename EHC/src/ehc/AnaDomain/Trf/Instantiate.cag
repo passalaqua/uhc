@@ -13,7 +13,7 @@
 %%[(8 codegen) hs import({%{EH}Base.Common},{%{EH}AnaDomain},{%{EH}VarMp},{%{EH}Substitutable})
 %%]
 
-%%[(8 codegen) hs import(qualified Data.Map as Map, qualified Data.Set as Set)
+%%[(8 codegen) hs import(qualified Data.Map as Map, Data.Set)
 %%]
 
 %%[doesWhat
@@ -49,9 +49,7 @@ ATTR AllNT [ | gUniq: UID | ]
 ATTR TyAGItf [ gUniq: UID | | ]
 
 SEM RelTyScheme
-  | FAAlpha     loc         .   lUniq       : UNIQUEREF gUniq
-  | FABeta      loc         .   lUniq       : UNIQUEREF gUniq
-  | FAGamma     loc         .   lUniq       : UNIQUEREF gUniq
+  | Ty          loc         .   lUniq       : UNIQUEREF gUniq
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -60,9 +58,8 @@ SEM RelTyScheme
 
 %%[(8 codegen)
 SEM RelTyScheme
-  | FAAlpha     loc         .   freshTv     = fst $ mkNewLevUID @lUniq
-  | FABeta      loc         .   freshTv     = fst $ mkNewLevUID @lUniq
-  | FAGamma     loc         .   freshTv     = fst $ mkNewLevUID @lUniq
+  | Ty          loc         .   quants      = toList @alphas ++ toList @betas ++ toList @gammas
+                loc         .   freshTvL    = mkNewLevUIDL (length @loc.quants) @lUniq
 %%]
 
 %%[(8 codegen)
@@ -72,9 +69,7 @@ SEM TyAGItf
   | AGItf       loc         .   freshMp     = Map.empty
 
 SEM RelTyScheme
-  | FAAlpha     loc         .   freshMp     = Map.insert @alpha @loc.freshTv @lhs.freshMp
-  | FABeta      loc         .   freshMp     = Map.insert @beta  @loc.freshTv @lhs.freshMp
-  | FAGamma     loc         .   freshMp     = Map.insert @gamma @loc.freshTv @lhs.freshMp
+  | Ty          loc         .   freshMp     = Map.union (Map.fromList $ zip @loc.quants @loc.freshTvL) @lhs.freshMp
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -88,10 +83,7 @@ ATTR TyAGItf [ | | repl: RelTyScheme ]
 
 %%[(8 codegen)
 SEM RelTyScheme
-  | Tau         loc         .   repl     = RelTyScheme_Tau @ty.repl
-  | FAAlpha     loc         .   repl     = @ty.repl
-  | FABeta      loc         .   repl     = @ty.repl
-  | FAGamma     loc         .   repl     = @ty.repl
+  | Ty          loc         .   repl     = RelTyScheme_Ty empty empty empty @ty.repl
 %%]
 
 %%[(8 codegen)

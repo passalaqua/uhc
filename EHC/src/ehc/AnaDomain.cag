@@ -198,17 +198,8 @@ emptyRVarMp = emptyVarMpStk
 
 %%[(50 codegen) hs
 instance Serialize RelTyScheme where
-  sput (RelTyScheme_Tau     ty  ) = sputWord8 0 >> sput ty
-  sput (RelTyScheme_FAAlpha ty a) = sputWord8 1 >> sput ty >> sput a
-  sput (RelTyScheme_FABeta  ty b) = sputWord8 2 >> sput ty >> sput b
-  sput (RelTyScheme_FAGamma ty g) = sputWord8 3 >> sput ty >> sput g
-  sget
-    = do t <- sgetWord8
-         case t of
-           0 -> liftM  RelTyScheme_Tau     sget
-           1 -> liftM2 RelTyScheme_FAAlpha sget sget
-           2 -> liftM2 RelTyScheme_FABeta  sget sget
-           3 -> liftM2 RelTyScheme_FAGamma sget sget
+  sput (RelTyScheme_Ty as bs gs ty) = sput as >> sput bs >> sput gs >> sput ty
+  sget = liftM4 RelTyScheme_Ty sget sget sget sget
 
 instance Serialize RelTy where
   sput (RelTy_Unit               ) = sputWord8 0

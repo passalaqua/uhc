@@ -64,9 +64,9 @@ ATTR AllNT TyAGItf [ | | appFv USE {`Set.union`} {Set.empty} : UIDS ]
 
 %%[(8 codegen)
 SEM RelTyScheme
-  | FAAlpha         lhs.tyFv  = Set.delete @alpha @ty.tyFv
-  | FABeta          lhs.relFv = Set.delete @beta @ty.relFv
-  | FAGamma         lhs.appFv = Set.delete @gamma @ty.appFv
+  | Ty              lhs.tyFv  = Set.difference @ty.tyFv @alphas
+                    lhs.relFv = Set.difference @ty.relFv @betas
+                    lhs.appFv = Set.difference @ty.appFv @gammas
 
 SEM Relev
   | Beta            lhs.relFv = Set.singleton(@v)

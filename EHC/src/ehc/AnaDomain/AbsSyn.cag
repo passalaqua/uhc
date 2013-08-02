@@ -13,34 +13,17 @@ DATA TyAGItf
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Type Schemes
+%%% Type and type schemes
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
 DATA RelTyScheme
   -- Inner type
-  | Tau         ty				: RelTy
+  | Ty      alphas                              : {UIDS}  -- Type variables quantification
+            betas                               : {UIDS}  -- Relevance ann variables quant
+            gammas                              : {UIDS}  -- Applicativeness ann variables quant
+            ty			                : RelTy
 
-  -- Alpha (type variables) quantifications
-  | FAAlpha     ty                              : RelTyScheme
-                alpha                           : {UID}
-  
-  -- Beta (relevance ann variables) quantifications
-  | FABeta      ty                              : RelTyScheme
-                beta                            : {UID}
-
-  -- Gamma (applicativeness ann variables) quantifications
-  | FAGamma     ty                              : RelTyScheme
-                gamma                           : {UID}
-
-TYPE RelTySchemeL	=	[RelTyScheme]
-%%]
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Type for relevance analysis
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%[(8 codegen)
 DATA RelTy
   -- Base type for values
   | Unit
@@ -56,7 +39,7 @@ DATA RelTy
 
 TYPE RelTyL	=	[RelTy]
 
-SET AllRelTy    =       RelTyScheme RelTySchemeL RelTy RelTyL
+SET AllRelTy    =       RelTyScheme RelTy RelTyL
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
