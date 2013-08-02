@@ -96,11 +96,11 @@ SEM CodeAGItf
 %%% Newly bound BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen grin)
+%%%[(8 codegen grin)
 SEM CBound
   | Bind        lhs         .   bindingMp   =   let l = [ (acbaspkeyDefaultRelevTy, BindingInfoAsp_RelevTy @bindTy) ]
                                                     in  Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList l})
-%%]
+%%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% DataGam required tags (strictness info), FFI
@@ -116,8 +116,7 @@ ATTR AllCodeNT CodeAGItf [ dataGam: DataGam | | ]
 
 %%[(8 codegen)
 SEM *
-  | *           loc         .   bindTy          :   RelTyScheme
-                loc         .   exprEnv         :   REnv
+  | *           loc         .   exprEnv         :   REnv
                 loc         .   applic          :   Rho
 %%]
 
@@ -169,22 +168,29 @@ SEM CBound
 
 %%[(8 codegen)
 ATTR AllExpr [ knTy: RelTyScheme | | ]
+
+SEM CModule
+  | Mod        expr         .   knTy            =   freshUnit
 %%]
 
-%%[(8 codegen)
+%%%[(8 codegen)
 -- | the type of the case itself (instead of alternatives)
 ATTR AllPat AllAlt [ knTyCase: RelTyScheme | | ]
-%%]
+%%%]
 
-%%[(8 codegen)
+%%%[(8 codegen)
 SEM CAltL
   | Cons        hd          .   knTy            =   @altKnDwTy
-%%]
+%%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Analysis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%%[(8 codegen)
+ATTR AllNT [ | | repl : SELF ]
+   
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Alts of case
@@ -195,16 +201,25 @@ SEM CAltL
 %%% Type up
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%%[(8 codegen)
-ATTR CExpr CAltL [ | | ty: RelevTy ]
+%%[(8 codegen)
+ATTR CExpr CAltL [ | | ty: RelTyScheme ]
 
 SEM CExpr
-%%%]
+  | Var         lhs         .   ty              =   freshUnit
+  | Int         lhs         .   ty              =   freshUnit
+  | Char        lhs         .   ty              =   freshUnit
+  | String      lhs         .   ty              =   freshUnit
+%%[[(97 codegen)
+  | Integer     lhs         .   ty              =   freshUnit
+%%]]
+  | Tup         lhs         .   ty              =   freshUnit
+  | * - Tup Integer String Char Int Var lhs.ty = freshUnit
+%%]
 
-%%%[(8 codegen)
+%%[(8 codegen)
 SEM CAltL
   | *           lhs         .   ty              =   @lhs.knTy
-%%%]
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% VarMp gathering
@@ -224,7 +239,7 @@ SEM CBound
 %%% Final VarMp distribution
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%%[(8 codegen)
 ATTR AllNT [ finalRVarMp: RVarMp | | ]
 
 SEM CodeAGItf
@@ -237,17 +252,17 @@ SEM CAltL
   | Cons        loc         .   hdFinalRVarMp   =   @altSolveVarMp -- |+> @lhs.finalRVarMp
                 hd          .   finalRVarMp     =   @hdFinalRVarMp
 
-%%]
+%%%]
 SEM CExpr
   | Let			binds		.	finalRVarMp		=	@bindsSolveVarMp
 
-%%[(8 codegen)
+%%%[(8 codegen)
 ATTR AllBind [ | | extraBindRVarMp USE {|+>} {emptyRVarMp}: RVarMp ]
 
 SEM CBound
   | Bind        loc         .   extraBindRVarMp =   if @doBindStrict then @strictVarMp else emptyRVarMp
                                                     -- @strictVarMp
-%%]
+%%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Constraint gathering
@@ -273,12 +288,30 @@ Solving then needs to be done for the conditionally arising constraints.
 ATTR AllExpr [ boundRelevTyVarS: UIDS | | ]
 %%]
 
-%%[(8 codegen)
+%%%[(8 codegen)
 SEM CBound
   | Bind        expr        .   boundRelevTyVarS=   @exprBoundS
-%%]
+%%%]
 
 %%[(8 codegen)
 SEM CModule
   | Mod         expr        .   boundRelevTyVarS=   Set.empty
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Transformation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+ATTR AllBound [ | | tyAspectL  USE {++} {[]}: {[CBound]} ]
+ATTR AllBound [ | | valAspectL USE {++} {[]}: {[CBound]} ]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Transformation: plain
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+ATTR AllCodeNT [ | | cTrf: SELF ]
+ATTR CodeAGItf [ | | cTrf: CModule ]
 %%]
