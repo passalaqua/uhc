@@ -21,7 +21,7 @@ Analysis domains
 %%[(8 codegen) hs import(UHC.Util.Utils)
 %%]
 
-%%[(8 codegen) hs export(RelTyScheme(..), RelTySchemeL, RelTy(..), RelTyL, Relev(..), Rho, Applic(..), TyAGItf(..))
+%%[(8 codegen) hs export(RelTyScheme(..), RelTy(..), RelTyL, Relev(..), Rho, Applic(..), TyAGItf(..))
 %%]
 
 %%[(50 codegen grin) hs import(Control.Monad hiding(join), UHC.Util.Serialize, UHC.Util.Control.Monad(liftM6))

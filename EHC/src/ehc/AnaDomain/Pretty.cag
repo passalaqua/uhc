@@ -25,10 +25,7 @@ WRAPPER
 ppRelTySch :: RelTyScheme -> PP_Doc
 ppRelTySch x
   =  let  t = wrap_RelTyScheme (sem_RelTyScheme x)
-                               (Inh_RelTyScheme { alphas_Inh_RelTyScheme = Set.empty
-                                                , betas_Inh_RelTyScheme = Set.empty
-                                                , gammas_Inh_RelTyScheme = Set.empty
-                                                })
+                               (Inh_RelTyScheme  )
      in   pp_Syn_RelTyScheme t
 
 instance PP RelTyScheme where
