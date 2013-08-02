@@ -107,19 +107,19 @@ SEM CodeAGItf
 %%% Newly bound BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen grin)
+%%%[(8 codegen grin)
 SEM CBind
   | Bind        lhs         .   bindingMp   =   case @mbStrictArgsRes of
                                                       Just (t,_,_) -> Map.singleton @nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList l})
                                                                    where l = [(acbaspkeyStrict, BindingInfoAsp_RelevTy t)]
                                                       _            -> Map.empty
-%%]
+%%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Evaluation context
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%%[(8 codegen)
 ATTR CExpr CBound MbCExpr AllAlt [ anaEvalCtxt: AnaEval | | ]
 
 SEM CBoundL
@@ -136,22 +136,22 @@ SEM CPatFld
 
 SEM *
   | *			loc			.	anaEvalCtxt		: 	AnaEval
-%%]
+%%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Worker/wrapper: get the strictness info at the right place for lambda defs
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%%[(8 codegen)
 ATTR AllBound [ | | gathStrictTyL USE {++} {[]}: {[RelevTy]} ]
 
 SEM CBound
   | RelevTy     loc         .   gathStrictTyL   =   if @aspectKeyS == acbaspkeyStrict
                                                     then [@relevTy]
                                                     else []
-%%]
+%%%]
 
-%%[(8 codegen)
+%%%[(8 codegen)
 ATTR AllBound [ mbStrictArgsRes: {Maybe (RelevTy,[AnaEval],AnaEval)} | | ]
 
 SEM CBind
@@ -162,14 +162,14 @@ SEM CBind
 
 SEM CExpr
   | App			arg			.	mbStrictArgsRes	=	Nothing
-%%]
+%%%]
 
-%%[(8 codegen)
+%%%[(8 codegen)
 SEM CBound
   | Bind        loc         .   doWorkerWrapper =   isJust @lhs.mbStrictArgsRes
-%%]
+%%%]
 
-%%[(8 codegen)
+%%%[(8 codegen)
 ATTR CExpr [ lamArgAnaEvalL: {[AnaEval]} | | ]
 
 SEM CBound
@@ -184,13 +184,13 @@ SEM CExpr
   | Lam         (loc.argAnaEval,body.lamArgAnaEvalL)
                                                 =   hdAndTl' top @lhs.lamArgAnaEvalL
   | * - Lam Ann loc         .   lamArgAnaEvalL  =   []
-%%]
+%%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Worker/wrapper: the wrapper & worker
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%%[(8 codegen)
 ATTR AllBound [ | | cTrfBoundL USE {++} {[]} : {[CBound]} ]
 
 SEM CBound
@@ -210,44 +210,44 @@ SEM CBound
                             .   worker          =   if @doWorkerWrapper then [CBound_Val acbaspkeyStrict 0 CLbl_None @expr.cTrf] else []
                             .   oldbinding      =   if @doWorkerWrapper then [] else [@cTrf]
                 lhs         .   cTrfBoundL      =   @worker ++ @wrapper ++ @oldbinding
-%%[[90
+%%%[[90
   | FFE         lhs         .   cTrfBoundL      =   [@cTrf]
-%%]]
+%%%]]
   | * - Bind
-%%[[90
+%%%[[90
         FFE
-%%]]
+%%%]]
                 lhs         .   cTrfBoundL      =   []
-%%]
+%%%]
 
-%%[(8 codegen)
+%%%[(8 codegen)
 SEM CBind
   | Bind        lhs         .   cTrf            =   CBind_Bind @nm @bindAspects.cTrfBoundL
-%%]
+%%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Worker/wrapper: use of worker directly, the variable
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%%[(8 codegen)
 SEM CExpr
   | Var         loc         .   strictRef       =   acbrefAspAnd acbaspkeyStrict @ref
                             .   mbStrict        =   case fmap libindaspRelevTy $ bindingMpLookupAsp2 @strictRef @lhs.bindingMp of
                                                       Just (t@(RelevTy_Fun _ _ _ a r))
                                                         -> Just (t, map relevtyAnaEval a, relevtyAnaEval r)
                                                       _ -> Nothing
-%%]
+%%%]
 
-%%[(8 codegen)
+%%%[(8 codegen)
 SEM CExpr
   | Var         lhs         .   cTrf            =   CExpr_Var $ maybe @ref (const @strictRef) @mbStrict
-%%]
+%%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Worker/wrapper: use of worker directly, the application
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%%[(8 codegen)
 ATTR CExpr [ | | appArgAnaEvalL: {[AnaEval]} ]
 ATTR CExpr [ | | appResAnaEval :   AnaEval   ]
 
@@ -259,6 +259,6 @@ SEM CExpr
   | * - Var App Ann
                 lhs         .   appArgAnaEvalL  =   []
                             .   appResAnaEval   =   top
-%%]
+%%%]
 
 
