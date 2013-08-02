@@ -105,7 +105,7 @@ SEM CPatFld
 ATTR CExprAnn [ | | prop : Prop ]
 
 SEM CExprAnn
-  | AnnTy       loc         .   prop        =   Prop_HasTy @ty
+  | Ty          loc         .   prop        =   Prop_HasTy @ty
   | Debug       loc         .   prop        =   Prop_None
 
 %%]

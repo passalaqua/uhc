@@ -205,7 +205,7 @@ DATA CExpr
 %%[(8 codegen)
 -- | ann for CExpr
 DATA CExprAnn
-  | AnnTy		ty			: {RelTyScheme}
+  | Ty   		ty			: {Ty}
   | Debug		info			: {String}
 %%]
 

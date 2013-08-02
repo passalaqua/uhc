@@ -414,7 +414,7 @@ SEM CExpr
   | Ann         loc         .   pp          =   ppParens (@expr.pp >#< @ann.pp)
 
 SEM CExprAnn
-  | AnnTy       loc         .   pp          =   "::" >#< ppRelTySch @ty
+  | Ty          loc         .   pp          =   "::" >#< ppTy @ty
   | Debug       loc         .   pp          =   ppCmt $ pp @info
 %%]
 
