@@ -205,15 +205,23 @@ ATTR AllNT [ | | repl : SELF ]
 ATTR CExpr CAltL [ | | ty: RelTyScheme ]
 
 SEM CExpr
+  -- Value (unit) types
   | Var         lhs         .   ty              =   freshUnit
   | Int         lhs         .   ty              =   freshUnit
   | Char        lhs         .   ty              =   freshUnit
   | String      lhs         .   ty              =   freshUnit
-%%[[(97 codegen)
-  | Integer     lhs         .   ty              =   freshUnit
-%%]]
+  -- More complex types
   | Tup         lhs         .   ty              =   freshUnit
-  | * - Tup Integer String Char Int Var lhs.ty = freshUnit
+  | Let         lhs         .   ty              =   freshUnit
+  | App         lhs         .   ty              =   freshUnit
+  | Lam         lhs         .   ty              =   freshUnit
+  | Case        lhs         .   ty              =   freshUnit
+%%[[8
+  | * - Tup String Char Int Var Let App Lam Case lhs.ty = freshUnit
+%%][97
+  | Integer     lhs         .   ty              =   freshUnit
+  | * - Tup String Char Int Integer Var Let App Lam Case lhs.ty = freshUnit
+%%]]
 %%]
 
 %%[(8 codegen)
