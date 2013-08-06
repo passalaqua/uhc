@@ -171,6 +171,9 @@ ATTR AllExpr [ knTy: RelTyScheme | | ]
 
 SEM CModule
   | Mod        expr         .   knTy            =   freshUnit
+
+SEM CExpr
+  | Lam        bind         .   knTy            =   @loc.alpha1
 %%]
 
 %%%[(8 codegen)
@@ -216,7 +219,6 @@ SEM CExpr
   | Lam         lhs         .   ty              =   @loc.alpha1 `freshArrow` @body.ty
                 loc         .   lUniq           :   UNIQUEREF gUniq
                 loc         .   alpha1          =   freshAlpha @loc.lUniq
-                bind        .   knTy            =   @loc.alpha1
   | App         lhs         .   ty              =   @loc.alpha
                 loc         .   lUniq           :   UNIQUEREF gUniq
                 loc         .   alpha           =   freshAlpha @loc.lUniq
