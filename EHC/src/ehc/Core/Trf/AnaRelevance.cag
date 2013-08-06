@@ -206,15 +206,22 @@ ATTR CExpr CAltL [ | | ty: RelTyScheme ]
 
 SEM CExpr
   -- Value (unit) types
-  | Var         lhs         .   ty              =   freshUnit
   | Int         lhs         .   ty              =   freshUnit
   | Char        lhs         .   ty              =   freshUnit
   | String      lhs         .   ty              =   freshUnit
   -- More complex types
+  | Var         lhs         .   ty              =   freshAlpha @loc.lUniq
+                loc         .   lUniq           :   UNIQUEREF gUniq
   | Tup         lhs         .   ty              =   freshUnit
-  | Let         lhs         .   ty              =   freshUnit
-  | App         lhs         .   ty              =   freshUnit
-  | Lam         lhs         .   ty              =   freshUnit
+  | Lam         lhs         .   ty              =   @loc.alpha1 `freshArrow` @body.ty
+                loc         .   lUniq           :   UNIQUEREF gUniq
+                loc         .   alpha1          =   freshAlpha @loc.lUniq
+                bind        .   knTy            =   @loc.alpha1
+  | App         lhs         .   ty              =   @loc.alpha
+                loc         .   lUniq           :   UNIQUEREF gUniq
+                loc         .   alpha           =   freshAlpha @loc.lUniq
+  | Let         lhs         .   ty              =   @body.ty
+                binds       .   ty              =   panic "CExpr.Let.binds.ty"
   | Case        lhs         .   ty              =   freshUnit
 %%[[8
   | * - Tup String Char Int Var Let App Lam Case lhs.ty = freshUnit
@@ -222,6 +229,25 @@ SEM CExpr
   | Integer     lhs         .   ty              =   freshUnit
   | * - Tup String Char Int Integer Var Let App Lam Case lhs.ty = freshUnit
 %%]]
+
+ATTR CBind CBoundL CBound [ | | ty: {Maybe RelTyScheme} ]
+
+SEM CBind
+  | Bind        loc         .   ty              =   @bindAspects.ty
+
+SEM CBound
+  | Bind        lhs         .   ty              =   Just @expr.ty
+  | Val         lhs         .   ty              =   Just @expr.ty
+%%[[8
+  | * - Bind Val lhs        .   ty              =   Nothing
+%%][90
+  | FFE         lhs         .   ty              =   Just @expr.ty
+  | * - Bind Val FFE lhs    .   ty              =   Nothing
+%%]]
+
+SEM CBoundL
+  | Nil         lhs         .   ty              =   Nothing
+  | Cons        lhs         .   ty              =   @hd.ty <|> @tl.ty
 %%]
 
 %%[(8 codegen)
@@ -322,4 +348,8 @@ ATTR AllBound [ | | valAspectL USE {++} {[]}: {[CBound]} ]
 %%[(8 codegen)
 ATTR AllCodeNT [ | | cTrf: SELF ]
 ATTR CodeAGItf [ | | cTrf: CModule ]
+
+SEM CBind
+  | Bind       lhs.cTrf  = CBind_Bind @nm (@bindAspects.cTrf ++ [@loc.tyAsp])
+               loc.tyAsp = CBound_RelevTy acbaspkeyStrict $ fromMaybe freshUnit @loc.ty
 %%]

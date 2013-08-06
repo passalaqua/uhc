@@ -56,15 +56,34 @@ DERIVING *
 %%% Special values
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(freshUnit, freshTySch)
+%%[(8 codegen) hs export(freshUnit, freshAlpha, freshArrow, makeArrow, freshTySch)
 -- | Generates a simple Unit type.
 freshUnit :: RelTyScheme
 freshUnit = freshTySch RelTy_Unit
 
+-- | Generates a fresh type variable type
+freshAlpha :: UID -> RelTyScheme
+freshAlpha u = freshTySch $ RelTy_Alpha u
+
+-- | Generates a fresh arrow type with no relevance or aplicativeness
+freshArrow :: RelTyScheme -> RelTyScheme -> RelTyScheme
+freshArrow = makeArrow Relev_Top Applic_Top
+
+-- | Makes an arrow from two types with fresh types
+makeArrow :: Relev -> Applic -> RelTyScheme -> RelTyScheme -> RelTyScheme
+makeArrow r a rt1 rt2 = let (ret, t1, t2) = rt1 `mergeTySch` rt2
+                        in  ret (RelTy_Arrow r a t1 t2)
+
 -- | Generates a fresh type scheme with no quantifications.
 freshTySch :: RelTy -> RelTyScheme
 freshTySch = RelTyScheme_Ty Set.empty Set.empty Set.empty
+
+-- | Auxiliary function to help merging two type schemes.
+mergeTySch :: RelTyScheme -> RelTyScheme -> (RelTy -> RelTyScheme, RelTy, RelTy)
+mergeTySch (RelTyScheme_Ty a1 b1 g1 t1) (RelTyScheme_Ty a2 b2 g2 t2) =
+  (RelTyScheme_Ty (a1 `Set.union` a2) (b1 `Set.union` b2) (g1 `Set.union` g2), t1, t2)
 %%]
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Utils
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
