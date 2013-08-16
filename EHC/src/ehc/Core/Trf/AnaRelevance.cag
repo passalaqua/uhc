@@ -127,6 +127,8 @@ SEM *
 %%[(8 codegen) hs
 type REnv    = Gam HsName RelTyScheme
 
+type RhoEnv  = Gam UID (Set.Set UID)
+
 -- | lookup in REnv first, then global BindingMp
 renvLookup :: HsName -> REnv -> BindingMp -> Maybe RelTyScheme
 renvLookup n renv lammp = gamLookup n renv <|> (fmap libindaspRelevTy $ bindingMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
@@ -147,20 +149,50 @@ SEM CodeAGItf
 %%% Type env
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%%[(8 codegen)
+%%[(8 codegen)
 ATTR AllCodeNT [ env: REnv | | ]
 
-%%%]
+SEM CodeAGItf
+  | AGItf       loc         .   env             =   emptyGam
 
-%%%[(8 codegen)
+SEM CBound
+  | Bind        expr        .   env             =   emptyGam -- gamAddGam @exprEnv @lhs.env
+
+SEM CExpr
+  | Let         binds       .   env             =   gamAddGam @binds.gathRecEnv @lhs.env
+                body        .   env             =   gamAddGam @binds.gathEnv    @lhs.env
+
+%%]
+
+%%[(8 codegen)
 ATTR AllBind -- AllPatFld AllPat
               [ | | gathEnv    USE {`gamUnion`} {emptyGam}: REnv ]
 ATTR AllBind  [ | | gathRecEnv USE {`gamUnion`} {emptyGam}: REnv ]
 
 SEM CBound
-  | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm @quantTy
-                            .   gathRecEnv      =   gamSingleton @lhs.nm $ tup123to1 $ relevtyQuant [RelevTyQuantHow_Rec] emptyRVarMp Set.empty @ty
-%%%]
+  | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm @expr.ty
+                            .   gathRecEnv      =   gamSingleton @lhs.nm @expr.ty
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Rho env
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+ATTR AllCodeNT [ rhoIn: RhoEnv | | rhoOut USE {`gamUnion`} {emptyGam}: RhoEnv ]
+
+%%]
+
+%%[(8 codegen)
+-- Tying the knot on a per module basis:
+SEM CodeAGItf
+  | AGItf      module       .   rhoIn           =   @module.rhoOut
+
+SEM CExpr
+  -- Resetting so it gets contained locally in abstractions:
+  | Lam        lhs          .   rhoOut          =   emptyGam
+  -- | Let
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type down
@@ -213,9 +245,8 @@ SEM CExpr
   | Char        lhs         .   ty              =   freshUnit
   | String      lhs         .   ty              =   freshUnit
   -- More complex types
-  | Var         lhs         .   ty              =   freshAlpha @loc.lUniq
-                loc         .   lUniq           :   UNIQUEREF gUniq
-  | Tup         lhs         .   ty              =   freshUnit
+  | Var         lhs         .   ty              =   panicJust "Variable not in environment." $ renvLookup @nm @lhs.env @lhs.bindingMp
+  | Tup         lhs         .   ty              =   freshUnit -- TODO!
   | Lam         lhs         .   ty              =   @loc.alpha1 `freshArrow` @body.ty
                 loc         .   lUniq           :   UNIQUEREF gUniq
                 loc         .   alpha1          =   freshAlpha @loc.lUniq
@@ -223,7 +254,7 @@ SEM CExpr
                 loc         .   lUniq           :   UNIQUEREF gUniq
                 loc         .   alpha           =   freshAlpha @loc.lUniq
   | Let         lhs         .   ty              =   @body.ty
-                binds       .   ty              =   panic "CExpr.Let.binds.ty"
+                -- binds       .   ty              =   panic "CExpr.Let.binds.ty"
   | Case        lhs         .   ty              =   freshUnit
 %%[[8
   | * - Tup String Char Int Var Let App Lam Case lhs.ty = freshUnit
@@ -261,44 +292,26 @@ SEM CAltL
 %%% VarMp gathering
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%%[(8 codegen)
+%%[(8 codegen)
 ATTR AllNT [ | rvarMp: RVarMp | ]
 
 SEM CodeAGItf
   | AGItf       loc         .   rvarMp          =   emptyRVarMp
 
 SEM CBound
-  | Bind        lhs         .   rvarMp          =   @quantVarMp |+> @rvarMpExpr
-%%%]
+  | Bind        lhs         .   rvarMp          =   emptyRVarMp -- @quantVarMp |+> @rvarMpExpr
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Final VarMp distribution
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%%[(8 codegen)
+%%[(8 codegen)
 ATTR AllNT [ finalRVarMp: RVarMp | | ]
 
 SEM CodeAGItf
   | AGItf       module      .   finalRVarMp     =   @module.rvarMp
-
-SEM CBound
-  | Bind        loc         .   finalRVarMp     =   {- @extraBindRVarMp |+> -} @lhs.finalRVarMp
-
-SEM CAltL
-  | Cons        loc         .   hdFinalRVarMp   =   @altSolveVarMp -- |+> @lhs.finalRVarMp
-                hd          .   finalRVarMp     =   @hdFinalRVarMp
-
-%%%]
-SEM CExpr
-  | Let			binds		.	finalRVarMp		=	@bindsSolveVarMp
-
-%%%[(8 codegen)
-ATTR AllBind [ | | extraBindRVarMp USE {|+>} {emptyRVarMp}: RVarMp ]
-
-SEM CBound
-  | Bind        loc         .   extraBindRVarMp =   if @doBindStrict then @strictVarMp else emptyRVarMp
-                                                    -- @strictVarMp
-%%%]
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Constraint gathering
