@@ -223,12 +223,31 @@ SEM CAltL
 %%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Relevance annotations down
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+ATTR AllCodeNT [ knPhi: Relev | | ]
+
+SEM CodeAGItf
+  | AGItf       module      .   knPhi           =   Relev_Rel
+
+SEM CExpr
+  | Lam         body        .   knPhi           =   Relev_Rel
+  | Let         body        .   knPhi           =   @lhs.knPhi
+                binds       .   knPhi           =   case @categ of
+                                                      CBindCateg_Strict -> Relev_Rel
+                                                      CBindCateg_Plain  -> Relev_Top
+                                                      CBindCateg_Rec    -> @lhs.knPhi -- TODO
+                                                      _                 -> Relev_Top -- Just being safe
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Analysis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
 ATTR AllNT [ | | repl : SELF ]
-   
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -290,6 +309,19 @@ SEM CBound
 SEM CBoundL
   | Nil         lhs         .   ty              =   Nothing
   | Cons        lhs         .   ty              =   @hd.ty <|> @tl.ty
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Relevance annotations up
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+ATTR CExpr [ | | phi: Relev ]
+
+SEM CExpr
+  -- More complex types
+  | Var         lhs         .   phi             =   Relev_Rel
+  | * - Var Let App Lam Case lhs.phi            =   @lhs.knPhi
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
