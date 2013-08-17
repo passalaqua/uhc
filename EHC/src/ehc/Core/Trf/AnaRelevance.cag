@@ -129,9 +129,14 @@ type REnv    = Gam HsName RelTyScheme
 
 type RhoEnv  = Gam UID (Set.Set UID)
 
+-- | lookup in local REnv only
+renvLookup :: HsName -> REnv -> Maybe RelTyScheme
+renvLookup = gamLookup
+
 -- | lookup in REnv first, then global BindingMp
-renvLookup :: HsName -> REnv -> BindingMp -> Maybe RelTyScheme
-renvLookup n renv lammp = gamLookup n renv <|> (fmap libindaspRelevTy $ bindingMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
+renvgLookup :: HsName -> REnv -> BindingMp -> Maybe RelTyScheme
+renvgLookup n renv lammp = renvLookup n renv
+                           <|> (fmap libindaspRelevTy $ bindingMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -237,7 +242,7 @@ ATTR AllNT [ | | repl : SELF ]
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR CExpr CAltL [ | | ty: RelTyScheme ]
+ATTR CExpr [ | | ty: RelTyScheme ]
 
 SEM CExpr
   -- Value (unit) types
@@ -245,24 +250,37 @@ SEM CExpr
   | Char        lhs         .   ty              =   freshUnit
   | String      lhs         .   ty              =   freshUnit
   -- More complex types
-  | Var         lhs         .   ty              =   panicJust "Variable not in environment." $ renvLookup @nm @lhs.env @lhs.bindingMp
+  | Var         lhs         .   ty              =   panicJust "Variable not in environment." $ renvgLookup @nm @lhs.env @lhs.bindingMp
   | Tup         lhs         .   ty              =   freshUnit -- TODO!
-  | Lam         lhs         .   ty              =   @loc.alpha1 `freshArrow` @body.ty
+  | Lam         lhs         .   ty              =   {- Subst $ -} @loc.alpha1 `freshArrow` @body.ty
                 loc         .   lUniq           :   UNIQUEREF gUniq
                 loc         .   alpha1          =   freshAlpha @loc.lUniq
-  | App         lhs         .   ty              =   @loc.alpha
+  | App         lhs         .   ty              =   {- Subst -} @loc.alpha
                 loc         .   lUniq           :   UNIQUEREF gUniq
                 loc         .   alpha           =   freshAlpha @loc.lUniq
   | Let         lhs         .   ty              =   @body.ty
-                -- binds       .   ty              =   panic "CExpr.Let.binds.ty"
-  | Case        lhs         .   ty              =   freshUnit
+  | Case        lhs         .   ty              =   @alts.ty
 %%[[8
   | * - Tup String Char Int Var Let App Lam Case lhs.ty = freshUnit
 %%][97
   | Integer     lhs         .   ty              =   freshUnit
   | * - Tup String Char Int Integer Var Let App Lam Case lhs.ty = freshUnit
 %%]]
+%%]
 
+%%[(8 codegen)
+ATTR CAlt CAltL [ | | ty: RelTyScheme ]
+
+SEM CAlt
+  | Alt         lhs         .   ty              =   @expr.ty
+
+SEM CAltL
+  | Nil         lhs         .   ty              =   freshAlpha @loc.lUniq
+                loc         .   lUniq           :   UNIQUEREF gUniq
+  | Cons        lhs         .   ty              =   {- Subst -} @hd.ty
+%%]
+
+%%[(8 codegen)
 ATTR CBind CBoundL CBound [ | | ty: {Maybe RelTyScheme} ]
 
 SEM CBind
@@ -281,11 +299,6 @@ SEM CBound
 SEM CBoundL
   | Nil         lhs         .   ty              =   Nothing
   | Cons        lhs         .   ty              =   @hd.ty <|> @tl.ty
-%%]
-
-%%[(8 codegen)
-SEM CAltL
-  | *           lhs         .   ty              =   @lhs.knTy
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
