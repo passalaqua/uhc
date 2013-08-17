@@ -184,18 +184,17 @@ SEM CBound
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR AllCodeNT [ rhoIn: RhoEnv | | rhoOut USE {`gamUnion`} {emptyGam}: RhoEnv ]
-
+ATTR AllCodeNT [ rho: RhoEnv | | gathRho USE {`gamUnion`} {emptyGam}: RhoEnv ]
 %%]
 
 %%[(8 codegen)
 -- Tying the knot on a per module basis:
 SEM CodeAGItf
-  | AGItf      module       .   rhoIn           =   @module.rhoOut
+  | AGItf      module       .   rho             =   @module.gathRho
 
 SEM CExpr
   -- Resetting so it gets contained locally in abstractions:
-  | Lam        lhs          .   rhoOut          =   emptyGam
+  | Lam        lhs          .   gathRho         =   emptyGam
   -- | Let
 %%]
 
@@ -245,10 +244,7 @@ ATTR AllNT [ | | repl : SELF ]
 ATTR CExpr [ | | ty: RelTyScheme ]
 
 SEM CExpr
-  -- Value (unit) types
-  | Int         lhs         .   ty              =   freshUnit
-  | Char        lhs         .   ty              =   freshUnit
-  | String      lhs         .   ty              =   freshUnit
+  -- Value (unit) types are included in the catch all below
   -- More complex types
   | Var         lhs         .   ty              =   panicJust "Variable not in environment." $ renvgLookup @nm @lhs.env @lhs.bindingMp
   | Tup         lhs         .   ty              =   freshUnit -- TODO!
@@ -260,12 +256,7 @@ SEM CExpr
                 loc         .   alpha           =   freshAlpha @loc.lUniq
   | Let         lhs         .   ty              =   @body.ty
   | Case        lhs         .   ty              =   @alts.ty
-%%[[8
-  | * - Tup String Char Int Var Let App Lam Case lhs.ty = freshUnit
-%%][97
-  | Integer     lhs         .   ty              =   freshUnit
-  | * - Tup String Char Int Integer Var Let App Lam Case lhs.ty = freshUnit
-%%]]
+  | * - Tup Var Let App Lam Case lhs.ty         =   freshUnit
 %%]
 
 %%[(8 codegen)
