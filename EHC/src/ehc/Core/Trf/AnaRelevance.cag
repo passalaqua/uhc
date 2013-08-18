@@ -125,17 +125,17 @@ SEM *
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen) hs
-type REnv    = Gam HsName RelTyScheme
+type REnv    = Gam HsName (RelTyScheme, Relev)
 
 type RhoEnv  = Gam UID (Set.Set UID)
 
 -- | lookup in local REnv only
-renvLookup :: HsName -> REnv -> Maybe RelTyScheme
+renvLookup :: HsName -> REnv -> Maybe (RelTyScheme, Relev)
 renvLookup = gamLookup
 
 -- | lookup in REnv first, then global BindingMp
 renvgLookup :: HsName -> REnv -> BindingMp -> Maybe RelTyScheme
-renvgLookup n renv lammp = renvLookup n renv
+renvgLookup n renv lammp = (fmap fst $ renvLookup n renv)
                            <|> (fmap libindaspRelevTy $ bindingMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
 %%]
 
@@ -151,7 +151,7 @@ SEM CodeAGItf
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Type env
+%%% Type env down
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
@@ -161,12 +161,18 @@ SEM CodeAGItf
   | AGItf       loc         .   env             =   emptyGam
 
 SEM CBound
-  | Bind        expr        .   env             =   emptyGam -- gamAddGam @exprEnv @lhs.env
+  | Bind        expr        .   env             =   gamAddGam @loc.exprEnv @lhs.env
+                loc         .   lUniq           :   UNIQUEREF gUniq
+                loc         .   exprEnv         =   case @expr.mbLam of
+                                                      Just nmL -> gamFromAssocL (zip nmL cs)
+                                                        where as = mkNewLevUIDL (length nmL) @lUniq
+                                                              bs = map freshAlpha as
+                                                              cs = zip bs (repeat Relev_Top)
+                                                      Nothing -> emptyGam
 
 SEM CExpr
   | Let         binds       .   env             =   gamAddGam @binds.gathRecEnv @lhs.env
                 body        .   env             =   gamAddGam @binds.gathEnv    @lhs.env
-
 %%]
 
 %%[(8 codegen)
@@ -175,8 +181,11 @@ ATTR AllBind -- AllPatFld AllPat
 ATTR AllBind  [ | | gathRecEnv USE {`gamUnion`} {emptyGam}: REnv ]
 
 SEM CBound
-  | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm @expr.ty
-                            .   gathRecEnv      =   gamSingleton @lhs.nm @expr.ty
+  | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm (@expr.ty, @gathRelev)
+                            .   gathRecEnv      =   gamSingleton @lhs.nm (@expr.ty, @gathRelev)
+                            .   gathRelev       =   case @lhs.letBindingsCateg of
+                                                      CBindCateg_Strict -> Relev_Rel
+                                                      otherwise         -> Relev_Top
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
