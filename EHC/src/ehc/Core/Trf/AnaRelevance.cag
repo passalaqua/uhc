@@ -173,10 +173,13 @@ SEM CBound
 SEM CExpr
   | Let         binds       .   env             =   gamAddGam @binds.gathRecEnv @lhs.env
                 body        .   env             =   gamAddGam @binds.gathEnv    @lhs.env
+
+SEM CAlt
+  | Alt         expr        .   env             =   gamAddGam @pat.gathEnv @lhs.env
 %%]
 
 %%[(8 codegen)
-ATTR AllBind -- AllPatFld AllPat
+ATTR AllBind AllPatFld AllPat CExpr
               [ | | gathEnv    USE {`gamUnion`} {emptyGam}: REnv ]
 ATTR AllBind  [ | | gathRecEnv USE {`gamUnion`} {emptyGam}: REnv ]
 
@@ -186,6 +189,12 @@ SEM CBound
                             .   gathRelev       =   case @lhs.letBindingsCateg of
                                                       CBindCateg_Strict -> Relev_Rel
                                                       otherwise         -> Relev_Top
+
+SEM CPat
+  | Var         lhs         .   gathEnv         =   gamSingleton @pnm (@lhs.knTy, Relev_Top)
+
+SEM CExpr
+  | Var         lhs         .   gathEnv         =   gamSingleton @nm (@loc.ty, Relev_Top)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -267,8 +276,7 @@ ATTR AllNT [ | | repl : SELF ]
 %%% Type env up
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
-{
+%%[(8 codegen) hs
 -- | Constrains an environment to top only elements
 constrainEnv :: REnv -> REnv
 constrainEnv = let f (k,(t,_)) = (k,(t,Relev_Top))
@@ -282,7 +290,7 @@ constrainEnv = let f (k,(t,_)) = (k,(t,Relev_Top))
 (<>.) :: REnv -> REnv -> REnv
 (<>.) = contextSplit False
 
--- | Performes environment splits with joins (True) or meets (False)
+-- | Performs environment splits with joins (True) or meets (False)
 contextSplit :: Bool -> REnv -> REnv -> REnv
 contextSplit t e1 e2 = fst $ gamMapThr opE2 [] e1
   where
@@ -291,13 +299,12 @@ contextSplit t e1 e2 = fst $ gamMapThr opE2 [] e1
     op Relev_Rel b | t == True = b
                    | otherwise = Relev_Rel
     op _         _ = panic "Found a beta for top level annotation!"
-    opE2 orig@(k, (tau, rel)) ks | k `elem` ks = (orig, ks)
+    opE2 orig@(k, (tau, rel)) ks | k `elem` ks = (orig, ks) -- Poor man's var masking
                                  | otherwise = let rel2 = snd
                                                           $ panicJust "Splitting contexts with different domains."
                                                           $ gamLookup k e2
                                                    rel' = rel `op` rel2
                                                in  ((k, (tau, rel')), k:ks)
-}
 %%]
 
 %%[(8 codegen)
@@ -318,6 +325,13 @@ SEM CExpr
   | Let         lhs         .   retEnv          =   snd $ gamPop @body.retEnv
   | Case        lhs         .   retEnv          =   @expr.retEnv <>: (@alts.retEnv <>. @dflt.retEnv)
   | * - Var Lam App Let Case lhs.retEnv         =   @lhs.env
+
+SEM CAlt
+  | Alt         lhs         .   retEnv          =   snd $ gamPop @expr.retEnv
+
+SEM CAltL
+  | Nil         lhs         .   retEnv          =   @lhs.env
+  | Cons        lhs         .   retEnv          =   @hd.retEnv <>. @tl.retEnv
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -330,7 +344,9 @@ ATTR CExpr [ | | ty: RelTyScheme ]
 SEM CExpr
   -- Value (unit) types are included in the catch all below
   -- More complex types
-  | Var         lhs         .   ty              =   panicJust "Variable not in environment." $ renvgLookup @nm @lhs.env @lhs.bindingMp
+  | Var         loc         .   ty              =   fromMaybe (freshAlpha @lUniq) -- panicJust ("Variable " ++ show @nm ++ " not in environment.")
+                                                    $ renvgLookup @nm @lhs.env @lhs.bindingMp
+                loc         .   lUniq           :   UNIQUEREF gUniq
   | Tup         lhs         .   ty              =   freshUnit -- TODO!
   | Lam         lhs         .   ty              =   {- Subst $ -} @loc.alpha1 `freshArrow` @body.ty
                 loc         .   lUniq           :   UNIQUEREF gUniq
@@ -339,7 +355,7 @@ SEM CExpr
                 loc         .   lUniq           :   UNIQUEREF gUniq
                 loc         .   alpha           =   freshAlpha @loc.lUniq
   | Let         lhs         .   ty              =   @body.ty
-  | Case        lhs         .   ty              =   @alts.ty
+  | Case        lhs         .   ty              =   {- Subst -} @alts.ty
   | * - Tup Var Let App Lam Case lhs.ty         =   freshUnit
 %%]
 
@@ -352,7 +368,7 @@ SEM CAlt
 SEM CAltL
   | Nil         lhs         .   ty              =   freshAlpha @loc.lUniq
                 loc         .   lUniq           :   UNIQUEREF gUniq
-  | Cons        lhs         .   ty              =   {- Subst -} @hd.ty
+  | Cons        lhs         .   ty              =   {- Subst -} @hd.ty {- unify with tl.ty -}
 %%]
 
 %%[(8 codegen)
