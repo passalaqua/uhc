@@ -207,14 +207,22 @@ anaEvalJoin = anaMeetOrJoi  n rvarmpEvalUnit False
 %%[(8 codegen) hs export(RVarMpInfo(..))
 data RVarMpInfo             -- for all types of Var alternatives an alternative here
   = RVMIType    RelTy       -- Type variable substitution
-  | RVMIRelev
-  | RVMIApplic
+  | RVMIRelev   Relev
+  | RVMIApplic  Applic
 %%]
 
-%%[(8 codegen) hs export(rvmiMbEval)
-rvmiMbEval :: RVarMpInfo -> Maybe RelTy
-rvmiMbEval (RVMIType x) = Just x
-rvmiMbEval _            = Nothing
+%%[(8 codegen) hs export(rvmiMbTy, rvmiMbRel, rvmiMbApp)
+rvmiMbTy :: RVarMpInfo -> Maybe RelTy
+rvmiMbTy (RVMIType x) = Just x
+rvmiMbTy _            = Nothing
+
+rvmiMbRel :: RVarMpInfo -> Maybe Relev
+rvmiMbRel (RVMIRelev x) = Just x
+rvmiMbRel _             = Nothing
+
+rvmiMbApp :: RVarMpInfo -> Maybe Applic
+rvmiMbApp (RVMIApplic x) = Just x
+rvmiMbApp _              = Nothing
 %%]
 
 %%[(8 codegen) hs export(RVarMp, emptyRVarMp)

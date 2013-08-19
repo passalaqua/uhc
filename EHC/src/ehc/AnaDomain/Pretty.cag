@@ -18,7 +18,7 @@
 
 %%[(8 codegen).WRAPPER ag import({AnaDomain/AbsSyn})
 WRAPPER
-  RelTyScheme RelTy
+  AllNT
 %%]
 
 %%[(8 codegen) hs export(ppRelTySch)
@@ -43,14 +43,36 @@ instance PP RelTy where
   pp = ppRelTy
 %%]
 
+%%[(8 codegen) hs export(ppRelRel)
+ppRelRel :: Relev -> PP_Doc
+ppRelRel x
+  =  let  t = wrap_Relev (sem_Relev x)
+                         (Inh_Relev  )
+     in   pp_Syn_Relev t
+
+instance PP Relev where
+  pp = ppRelRel
+%%]
+
+%%[(8 codegen) hs export(ppRelApp)
+ppRelApp :: Applic -> PP_Doc
+ppRelApp x
+  =  let  t = wrap_Applic (sem_Applic x)
+                          (Inh_Applic  )
+     in   pp_Syn_Applic t
+
+instance PP Applic where
+  pp = ppRelApp
+%%]
+
 %%[(8 codegen) hs
 instance Show RVarMpInfo where
   show _ = "RVarMpInfo"
 
 instance PP RVarMpInfo where
-  pp (RVMIType a) = pp a
-  pp (RVMIRelev ) = empty
-  pp (RVMIApplic) = empty
+  pp (RVMIType   a) = pp a
+  pp (RVMIRelev  r) = pp r
+  pp (RVMIApplic a) = pp a
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

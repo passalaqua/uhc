@@ -16,6 +16,8 @@ Substitution for AnaDomain.
 
 %%[(8 codegen) hs import(UHC.Util.Utils)
 %%]
+%%[(8 codegen) hs import(Data.Set)
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Wrapping
@@ -34,6 +36,11 @@ relTySchAppVarLookup varmp ty
               (Inh_TyAGItf {rvarLookup_Inh_TyAGItf = varlookupFix varmp})
 %%]
 
+%%[(8 codegen) hs export(relTySchUnify)
+relTySchUnify :: RelTyScheme -> RelTyScheme -> RVarMp
+relTySchUnify t1 t2 = emptyRVarMp
+%%]
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% VarMp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -46,12 +53,22 @@ ATTR TyAGItf AllNT [ rvarLookup: {VarLookupFix UID RVarMpInfo} | | ]
 %%% Replacement
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%%[(8 codegen)
-SEM AnaEval
-  | Var             inst    .   repl'       :   AnaEval
-                    (loc.replv,loc.isRepl)  =   maybe (@repl,False) (\t -> (t,True)) $ rvmiMbEval $? @lhs.rvarLookup @av
-                    inst    .   repl'       =   if @isRepl then @replv else AnaEval_WHNF
-%%%]
+%%[(8 codegen)
+SEM RelTy
+  | Alpha           inst    .   repl'       :   RelTy
+                    (loc.replv,loc.isRepl)  =   maybe (@repl,False) (\t -> (t,True)) $ rvmiMbTy $? @lhs.rvarLookup @v
+                    inst    .   repl'       =   if @isRepl then @replv else RelTy_Unit
+
+SEM Relev
+  | Beta            inst    .   repl'       :   Relev
+                    (loc.replv,loc.isRepl)  =   maybe (@repl,False) (\t -> (t,True)) $ rvmiMbRel $? @lhs.rvarLookup @v
+                    inst    .   repl'       =   if @isRepl then @replv else Relev_Top
+
+SEM Applic
+  | Gamma           inst    .   repl'       :   Applic
+                    (loc.replv,loc.isRepl)  =   maybe (@repl,False) (\t -> (t,True)) $ rvmiMbApp $? @lhs.rvarLookup @v
+                    inst    .   repl'       =   if @isRepl then @replv else Applic_Top
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Apply substitution
@@ -62,12 +79,24 @@ ATTR AllNT     [ | | repl: SELF  		]
 ATTR TyAGItf   [ | | repl: RelTyScheme    	]
 %%]
 
-%%%[(8 codegen)
-SEM RelevTy
-  | Fun				loc		.	rvarLookup	=	varlookupFixDel @quants @lhs.rvarLookup
+%%[(8 codegen)
+SEM RelTyScheme
+  | Ty              loc     .   rvarLookup  =   let quants = @alphas `union` @betas `union` @gammas
+                                                    quants' = toList quants
+                                                in  varlookupFixDel quants' @lhs.rvarLookup
 
-SEM AnaEval
-  | Var             lhs     .   repl        =   if @isRepl
+SEM RelTy
+  | Alpha           lhs     .   repl        =   if @isRepl
                                                 then @repl'.repl
                                                 else @repl
-%%%]
+
+SEM Relev
+  | Beta            lhs     .   repl        =   if @isRepl
+                                                then @repl'.repl
+                                                else @repl
+
+SEM Applic
+  | Gamma           lhs     .   repl        =   if @isRepl
+                                                then @repl'.repl
+                                                else @repl
+%%]

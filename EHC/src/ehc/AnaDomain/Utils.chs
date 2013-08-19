@@ -29,19 +29,14 @@
 %%[(8 codegen) hs import({%{EH}Base.Debug},UHC.Util.Pretty,{%{EH}AnaDomain.Pretty})
 %%]
 
--- Avoid error on compiling for now:
-%%[(8 codegen) hs export(a)
-a = a
-%%]
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Substitutable instances
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%%[(8 codegen) hs
-instance VarUpdatable RelevTy RVarMp where
-  varUpd = relevtyAppVarLookup
+%%[(8 codegen) hs
+instance VarUpdatable RelTyScheme RVarMp where
+  varUpd = relTySchAppVarLookup
+%%]
 
 instance VarExtractable RelevTy UID where
   varFreeSet = relevTyFtv
-%%%]
