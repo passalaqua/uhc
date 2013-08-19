@@ -263,6 +263,62 @@ ATTR AllNT [ | | repl : SELF ]
 %%% Alts of case
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Type env up
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+{
+-- | Constrains an environment to top only elements
+constrainEnv :: REnv -> REnv
+constrainEnv = let f (k,(t,_)) = (k,(t,Relev_Top))
+               in  gamMap f
+
+-- | Performs environment splits with joins
+(<>:) :: REnv -> REnv -> REnv
+(<>:) = contextSplit True
+
+-- | Performs environment splits with meets
+(<>.) :: REnv -> REnv -> REnv
+(<>.) = contextSplit False
+
+-- | Performes environment splits with joins (True) or meets (False)
+contextSplit :: Bool -> REnv -> REnv -> REnv
+contextSplit t e1 e2 = fst $ gamMapThr opE2 [] e1
+  where
+    op Relev_Top b | t == True = Relev_Top
+                   | otherwise = b
+    op Relev_Rel b | t == True = b
+                   | otherwise = Relev_Rel
+    op _         _ = panic "Found a beta for top level annotation!"
+    opE2 orig@(k, (tau, rel)) ks | k `elem` ks = (orig, ks)
+                                 | otherwise = let rel2 = snd
+                                                          $ panicJust "Splitting contexts with different domains."
+                                                          $ gamLookup k e2
+                                                   rel' = rel `op` rel2
+                                               in  ((k, (tau, rel')), k:ks)
+}
+%%]
+
+%%[(8 codegen)
+ATTR AllCodeNT [ | | retEnv USE {`gamUnion`} {emptyGam}: REnv ]
+
+SEM CExpr
+  -- Updating the gamma before moving back. Let's just hope gamMapThr is always top first.
+  | Var         lhs         .   retEnv          =   let updVar (@nm,(tau,_)) True  = ((@nm,(tau,Relev_Rel)),False)
+                                                        updVar v             False = (v,False)
+                                                    in  fst $ gamMapThr updVar True @lhs.env
+  | Lam         loc         .   retEnv          =   let retEnvLocal = snd $ gamPop @body.retEnv
+                                                    in  @envTrf retEnvLocal
+                            .   envTrf          =   if {- (@loc.gamma `elem` @lhs.rho) -- TODO: Waiting for rhos to be developed
+                                                       && -} (@lhs.knPhi == Relev_Rel)
+                                                    then constrainEnv
+                                                    else id
+  | App         lhs         .   retEnv          =   @func.retEnv <>: @arg.retEnv
+  | Let         lhs         .   retEnv          =   snd $ gamPop @body.retEnv
+  | Case        lhs         .   retEnv          =   @expr.retEnv <>: (@alts.retEnv <>. @dflt.retEnv)
+  | * - Var Lam App Let Case lhs.retEnv         =   @lhs.env
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type up
