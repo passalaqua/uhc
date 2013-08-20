@@ -34,7 +34,7 @@ Analyse Core, using relevance analysis, to relate properties (like relevance) of
 %%[(8 codegen) hs import({%{EH}BindingInfo})
 %%]
 
-%%[(8 codegen) hs import({%{EH}AnaDomain.Trf.Instantiate})
+%%[(8 codegen) hs import({%{EH}AnaDomain.Trf.Instantiate},{%{EH}AnaDomain.Trf.Subst})
 %%]
 
 -- debug only
@@ -162,10 +162,10 @@ SEM CodeAGItf
 
 SEM CBound
   | Bind        expr        .   env             =   gamAddGam @loc.exprEnv @lhs.env
-                loc         .   lUniq           :   UNIQUEREF gUniq
+                loc         .   lUniqAlpha      :   UNIQUEREF gUniq
                 loc         .   exprEnv         =   case @expr.mbLam of
                                                       Just nmL -> gamFromAssocL (zip nmL cs)
-                                                        where as = mkNewLevUIDL (length nmL) @lUniq
+                                                        where as = mkNewLevUIDL (length nmL) @lUniqAlpha
                                                               bs = map freshAlpha as
                                                               cs = zip bs (repeat Relev_Top)
                                                       Nothing -> emptyGam
@@ -225,9 +225,7 @@ ATTR AllExpr [ knTy: RelTyScheme | | ]
 
 SEM CModule
   | Mod        expr         .   knTy            =   freshUnit
-
-SEM CExpr
-  | Lam        bind         .   knTy            =   @loc.alpha1
+-- TODO!
 %%]
 
 %%%[(8 codegen)
@@ -299,7 +297,7 @@ contextSplit t e1 e2 = fst $ gamMapThr opE2 [] e1
     op Relev_Rel b | t == True = b
                    | otherwise = Relev_Rel
     op _         _ = panic "Found a beta for top level annotation!"
-    opE2 orig@(k, (tau, rel)) ks | k `elem` ks = (orig, ks) -- Poor man's var masking
+    opE2 orig@(k, (tau, rel)) ks | k `elem` ks = (orig, ks) -- Poor man's shadow
                                  | otherwise = let rel2 = snd
                                                           $ panicJust "Splitting contexts with different domains."
                                                           $ gamLookup k e2
@@ -315,8 +313,8 @@ SEM CExpr
   | Var         lhs         .   retEnv          =   let updVar (@nm,(tau,_)) True  = ((@nm,(tau,Relev_Rel)),False)
                                                         updVar v             False = (v,False)
                                                     in  fst $ gamMapThr updVar True @lhs.env
-  | Lam         loc         .   retEnv          =   let retEnvLocal = snd $ gamPop @body.retEnv
-                                                    in  @envTrf retEnvLocal
+  | Lam         loc     .(retEnvLocal, retEnv') =   gamPop @body.retEnv
+                loc         .   retEnv          =   @envTrf @retEnv'
                             .   envTrf          =   if {- (@loc.gamma `elem` @lhs.rho) -- TODO: Waiting for rhos to be developed
                                                        && -} (@lhs.knPhi == Relev_Rel)
                                                     then constrainEnv
@@ -329,9 +327,15 @@ SEM CExpr
 SEM CAlt
   | Alt         lhs         .   retEnv          =   snd $ gamPop @expr.retEnv
 
+ATTR CAltL [ | | retMbEnv: (Maybe REnv) ]
+
 SEM CAltL
-  | Nil         lhs         .   retEnv          =   @lhs.env
-  | Cons        lhs         .   retEnv          =   @hd.retEnv <>. @tl.retEnv
+  | Nil         lhs         .   retMbEnv        =   Nothing
+                            .   retEnv          =   @lhs.env
+  | Cons        lhs         .   retMbEnv        =   Just @loc.retEnv
+                loc         .   retEnv          =   case @tl.retMbEnv of
+                                                      Nothing -> @hd.retEnv
+                                                      Just env -> @hd.retEnv <>. env
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -348,14 +352,25 @@ SEM CExpr
                                                     $ renvgLookup @nm @lhs.env @lhs.bindingMp
                 loc         .   lUniq           :   UNIQUEREF gUniq
   | Tup         lhs         .   ty              =   freshUnit -- TODO!
-  | Lam         lhs         .   ty              =   {- Subst $ -} @loc.alpha1 `freshArrow` @body.ty
-                loc         .   lUniq           :   UNIQUEREF gUniq
-                loc         .   alpha1          =   freshAlpha @loc.lUniq
-  | App         lhs         .   ty              =   {- Subst -} @loc.alpha
-                loc         .   lUniq           :   UNIQUEREF gUniq
-                loc         .   alpha           =   freshAlpha @loc.lUniq
+  | Lam         lhs         .   ty              =   varUpd @body.rvarMp $ @retTy
+                loc         .   lUniqGamma      :   UNIQUEREF gUniq
+                loc         .   retTy           =   let (_, values) = unzip $ gamToAssocL @retEnvLocal
+                                                        (alphas, phis) = unzip values
+                                                        gammas = map (flip Applic_Gamma []) $ mkNewLevUIDL (length alphas) @lUniqGamma
+                                                        arrows = makeArrow <$> phis <*> gammas <*> alphas
+                                                    in  (foldr1 (.) arrows) @body.ty
+  | App         lhs         .   ty              =   varUpd @unification @loc.alpha
+                loc         .   lUniqAlpha      :   UNIQUEREF gUniq
+                loc         .   alpha           =   freshAlpha @lUniqAlpha
+                loc         .   lUniqGamma      :   UNIQUEREF gUniq
+                loc         .   gamma           =   Applic_Gamma @lUniqGamma []
+                loc         .   unification     =   let tau1 = varUpd @arg.rvarMp @func.ty
+                                                        tau2 = makeArrow @arg.phi @gamma
+                                                               (panicJust "Argument type error." @arg.ty)
+                                                               @alpha
+                                                    in  relTySchUnify tau1 tau2
   | Let         lhs         .   ty              =   @body.ty
-  | Case        lhs         .   ty              =   {- Subst -} @alts.ty
+  | Case        lhs         .   ty              =   varUpd @expr.rvarMp @alts.ty
   | * - Tup Var Let App Lam Case lhs.ty         =   freshUnit
 %%]
 
@@ -368,7 +383,8 @@ SEM CAlt
 SEM CAltL
   | Nil         lhs         .   ty              =   freshAlpha @loc.lUniq
                 loc         .   lUniq           :   UNIQUEREF gUniq
-  | Cons        lhs         .   ty              =   {- Subst -} @hd.ty {- unify with tl.ty -}
+  | Cons        lhs         .   ty              =   varUpd @unification @hd.ty
+                loc         .   unification     =   relTySchUnify @hd.ty @tl.ty
 %%]
 
 %%[(8 codegen)
@@ -397,12 +413,16 @@ SEM CBoundL
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR CExpr [ | | phi: Relev ]
+ATTR CExpr CBound [ | | phi: Relev ]
 
 SEM CExpr
   -- More complex types
   | Var         lhs         .   phi             =   Relev_Rel
   | * - Var Let App Lam Case lhs.phi            =   @lhs.knPhi
+
+SEM CBound
+  | Bind        lhs         .   phi             =   @expr.phi
+  | * - Bind    lhs         .   phi             =   Relev_Top
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -410,16 +430,20 @@ SEM CExpr
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR AllNT [ | rvarMp: RVarMp | ]
+ATTR AllNT [ | | rvarMp USE {|+>} {emptyRVarMp}: RVarMp ]
 
-SEM CodeAGItf
-  | AGItf       loc         .   rvarMp          =   emptyRVarMp
+SEM CExpr
+  | App         lhs         .   rvarMp          =   @unification
+                                                    |+> @func.rvarMp
+                                                    |+> @arg.rvarMp
 
-SEM CBound
-  | Bind        lhs         .   rvarMp          =   emptyRVarMp -- @quantVarMp |+> @rvarMpExpr
+SEM CAltL
+  | Cons        lhs         .   rvarMp          =   @unification
+                                                    |+> @hd.rvarMp
+                                                    |+> @tl.rvarMp
 %%]
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Final VarMp distribution
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
