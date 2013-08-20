@@ -33,12 +33,20 @@ relTySchAppVarLookup varmp ty
   = repl_Syn_TyAGItf t
   where t = wrap_TyAGItf
               (sem_TyAGItf (TyAGItf_AGItf ty))
-              (Inh_TyAGItf {rvarLookup_Inh_TyAGItf = varlookupFix varmp})
+              (Inh_TyAGItf { rvarLookup_Inh_TyAGItf = varlookupFix varmp
+                           , otherTy_Inh_TyAGItf = Nothing
+                           })
 %%]
 
 %%[(8 codegen) hs export(relTySchUnify)
 relTySchUnify :: RelTyScheme -> RelTyScheme -> RVarMp
-relTySchUnify t1 t2 = emptyRVarMp
+relTySchUnify t1 t2
+  = subst_Syn_TyAGItf t
+  where t = wrap_TyAGItf
+              (sem_TyAGItf (TyAGItf_AGItf t1))
+              (Inh_TyAGItf { rvarLookup_Inh_TyAGItf = varlookupFix emptyRVarMp
+                           , otherTy_Inh_TyAGItf = Nothing -- Just t2
+                           })
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -99,4 +107,94 @@ SEM Applic
   | Gamma           lhs     .   repl        =   if @isRepl
                                                 then @repl'.repl
                                                 else @repl
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Push the alternative type down for unification
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+We love our AGs, don't we? This is not the simplest code for this purpose, but I wanted to see how it worked.
+%%[(8 codegen)
+ATTR TyAGItf RelTyScheme [ otherTy: (Maybe RelTyScheme) | | ]
+SEM RelTyScheme
+  | Ty              ty     .   otherTy      =    do { (RelTyScheme_Ty _ _ _ t) <- @lhs.otherTy; return t }
+
+ATTR RelTy [ otherTy: (Maybe RelTy) | | ]
+SEM RelTy
+  | Arrow           phi    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return rel }
+                    psi    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return app }
+                    arg    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return arg }
+                    res    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return res }
+  | Data            params .   otherTy      =    do { (RelTy_Data ps) <- @lhs.otherTy; return ps }
+
+ATTR RelTyL [ otherTy: (Maybe RelTyL) | | ]
+SEM RelTyL
+  | Cons            tl     .   otherTy      =    do { (_:tl) <- @lhs.otherTy; return tl }
+                    hd     .   otherTy      =    do { (hd:_) <- @lhs.otherTy; return hd }
+
+ATTR Relev [ otherTy: (Maybe Relev) | | ]
+
+ATTR Applic [ otherTy: (Maybe Applic) | | ]
+SEM Applic
+  | Gamma           deps   .   otherTy      =    do { (Applic_Gamma _ ds) <- @lhs.otherTy; return ds }
+
+ATTR Rho [ otherTy: (Maybe Rho) | | ]
+SEM Rho
+  | Cons            tl     .   otherTy      =    do { (_:tl) <- @lhs.otherTy; return tl }
+                    hd     .   otherTy      =    do { (hd:_) <- @lhs.otherTy; return hd }
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Unify both types
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen) hs
+errorUnif = error "Unification error."
+%%]
+
+%%[(8 codegen)
+ATTR TyAGItf AllNT     [ | | subst USE {|+>} {emptyRVarMp}: RVarMp ]
+ATTR TyAGItf AllNT     [ | | copy: SELF ]
+
+SEM RelTy
+  | Unit            lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (RelTy_Alpha v) -> rvmpRelTy v @copy
+                                                   Just (RelTy_Unit) -> emptyRVarMp
+                                                   Nothing -> emptyRVarMp
+                                                   _ -> errorUnif
+  | Alpha           lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just t -> rvmpRelTy @v t
+                                                   Nothing -> emptyRVarMp
+  | Arrow           lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (RelTy_Alpha v) -> rvmpRelTy v @copy
+                                                   Just (RelTy_Arrow _ _ _ _) -> @phi.subst
+                                                                                 |+> @psi.subst
+                                                                                 |+> @arg.subst
+                                                                                 |+> @res.subst
+                                                   Nothing -> emptyRVarMp
+                                                   _ -> errorUnif
+  | Data            lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (RelTy_Alpha v) -> rvmpRelTy v @copy
+                                                   Just (RelTy_Data _) -> @params.subst
+                                                   Nothing -> emptyRVarMp
+                                                   _ -> errorUnif
+
+SEM Relev
+  | Beta            lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just b -> rvmpRelev @v b
+                                                   Nothing -> emptyRVarMp
+  | * - Beta        lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (Relev_Beta v) -> rvmpRelev v @copy
+                                                   Nothing -> emptyRVarMp
+                                                   _ -> errorUnif
+
+SEM Applic
+  | Gamma           lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just g -> rvmpApplic @v g
+                                                   Nothing -> emptyRVarMp
+  | * - Gamma       lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (Applic_Gamma v ds) -> rvmpApplic v @copy
+                                                   Nothing -> emptyRVarMp
+                                                   _ -> errorUnif
+
 %%]

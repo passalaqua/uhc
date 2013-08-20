@@ -225,11 +225,20 @@ rvmiMbApp (RVMIApplic x) = Just x
 rvmiMbApp _              = Nothing
 %%]
 
-%%[(8 codegen) hs export(RVarMp, emptyRVarMp)
+%%[(8 codegen) hs export(RVarMp, emptyRVarMp, rvmpRelTy, rvmpRelev, rvmpApplic)
 type RVarMp  = VarMpStk' UID RVarMpInfo
 
 emptyRVarMp :: RVarMp
 emptyRVarMp = emptyVarMpStk
+
+rvmpRelTy :: UID -> RelTy -> RVarMp
+rvmpRelTy u t = varmpstkUnit u (RVMIType t)
+
+rvmpRelev :: UID -> Relev -> RVarMp
+rvmpRelev u r = varmpstkUnit u (RVMIRelev r)
+
+rvmpApplic :: UID -> Applic -> RVarMp
+rvmpApplic u a = varmpstkUnit u (RVMIApplic a)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
