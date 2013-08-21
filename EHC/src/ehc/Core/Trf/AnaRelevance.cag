@@ -160,22 +160,15 @@ ATTR AllCodeNT [ env: REnv | | ]
 SEM CodeAGItf
   | AGItf       loc         .   env             =   emptyGam
 
-SEM CBound
-  | Bind        expr        .   env             =   gamAddGam @loc.exprEnv @lhs.env
-                loc         .   lUniqAlpha      :   UNIQUEREF gUniq
-                loc         .   exprEnv         =   case @expr.mbLam of
-                                                      Just nmL -> gamFromAssocL (zip nmL cs)
-                                                        where as = mkNewLevUIDL (length nmL) @lUniqAlpha
-                                                              bs = map freshAlpha as
-                                                              cs = zip bs (repeat Relev_Top)
-                                                      Nothing -> emptyGam
-
 SEM CExpr
+  | Lam         body        .   env             =   gamPushGam @exprEnv @lhs.env
+                loc         .   lUniqAlpha      :   UNIQUEREF gUniq
+                loc         .   exprEnv         =   gamSingleton @argNm (freshAlpha @lUniqAlpha, Relev_Top)
   | Let         binds       .   env             =   gamAddGam @binds.gathRecEnv @lhs.env
-                body        .   env             =   gamAddGam @binds.gathEnv    @lhs.env
+                body        .   env             =   gamPushGam @binds.gathRecEnv @lhs.env
 
 SEM CAlt
-  | Alt         expr        .   env             =   gamAddGam @pat.gathEnv @lhs.env
+  | Alt         expr        .   env             =   gamPushGam @pat.gathEnv @lhs.env
 %%]
 
 %%[(8 codegen)
@@ -184,8 +177,8 @@ ATTR AllBind AllPatFld AllPat CExpr
 ATTR AllBind  [ | | gathRecEnv USE {`gamUnion`} {emptyGam}: REnv ]
 
 SEM CBound
-  | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm (@expr.ty, @gathRelev)
-                            .   gathRecEnv      =   gamSingleton @lhs.nm (@expr.ty, @gathRelev)
+  | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm (@quantTy, @gathRelev)
+                            .   gathRecEnv      =   gamSingleton @lhs.nm (@freshTy, @gathRelev)
                             .   gathRelev       =   case @lhs.letBindingsCateg of
                                                       CBindCateg_Strict -> Relev_Rel
                                                       otherwise         -> Relev_Top
@@ -354,11 +347,9 @@ SEM CExpr
   | Tup         lhs         .   ty              =   freshUnit -- TODO!
   | Lam         lhs         .   ty              =   varUpd @body.rvarMp $ @retTy
                 loc         .   lUniqGamma      :   UNIQUEREF gUniq
-                loc         .   retTy           =   let (_, values) = unzip $ gamToAssocL @retEnvLocal
-                                                        (alphas, phis) = unzip values
-                                                        gammas = map (flip Applic_Gamma []) $ mkNewLevUIDL (length alphas) @lUniqGamma
-                                                        arrows = makeArrow <$> phis <*> gammas <*> alphas
-                                                    in  (foldr1 (.) arrows) @body.ty
+                loc         .   retTy           =   let (_, [(a,p)]) = unzip $ gamToAssocL @retEnvLocal
+                                                        gamma = Applic_Gamma @lUniqGamma []
+                                                    in  makeArrow p gamma a @body.ty
   | App         lhs         .   ty              =   varUpd @unification @loc.alpha
                 loc         .   lUniqAlpha      :   UNIQUEREF gUniq
                 loc         .   alpha           =   freshAlpha @lUniqAlpha
@@ -395,6 +386,16 @@ SEM CBind
 
 SEM CBound
   | Bind        lhs         .   ty              =   Just @expr.ty
+                loc         .   quantTy         =   case @expr.ty of
+                                                      t@(RelTyScheme_Ty a b g (RelTy_Arrow _ _ ty _)) ->
+                                                        varUpd @expr.rvarMp $ RelTyScheme_Ty a' b' g' ty
+                                                        where
+                                                          a' = a `Set.union` tyFv t
+                                                          b' = b `Set.union` relFv t
+                                                          g' = g `Set.union` appFv t
+                                                      t -> t
+                loc         .   lUniqAlpha      :   UNIQUEREF gUniq
+                loc         .   freshTy         =   freshAlpha @lUniqAlpha
   | Val         lhs         .   ty              =   Just @expr.ty
 %%[[8
   | * - Bind Val lhs        .   ty              =   Nothing
