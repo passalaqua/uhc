@@ -205,22 +205,14 @@ DATA CExpr
 %%[(8 codegen)
 -- | ann for CExpr
 DATA CExprAnn
-  | Ty			ty				: {Ty}
-  | Coe			coe				: {RelevCoe}
+  | Ty   		ty			: {Ty}
+  | RelTy               ty                      : {RelTyScheme}
+                        env                     : {[HsName]}
   | Debug		info			: {String}
-
--- | ann for name intro
-DATA CBindAnn
-  | Coe			coe				: {RelevCoe}
-%%]
-
-%%[(8 codegen)
-TYPE CBindAnnL	= [CBindAnn]
 %%]
 
 %%[(8 codegen)
 SET AllExprAnn	= CExprAnn
-SET AllBindAnn	= CBindAnn CBindAnnL
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -245,7 +237,7 @@ DATA CBound
   
   -- a (keyed) RelevTy
   | RelevTy		aspectKeyS		: {ACoreBindAspectKeyS}
-  				relevTy			: {RelevTy}
+                        relevTy			: {RelTyScheme}
   
   -- a (keyed) CExpr
   | Val		    aspectKeyS		: {ACoreBindAspectKeyS}
@@ -360,7 +352,6 @@ DATA CPatFld
   | Fld         lbl             : {HsName}
                 offset          : CExpr
                 bind            : CBind
-                fldAnns			: CBindAnnL
 
 TYPE CPatFldL   =   [CPatFld]
 %%]
@@ -380,7 +371,7 @@ DATA CPat
 %%[(8 codegen)
 SET AllAlt      =   CAlt CAltL
 SET AllPat      =   CPatRest CPat AllPatFld
-SET AllPatFld   =   CPatFld CPatFldL AllBindAnn
+SET AllPatFld   =   CPatFld CPatFldL
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

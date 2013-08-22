@@ -16,7 +16,7 @@
 
 %%[(8 codegen grin) hs import({%{EH}GrinCode.Pretty})
 %%]
-%%[(8 codegen grin) hs import(qualified {%{EH}GrinByteCode} as GB,{%{EH}Core},{%{EH}GrinCode},{%{EH}LamInfo})
+%%[(8 codegen grin) hs import(qualified {%{EH}GrinByteCode} as GB,{%{EH}Core},{%{EH}GrinCode},{%{EH}BindingInfo})
 %%]
 
 %%[(5050 codegen grin) hs import({%{EH}Ty(tyRowCanonOrder)},{%{EH}HI})
@@ -47,8 +47,8 @@ grinMod2ByteCodeMod opts gmod
 %%]
 
 %%[(50 codegen grin) -8.grinMod2ByteCodeMod hs export(grinMod2ByteCodeMod)
-grinMod2ByteCodeMod :: EHCOpts -> LamMp -> [HsName] -> {- [HsName] -> -} HsName2OffsetMpMp -> HsName2OffsetMp -> GrModule -> (GB.Module,[Err])
-grinMod2ByteCodeMod opts lamMp allImpNmL {- impNmL -} impNmOffMpMp expNmOffMp gmod
+grinMod2ByteCodeMod :: EHCOpts -> BindingMp -> [HsName] -> {- [HsName] -> -} HsName2OffsetMpMp -> HsName2OffsetMp -> GrModule -> (GB.Module,[Err])
+grinMod2ByteCodeMod opts bindingMp allImpNmL {- impNmL -} impNmOffMpMp expNmOffMp gmod
   =  let  t = wrap_GrAGItf  (sem_GrAGItf (GrAGItf_AGItf gmod))
                             (Inh_GrAGItf
                                { expNmOffMp_Inh_GrAGItf     = expNmOffMp
@@ -56,7 +56,7 @@ grinMod2ByteCodeMod opts lamMp allImpNmL {- impNmL -} impNmOffMpMp expNmOffMp gm
                                , allImpNmL_Inh_GrAGItf      = allImpNmL
                                -- , impNmL_Inh_GrAGItf         = offMpKeysSorted impNmOffMpMp -- impNmL
                                , opts_Inh_GrAGItf           = opts
-                               , lamMp_Inh_GrAGItf          = lamMp
+                               , bindingMp_Inh_GrAGItf      = bindingMp
                                })
      in   (gbMod_Syn_GrAGItf t, errs_Syn_GrAGItf t)
 %%]
@@ -107,7 +107,7 @@ PRAGMA nocycle
 ATTR AllBind AllGrExpr GrModule GrAGItf
   [ opts: EHCOpts
 %%[[50
-    lamMp: LamMp
+    bindingMp: BindingMp
 %%]]
   | |
   ]
@@ -525,8 +525,8 @@ SEM GrExpr
   | *           loc         .   nmEnv           =   GB.NmEnv
                                                       { GB.neVAGam = @lhs.vaGam
 %%[[50
-                                                      , GB.neImpNmMp = @lhs.impNmOffMpMp
-                                                      , GB.neLamMp   = @lhs.lamMp
+                                                      , GB.neImpNmMp   = @lhs.impNmOffMpMp
+                                                      , GB.neBindingMp = @lhs.bindingMp
 %%]]
                                                       }
 
@@ -534,8 +534,8 @@ SEM GrBind
   | Bind        loc         .   nmEnv           =   GB.NmEnv
                                                       { GB.neVAGam = @lhs.vaGam
 %%[[50
-                                                      , GB.neImpNmMp = @lhs.impNmOffMpMp
-                                                      , GB.neLamMp   = @lhs.lamMp
+                                                      , GB.neImpNmMp   = @lhs.impNmOffMpMp
+                                                      , GB.neBindingMp = @lhs.bindingMp
 %%]]
                                                       }
 
@@ -543,8 +543,8 @@ SEM GrModule
   | Mod         loc         .   nmEnv           =   GB.NmEnv
                                                       { GB.neVAGam = @vaGam
 %%[[50
-                                                      , GB.neImpNmMp = @lhs.impNmOffMpMp
-                                                      , GB.neLamMp   = @lhs.lamMp
+                                                      , GB.neImpNmMp   = @lhs.impNmOffMpMp
+                                                      , GB.neBindingMp = @lhs.bindingMp
 %%]]
                                                       }
 %%]
@@ -947,8 +947,8 @@ SEM GrBind
 %%[[8
                                                                                       []
 %%][50
-                                                                                      (maybe [] (\i -> if laminfo1stArgIsStackTrace i then [GB.FunctionInfoFlag_1stArgIsStackTrace] else [])
-                                                                                       $ Map.lookup @nm @lhs.lamMp)
+                                                                                      (maybe [] (\i -> if bindinginfo1stArgIsStackTrace i then [GB.FunctionInfoFlag_1stArgIsStackTrace] else [])
+                                                                                       $ Map.lookup @nm @lhs.bindingMp)
 %%]]
                                                                                       )
                                                        , GB.label (GB.LocRef_CodeEntry @entryInx)

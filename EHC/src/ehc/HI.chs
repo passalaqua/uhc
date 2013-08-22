@@ -18,7 +18,7 @@
 
 %%[(50 codegen) hs import({%{EH}Base.Target})
 %%]
-%%[(50 codegen) hs import({%{EH}Core}, {%{EH}LamInfo})
+%%[(50 codegen) hs import({%{EH}Core}, {%{EH}BindingInfo})
 %%]
 %%[(50 codegen tycore) hs import(qualified {%{EH}TyCore} as C)
 %%]
@@ -116,7 +116,7 @@ data HIInfo
       , hiiCHRStore             :: !ScopedPredStore                         -- rule database
 %%]]
 %%[[(50 codegen)
-      , hiiLamMp                :: !LamMp                                   -- codegen info for identifiers
+      , hiiBindingMp            :: !BindingMp                               -- codegen info for identifiers
 %%]]
 %%[[(50 codegen grin)
       , hiiGrInlMp              :: !GrInlMp                                 -- grin inlineable code
@@ -229,7 +229,7 @@ hiiUnion m1 m2
        , hiiCHRStore            = hiiCHRStore       m1 `chrStoreUnion`  hiiCHRStore     m2
 %%]]
 %%[[(99 codegen)
-       , hiiLamMp               = hiiLamMp          m1 `Map.union`      hiiLamMp        m2
+       , hiiBindingMp           = hiiBindingMp      m1 `Map.union`      hiiBindingMp    m2
 %%]]
 %%[[(99 codegen grin)
        , hiiGrInlMp             = hiiGrInlMp        m1 `Map.union`      hiiGrInlMp      m2
@@ -255,7 +255,7 @@ hiiRestrictToFilterMp mfm hii
       , hiiClDfGam              = fg expC  $ hiiClDfGam         hii
 %%]]
 %%[[(99 codegen)
-      , hiiLamMp                = fm expV  $ hiiLamMp           hii
+      , hiiBindingMp            = fm expV  $ hiiBindingMp       hii
 %%]]
 %%[[(99 codegen grin)
       , hiiGrInlMp              = fm expV  $ hiiGrInlMp         hii
@@ -462,7 +462,7 @@ sgetHIInfo opts = do
                             , hiiCHRStore             = cs
 %%]]
 %%[[(50 codegen)
-                            , hiiLamMp                = am
+                            , hiiBindingMp            = am
 %%]]
 %%[[(50 codegen grin)
                             , hiiGrInlMp              = im
@@ -524,7 +524,7 @@ instance Serialize HIInfo where
                   , hiiCHRStore             = cs
 %%]]
 %%[[(50 codegen)
-                  , hiiLamMp                = am
+                  , hiiBindingMp            = am
 %%]]
 %%[[(50 codegen grin)
                   , hiiGrInlMp              = im

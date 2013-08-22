@@ -106,7 +106,7 @@ ATTR CExprAnn [ | | prop : Prop ]
 
 SEM CExprAnn
   | Ty          loc         .   prop        =   Prop_HasTy @ty
-  | * - Ty      loc         .   prop        =   Prop_None
+  | Debug       loc         .   prop        =   Prop_None
 
 %%]
 

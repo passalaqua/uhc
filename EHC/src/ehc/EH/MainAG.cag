@@ -69,7 +69,7 @@
 %%]
 %%[(8 codegen) hs import({%{EH}Foreign.Extract})
 %%]
-%%[(8 codegen) hs import({%{EH}LamInfo})
+%%[(8 codegen) hs import({%{EH}BindingInfo})
 %%]
 %%[(8 codegen) hs import(qualified {%{EH}Core.SysF.AsTy} as SysF, {%{EH}FinalEnv})
 %%]

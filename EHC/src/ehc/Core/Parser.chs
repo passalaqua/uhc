@@ -52,10 +52,10 @@ pCNumber
 
 pCExprAnn :: CParser (CExpr -> CExpr)
 pCExprAnn
-  =   CExpr_Ann
+  =   {-CExpr_Ann -- FIXME: Write this!
       <$> (pDCOLON *> (CExprAnn_Ty <$> pTy)
           )
-  <|> pSucceed id
+  <|> -} pSucceed id
 
 pCExprBase :: CParser CExpr
 pCExprBase
@@ -193,5 +193,5 @@ pCPat
 
 pCPatFld :: CParser CPatFld
 pCPatFld
-  = (\l o n -> CPatFld_Fld l o n []) <$ pOCURLY <*> pDollNm <* pCOMMA <*> pCExpr <* pCCURLY <* pEQUAL <*> pCBind -- pCPat
+  = (\l o n -> CPatFld_Fld l o n) <$ pOCURLY <*> pDollNm <* pCOMMA <*> pCExpr <* pCCURLY <* pEQUAL <*> pCBind -- pCPat
 %%]

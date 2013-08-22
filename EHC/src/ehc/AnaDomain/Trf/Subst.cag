@@ -16,83 +16,185 @@ Substitution for AnaDomain.
 
 %%[(8 codegen) hs import(UHC.Util.Utils)
 %%]
+%%[(8 codegen) hs import(Data.Set)
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Wrapping
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen) ag import({AnaDomain/AbsSyn})
-WRAPPER TyAGItf QualAGItf CoeAGItf
+WRAPPER TyAGItf
 %%]
 
-%%[(8 codegen) hs export(relevtyAppVarLookup)
-relevtyAppVarLookup :: VarLookup m UID RVarMpInfo => m -> RelevTy -> RelevTy
-relevtyAppVarLookup varmp ty
+%%[(8 codegen) hs export(relTySchAppVarLookup)
+relTySchAppVarLookup :: VarLookup m UID RVarMpInfo => m -> RelTyScheme -> RelTyScheme
+relTySchAppVarLookup varmp ty
   = repl_Syn_TyAGItf t
   where t = wrap_TyAGItf
               (sem_TyAGItf (TyAGItf_AGItf ty))
-              (Inh_TyAGItf {rvarLookup_Inh_TyAGItf = varlookupFix varmp})
+              (Inh_TyAGItf { rvarLookup_Inh_TyAGItf = varlookupFix varmp
+                           , otherTy_Inh_TyAGItf = Nothing
+                           })
 %%]
-relevtyAppVarLookup :: RVarMp -> RelevTy -> RelevTy
 
-%%[(8 codegen) hs export(relevqualAppVarLookup)
-relevqualAppVarLookup :: VarLookup m UID RVarMpInfo => m -> RelevQual -> RelevQual
-relevqualAppVarLookup varmp qual
-  = repl_Syn_QualAGItf t
-  where t = wrap_QualAGItf
-              (sem_QualAGItf (QualAGItf_AGItf qual))
-              (Inh_QualAGItf {rvarLookup_Inh_QualAGItf = varlookupFix varmp})
+%%[(8 codegen) hs export(relTySchUnify)
+relTySchUnify :: RelTyScheme -> RelTyScheme -> RVarMp
+relTySchUnify t1 t2
+  = subst_Syn_TyAGItf t
+  where t = wrap_TyAGItf
+              (sem_TyAGItf (TyAGItf_AGItf t1))
+              (Inh_TyAGItf { rvarLookup_Inh_TyAGItf = varlookupFix emptyRVarMp
+                           , otherTy_Inh_TyAGItf = Nothing -- Just t2
+                           })
 %%]
-relevqualAppVarLookup :: RVarMp -> RelevQual -> RelevQual
-
-%%[(8 codegen) hs export(relevcoeAppVarLookup)
-relevcoeAppVarLookup :: VarLookup m UID RVarMpInfo => m -> RelevCoe -> RelevCoe
-relevcoeAppVarLookup varmp coe
-  = repl_Syn_CoeAGItf t
-  where t = wrap_CoeAGItf
-              (sem_CoeAGItf (CoeAGItf_AGItf coe))
-              (Inh_CoeAGItf {rvarLookup_Inh_CoeAGItf = varlookupFix varmp})
-%%]
-relevcoeAppVarLookup :: RVarMp -> RelevCoe -> RelevCoe
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% VarMp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR TyAGItf QualAGItf CoeAGItf AllNT [ rvarLookup: {VarLookupFix UID RVarMpInfo} | | ]
+ATTR TyAGItf AllNT [ rvarLookup: {VarLookupFix UID RVarMpInfo} | | ]
 %%]
-ATTR TyAGItf QualAGItf CoeAGItf AllNT [ rvarMp: RVarMp | | ]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Replacement
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-SEM AnaEval
-  | Var             inst    .   repl'       :   AnaEval
-                    (loc.replv,loc.isRepl)  =   maybe (@repl,False) (\t -> (t,True)) $ rvmiMbEval $? @lhs.rvarLookup @av
-                    inst    .   repl'       =   if @isRepl then @replv else AnaEval_WHNF
+SEM RelTy
+  | Alpha           inst    .   repl'       :   RelTy
+                    (loc.replv,loc.isRepl)  =   maybe (@repl,False) (\t -> (t,True)) $ rvmiMbTy $? @lhs.rvarLookup @v
+                    inst    .   repl'       =   if @isRepl then @replv else RelTy_Unit
+
+SEM Relev
+  | Beta            inst    .   repl'       :   Relev
+                    (loc.replv,loc.isRepl)  =   maybe (@repl,False) (\t -> (t,True)) $ rvmiMbRel $? @lhs.rvarLookup @v
+                    inst    .   repl'       =   if @isRepl then @replv else Relev_Top
+
+SEM Applic
+  | Gamma           inst    .   repl'       :   Applic
+                    (loc.replv,loc.isRepl)  =   maybe (@repl,False) (\t -> (t,True)) $ rvmiMbApp $? @lhs.rvarLookup @v
+                    inst    .   repl'       =   if @isRepl then @replv else Applic_Top
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Apply substitution
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen).TySubst
+%%[(8 codegen)
 ATTR AllNT     [ | | repl: SELF  		]
-ATTR TyAGItf   [ | | repl: RelevTy    	]
-ATTR QualAGItf [ | | repl: RelevQual   	]
-ATTR CoeAGItf  [ | | repl: RelevCoe   	]
+ATTR TyAGItf   [ | | repl: RelTyScheme    	]
 %%]
 
 %%[(8 codegen)
-SEM RelevTy
-  | Fun				loc		.	rvarLookup	=	varlookupFixDel @quants @lhs.rvarLookup
+SEM RelTyScheme
+  | Ty              loc     .   rvarLookup  =   let quants = @alphas `union` @betas `union` @gammas
+                                                    quants' = toList quants
+                                                in  varlookupFixDel quants' @lhs.rvarLookup
 
-SEM AnaEval
-  | Var             lhs     .   repl        =   if @isRepl
+SEM RelTy
+  | Alpha           lhs     .   repl        =   if @isRepl
+                                                then @repl'.repl
+                                                else @repl
+
+SEM Relev
+  | Beta            lhs     .   repl        =   if @isRepl
+                                                then @repl'.repl
+                                                else @repl
+
+SEM Applic
+  | Gamma           lhs     .   repl        =   if @isRepl
                                                 then @repl'.repl
                                                 else @repl
 %%]
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Push the alternative type down for unification
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+We love our AGs, don't we? This is not the simplest code for this purpose, but I wanted to see how it worked.
+%%[(8 codegen)
+ATTR TyAGItf RelTyScheme [ otherTy: (Maybe RelTyScheme) | | ]
+SEM RelTyScheme
+  | Ty              ty     .   otherTy      =    do { (RelTyScheme_Ty _ _ _ t) <- @lhs.otherTy; return t }
+
+ATTR RelTy [ otherTy: (Maybe RelTy) | | ]
+SEM RelTy
+  | Arrow           phi    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return rel }
+                    psi    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return app }
+                    arg    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return arg }
+                    res    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return res }
+  | Data            params .   otherTy      =    do { (RelTy_Data ps) <- @lhs.otherTy; return ps }
+
+ATTR RelTyL [ otherTy: (Maybe RelTyL) | | ]
+SEM RelTyL
+  | Cons            tl     .   otherTy      =    do { (_:tl) <- @lhs.otherTy; return tl }
+                    hd     .   otherTy      =    do { (hd:_) <- @lhs.otherTy; return hd }
+
+ATTR Relev [ otherTy: (Maybe Relev) | | ]
+
+ATTR Applic [ otherTy: (Maybe Applic) | | ]
+SEM Applic
+  | Gamma           deps   .   otherTy      =    do { (Applic_Gamma _ ds) <- @lhs.otherTy; return ds }
+
+ATTR Rho [ otherTy: (Maybe Rho) | | ]
+SEM Rho
+  | Cons            tl     .   otherTy      =    do { (_:tl) <- @lhs.otherTy; return tl }
+                    hd     .   otherTy      =    do { (hd:_) <- @lhs.otherTy; return hd }
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Unify both types
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen) hs
+errorUnif = error "Unification error."
+%%]
+
+%%[(8 codegen)
+ATTR TyAGItf AllNT     [ | | subst USE {|+>} {emptyRVarMp}: RVarMp ]
+ATTR TyAGItf AllNT     [ | | copy: SELF ]
+
+SEM RelTy
+  | Unit            lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (RelTy_Alpha v) -> rvmpRelTy v @copy
+                                                   Just (RelTy_Unit) -> emptyRVarMp
+                                                   Nothing -> emptyRVarMp
+                                                   _ -> errorUnif
+  | Alpha           lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just t -> rvmpRelTy @v t
+                                                   Nothing -> emptyRVarMp
+  | Arrow           lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (RelTy_Alpha v) -> rvmpRelTy v @copy
+                                                   Just (RelTy_Arrow _ _ _ _) -> @phi.subst
+                                                                                 |+> @psi.subst
+                                                                                 |+> @arg.subst
+                                                                                 |+> @res.subst
+                                                   Nothing -> emptyRVarMp
+                                                   _ -> errorUnif
+  | Data            lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (RelTy_Alpha v) -> rvmpRelTy v @copy
+                                                   Just (RelTy_Data _) -> @params.subst
+                                                   Nothing -> emptyRVarMp
+                                                   _ -> errorUnif
+
+SEM Relev
+  | Beta            lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just b -> rvmpRelev @v b
+                                                   Nothing -> emptyRVarMp
+  | * - Beta        lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (Relev_Beta v) -> rvmpRelev v @copy
+                                                   Nothing -> emptyRVarMp
+                                                   _ -> errorUnif
+
+SEM Applic
+  | Gamma           lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just g -> rvmpApplic @v g
+                                                   Nothing -> emptyRVarMp
+  | * - Gamma       lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (Applic_Gamma v ds) -> rvmpApplic v @copy
+                                                   Nothing -> emptyRVarMp
+                                                   _ -> errorUnif
+
+%%]

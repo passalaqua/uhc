@@ -5,7 +5,7 @@
 %%[(8 codegen grin) hs module {%{EH}GrinByteCode.ToC} import(UHC.Util.Pretty,{%{EH}Base.Common},{%{EH}Base.Builtin},{%{EH}Opts},{%{EH}GrinByteCode})
 %%]
 
-%%[(8 codegen grin) hs import(UHC.Util.Pretty,{%{EH}Base.Common},{%{EH}Opts},qualified {%{EH}Config} as Cfg,{%{EH}GrinByteCode}, {%{EH}LamInfo})
+%%[(8 codegen grin) hs import(UHC.Util.Pretty,{%{EH}Base.Common},{%{EH}Opts},qualified {%{EH}Config} as Cfg,{%{EH}GrinByteCode}, {%{EH}BindingInfo})
 %%]
 
 %%[(8 codegen grin) hs import({%{EH}Base.GenC})
@@ -42,7 +42,7 @@ gbmod2C opts m
 %%[(50 codegen grin) -8.gbmod2C hs export(gbmod2C)
 gbmod2C
   :: EHCOpts
-     -> LookupGrinByteCodeLamInfo
+     -> LookupGrinByteCodeBindingInfo
     -> Module
     -> ( GenC
        , GenC
@@ -52,11 +52,11 @@ gbmod2C
 %%]]
        , FunctionInfoExportMp
        )
-gbmod2C opts lkupGrinByteCodeLamInfo m
+gbmod2C opts lkupGrinByteCodeBindingInfo m
   = let t = wrap_AGItf (sem_AGItf (AGItf_AGItf m))
                        (Inh_AGItf
                           { opts_Inh_AGItf = opts
-                          , lkupGrinByteCodeLamInfo_Inh_AGItf = lkupGrinByteCodeLamInfo
+                          , lkupGrinByteCodeBindingInfo_Inh_AGItf = lkupGrinByteCodeBindingInfo
                           }
                        )
     in  ( pp_Syn_AGItf t
@@ -87,20 +87,20 @@ type LookupFunctionInfoInx     = HsName -> Maybe Int
 %%]
 
 %%[(50 codegen grin) hs
-type LookupGrinByteCodeLamInfo = HsName -> Maybe GrinByteCodeLamInfo
+type LookupGrinByteCodeBindingInfo = HsName -> Maybe GrinByteCodeBindingInfo
 %%]
 
 %%[(8 codegen grin)
 ATTR AllInstr     [ lkupLookupFunctionInfoInx: LookupFunctionInfoInx     | | ]
 %%[[50
-ATTR AGItf Module [ lkupGrinByteCodeLamInfo: LookupGrinByteCodeLamInfo | | ]
+ATTR AGItf Module [ lkupGrinByteCodeBindingInfo: LookupGrinByteCodeBindingInfo | | ]
 %%]]
 
 SEM Module
   | Mod         loc         .   lkupLookupFunctionInfoInx
-                                            =   \n -> fmap gblaminfoFuninfoKey
+                                            =   \n -> fmap gbbindinginfoFuninfoKey
 %%[[50
-                                                      $ maybe (@lhs.lkupGrinByteCodeLamInfo n) Just
+                                                      $ maybe (@lhs.lkupGrinByteCodeBindingInfo n) Just
 %%]]
                                                       $ Map.lookup n @functionInfoExportMp
 %%]
@@ -609,7 +609,7 @@ ATTR Module AGItf [ | | functionInfoExportMp: FunctionInfoExportMp ]
 %%[(8 codegen grin)
 SEM Module
   | Mod         loc         .   functionInfoExportMp
-                                            =   bpeExtractMp (\i -> funinfoNm i) GrinByteCodeLamInfo @instrs.functionInfoMp
+                                            =   bpeExtractMp (\i -> funinfoNm i) GrinByteCodeBindingInfo @instrs.functionInfoMp
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

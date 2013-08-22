@@ -1,0 +1,51 @@
+%%[0
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Common AG for Core BindingInfo gathering & propagation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[doesWhat doclatex
+Gathering.
+
+Hook(s):
+\begin{itemize}
+\item \verb|CodeAGItf.AGItf.howMergeBindingInfo|, how to merge binding info
+\item \verb|CodeAGItf.AGItf.howUnionGathBindingInfo|, how to preprocess inherited binding info for further use down the AST, e.g. by union gathered binding info
+\end{itemize}
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Gathering BindingInfo
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+ATTR
+  CModule CExpr
+  CodeAGItf
+    [ | | gathBindingMp: BindingMp ]
+
+SEM CExpr
+  | Let         lhs         .   gathBindingMp 	=   @binds.bindingMp `Map.union` @body.gathBindingMp
+  | * - Let Ann CaseAltFail
+  				lhs         .   gathBindingMp 	=   Map.empty
+%%]
+
+%%[(8 codegen)
+ATTR AllBind [ | | bindingMp USE {`bindingMpUnionBindAspMp`} {Map.empty}: BindingMp ]
+
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Combining BindingInfo for local (per module) use
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+SEM CodeAGItf
+  | AGItf       loc         .   gathBindingMp   =   bindingMpMergeInto @howMergeBindingInfo const @module.gathBindingMp @lhs.bindingMp -- bindingMpUpdateWith @lhs.bindingMp @module.gathBindingMp
+                module      .   bindingMp       =   @howUnionGathBindingInfo @lhs.bindingMp
+%%]
+
+

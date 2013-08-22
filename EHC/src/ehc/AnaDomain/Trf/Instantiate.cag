@@ -13,7 +13,7 @@
 %%[(8 codegen) hs import({%{EH}Base.Common},{%{EH}AnaDomain},{%{EH}VarMp},{%{EH}Substitutable})
 %%]
 
-%%[(8 codegen) hs import(qualified Data.Map as Map, qualified Data.Set as Set)
+%%[(8 codegen) hs import(qualified Data.Map as Map, Data.Set)
 %%]
 
 %%[doesWhat
@@ -21,29 +21,23 @@ Instantiation replaces quantification with fresh type vars.
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% relevtyInst interface
+%%% relTySchInst interface
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen) ag import({AnaDomain/AbsSyn})
 WRAPPER TyAGItf
 %%]
 
-%%[(8 codegen) hs export(relevtyInst)
-relevtyInst :: UID -> RelevTy -> (RelevTy,RelevQualS)
-relevtyInst uniq ty
-  = (ty', extraQualS `Set.union` qualS_Syn_TyAGItf t)
+%%[(8 codegen) hs export(relTySchInst)
+relTySchInst :: UID -> RelTyScheme -> RelTyScheme
+relTySchInst uniq ty
+  = ty'
   where t = wrap_TyAGItf
               (sem_TyAGItf (TyAGItf_AGItf ty))
               (Inh_TyAGItf
                  { gUniq_Inh_TyAGItf        = uniq
                  })
         ty' = repl_Syn_TyAGItf t
-        extraQualS
-          = case ty of
-              RelevTy_Fun RQuant_Rec _ _ a r
-                -> amsGathQual ams
-                where (amso,ams) = amsLE emptyRVarMp (RelevTy_Fun RQuant_None [] [] a r) ty'
-              _ -> Set.empty
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -52,10 +46,10 @@ relevtyInst uniq ty
 
 %%[(8 codegen)
 ATTR AllNT [ | gUniq: UID | ]
-ATTR TyAGItf QualAGItf CoeAGItf [ gUniq: UID | | ]
+ATTR TyAGItf [ gUniq: UID | | ]
 
-SEM RelevTy
-  | Fun             loc         .   lUniq       : UNIQUEREF gUniq
+SEM RelTyScheme
+  | Ty          loc         .   lUniq       : UNIQUEREF gUniq
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -63,33 +57,19 @@ SEM RelevTy
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-SEM RelevTy
-  | Fun             loc         .   freshTvL    =   mkNewLevUIDL (length @quants) @lUniq
+SEM RelTyScheme
+  | Ty          loc         .   quants      = toList @alphas ++ toList @betas ++ toList @gammas
+                loc         .   freshTvL    = mkNewLevUIDL (length @loc.quants) @lUniq
 %%]
 
 %%[(8 codegen)
 ATTR AllNT [ freshMp: {Map.Map UID UID} | | ]
 
-SEM TyAGItf QualAGItf CoeAGItf
-  | AGItf           loc         .   freshMp     =   Map.empty
+SEM TyAGItf
+  | AGItf       loc         .   freshMp     = Map.empty
 
-SEM RelevTy
-  | Fun             loc         .   freshMp     =   Map.union (Map.fromList $ zip @quants @freshTvL) @lhs.freshMp
-%%]
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Per domain constraint generation for recursive quantification
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%[(8888 codegen) hs
-type GenQualMp = Map.Map UID (UID -> RelevQualS)
-%%]
-
-%%[(8888 codegen)
-ATTR AllNT [ | | genQualMp USE {`Map.union`} {Map.empty} : GenQualMp ]
-
-SEM AnaEval
-  | Var             lhs         .   genQualMp   =   Map.singleton 
+SEM RelTyScheme
+  | Ty          loc         .   freshMp     = Map.union (Map.fromList $ zip @loc.quants @loc.freshTvL) @lhs.freshMp
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -98,25 +78,23 @@ SEM AnaEval
 
 %%[(8 codegen)
 ATTR AllNT [ | | repl: SELF ]
-ATTR TyAGItf [ | | repl: RelevTy ]
+ATTR TyAGItf [ | | repl: RelTyScheme ]
 %%]
 
 %%[(8 codegen)
-SEM RelevTy
-  | Fun             lhs         .   repl        =   RelevTy_Fun RQuant_None [] [] @args.repl @res.repl
+SEM RelTyScheme
+  | Ty          loc         .   repl     = RelTyScheme_Ty empty empty empty @ty.repl
 %%]
 
 %%[(8 codegen)
-SEM AnaEval
-  | Var             lhs         .   repl        =   AnaEval_Var $ Map.findWithDefault @av @av @lhs.freshMp
+SEM RelTy
+  | Alpha       loc         .   repl     = RelTy_Alpha $ Map.findWithDefault @v @v @lhs.freshMp
+  | Arrow       loc         .   repl     = RelTy_Arrow @phi.repl @psi.repl @arg.repl @res.repl
 %%]
 
 %%[(8 codegen)
-ATTR AllNT TyAGItf [ | | qualS USE {`Set.union`} {Set.empty} : RelevQualS ]
+SEM Relev
+  | Beta        loc         .   repl     = Relev_Beta $ Map.findWithDefault @v @v @lhs.freshMp
+SEM Applic
+  | Gamma       loc         .   repl     = Applic_Gamma (Map.findWithDefault @v @v @lhs.freshMp) @deps.repl
 %%]
-
-%%[(8 codegen)
-SEM RelevTy
-  | Fun             lhs         .   qualS       =   Set.unions [ Set.fromList @quals.repl, @args.qualS, @res.qualS ]
-%%]
-
