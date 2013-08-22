@@ -816,13 +816,15 @@ instance Serialize CMetaVal where
             4 -> liftM  CMetaVal_Track              sget
 
 instance Serialize CExprAnn where
-  sput (CExprAnn_Ty    a) = sputWord8 0 >> sput a
-  sput (CExprAnn_Debug _) = sputWord8 1
+  sput (CExprAnn_Ty    a  ) = sputWord8 0 >> sput a
+  sput (CExprAnn_RelTy t e) = sputWord8 1 >> sput t >> sput e
+  sput (CExprAnn_Debug _  ) = sputWord8 2
   sget
     = do t <- sgetWord8
          case t of
             0 -> liftM  CExprAnn_Ty        sget
-            1 -> return (CExprAnn_Debug     "")
+            1 -> liftM2 CExprAnn_RelTy sget sget
+            2 -> return (CExprAnn_Debug     "")
 
 instance Serialize CBound where
   sput (CBound_Bind     a b      ) = sputWord8 0 >> sput a >> sput b

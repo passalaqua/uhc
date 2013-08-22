@@ -206,6 +206,8 @@ DATA CExpr
 -- | ann for CExpr
 DATA CExprAnn
   | Ty   		ty			: {Ty}
+  | RelTy               ty                      : {RelTyScheme}
+                        env                     : {[HsName]}
   | Debug		info			: {String}
 %%]
 

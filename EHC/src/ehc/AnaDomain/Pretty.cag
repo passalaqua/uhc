@@ -83,7 +83,7 @@ instance PP RVarMpInfo where
 ATTR AllNT [ | | pp USE {>-<} {empty} : PP_Doc ]
 
 SEM RelTyScheme
-  | Ty          lhs         .   pp          =   @loc.alpha >#< @loc.beta >#< @loc.gamma >#< @ty.pp
+  | Ty          lhs         .   pp          =   @loc.alpha >|< @loc.beta >|< @loc.gamma >|< @ty.pp
                 loc         .   alpha       =   if Set.null @alphas then empty else pp "\\a/" >|< ppParens (show @alphas)
                 loc         .   beta        =   if Set.null @betas  then empty else pp "\\b/" >|< ppParens (show @betas)
                 loc         .   gamma       =   if Set.null @gammas then empty else pp "\\g/" >|< ppParens (show @gammas)
@@ -91,18 +91,19 @@ SEM RelTyScheme
 SEM RelTy
   | Unit        lhs         .   pp          =   pp "()"
   | Alpha       lhs         .   pp          =   pp @v
-  | Arrow       lhs         .   pp          =   @arg.pp >|< pp "-(" >|< @phi.pp >|< pp "," >|< @psi.pp >|< pp ")->" >|< @res.pp
+  | Arrow       lhs         .   pp          =   @arg.pp >#< "-" >|< ppParens (@phi.pp >|< "," >|< @psi.pp) >|< "->" >#< @res.pp
   | Data        lhs         .   pp          =   pp "D" >|< ppParens (show @params.ppL)
 
 SEM Relev
   | Top         lhs         .   pp          =   pp "T"
   | Rel         lhs         .   pp          =   pp "R"
-  | Beta        lhs         .   pp          =   pp ("B" ++ show @v)
+  | Beta        lhs         .   pp          =   "B" >|< pp @v
 
 SEM Applic
   | Top         lhs         .   pp          =   pp "T"
   | App         lhs         .   pp          =   pp "A"
-  | Gamma       lhs         .   pp          =   if null @deps.ppL then pp ("G" ++ show @v) else ppBrackets (("G" ++ show @v ++ "+->") >|< @deps.ppL)
+  | Gamma       lhs         .   pp          =   let g = "G" >|< pp @v
+                                                in  if null @deps.ppL then g else ppBrackets (g >#< "+->" >#< @deps.ppL)
 %%]
 
 %%[(8 codegen)

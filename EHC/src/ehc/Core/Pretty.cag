@@ -415,6 +415,7 @@ SEM CExpr
 
 SEM CExprAnn
   | Ty          loc         .   pp          =   "::" >#< ppTy @ty
+  | RelTy       loc         .   pp          =   "::" >#< ppParens (ppRelTySch @ty >|< "," >#< ppCurlysCommas @env)
   | Debug       loc         .   pp          =   ppCmt $ pp @info
 %%]
 
