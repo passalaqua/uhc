@@ -312,7 +312,7 @@ ATTR AllCodeNT [ | | retEnv USE {`gamUnion`} {emptyGam}: REnv ]
 
 SEM CExpr
   -- Updating the gamma before moving back. Let's just hope gamMapThr is always top first.
-  | Var         lhs         .   retEnv          =   let updVar (@nm,(tau,_)) True  = ((@nm,(tau,Relev_Rel)),False)
+  | Var         loc         .   retEnv          =   let updVar (@nm,(tau,_)) True  = ((@nm,(tau,Relev_Rel)),False)
                                                         updVar v             False = (v,False)
                                                     in  fst $ gamMapThr updVar True @lhs.env
   | Lam         loc     .(retEnvLocal, retEnv') =   gamPop @body.retEnv
@@ -321,9 +321,9 @@ SEM CExpr
                                                        && -} (@lhs.knPhi == Relev_Rel)
                                                     then constrainEnv
                                                     else id
-  | App         lhs         .   retEnv          =   (varUpd @arg.rvarMp @func.retEnv) <>: @arg.retEnv
-  | Let         lhs         .   retEnv          =   snd $ gamPop @body.retEnv
-  | Case        lhs         .   retEnv          =   let exprEnv = @dflt.rvarMp `varUpd` (@alts.rvarMp `varUpd` @expr.retEnv)
+  | App         loc         .   retEnv          =   (varUpd @arg.rvarMp @func.retEnv) <>: @arg.retEnv
+  | Let         loc         .   retEnv          =   snd $ gamPop @body.retEnv
+  | Case        loc         .   retEnv          =   let exprEnv = (@dflt.rvarMp |+> @alts.rvarMp) `varUpd` @expr.retEnv
                                                         altsEnv = @dflt.rvarMp `varUpd` @alts.retEnv
                                                     in  exprEnv <>: (altsEnv <>. @dflt.retEnv)
   | * - Var Lam App Let Case lhs.retEnv         =   @lhs.env
@@ -513,6 +513,13 @@ ATTR AllBound [ | | valAspectL USE {++} {[]}: {[CBound]} ]
 %%[(8 codegen)
 ATTR AllCodeNT [ | | cTrf: SELF ]
 ATTR CodeAGItf [ | | cTrf: CModule ]
+
+SEM CExpr
+  | {- Var Tup -} Let App Lam Case
+               lhs.cTrf  = let envPart = gamPartition (\_ (_,p) -> p == Relev_Rel) @loc.retEnv
+                               env = gamKeys $ fst envPart
+                               ann = CExprAnn_RelTy @loc.ty env
+                           in  CExpr_Ann ann @cTrf
 
 SEM CBind
   | Bind       lhs.cTrf  = CBind_Bind @nm (@bindAspects.cTrf ++ [@loc.tyAsp])
