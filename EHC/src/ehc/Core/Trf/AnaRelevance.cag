@@ -14,7 +14,7 @@ Analyse Core, using relevance analysis, to relate properties (like relevance) of
 %%[(8 codegen) hs module {%{EH}Core.Trf.AnaRelevance} import({%{EH}Ty},{%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.Builtin},{%{EH}Gam},{%{EH}Opts},{%{EH}Base.Optimize},{%{EH}Core},{%{EH}VarMp},{%{EH}Substitutable})
 %%]
 
-%%[(8 codegen) hs import(Data.Maybe, qualified Data.Map as Map, qualified Data.Set as Set, Control.Applicative)
+%%[(8 codegen) hs import(Data.Maybe, qualified Data.Map as Map, qualified Data.Set as Set, Control.Applicative, Control.Arrow)
 %%]
 
 %%[(8 codegen) hs import(UHC.Util.Utils)
@@ -96,11 +96,11 @@ SEM CodeAGItf
 %%% Newly bound BindingInfo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%%[(8 codegen grin)
+%%[(8 codegen grin)
 SEM CBound
   | Bind        lhs         .   bindingMp   =   let l = [ (acbaspkeyDefaultRelevTy, BindingInfoAsp_RelevTy @bindTy) ]
                                                 in  Map.singleton @lhs.nm (emptyBindingInfo {bindinginfoAspMp = Map.fromList l})
-%%%]
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% DataGam required tags (strictness info), FFI
@@ -397,7 +397,7 @@ SEM CBind
   | Bind        loc         .   ty              =   @bindAspects.ty
 
 SEM CBound
-  | Bind        lhs         .   ty              =   Just @expr.ty
+  | Bind        loc         .   ty              =   Just @expr.ty
                 loc         .   quantTy         =   case @expr.ty of
                                                       t@(RelTyScheme_Ty a b g (RelTy_Arrow _ _ ty _)) ->
                                                         varUpd @expr.rvarMp $ RelTyScheme_Ty a b g ty
@@ -518,10 +518,15 @@ SEM CExpr
   | {- Var Tup -} Let App Lam Case
                lhs.cTrf  = let envPart = gamPartition (\_ (_,p) -> p == Relev_Rel) @loc.retEnv
                                env = gamKeys $ fst envPart
-                               ann = CExprAnn_RelTy @loc.ty env
+                               finalTy = varUpd @lhs.finalRVarMp @loc.ty
+                               ann = CExprAnn_RelTy finalTy env
                            in  CExpr_Ann ann @cTrf
 
 SEM CBind
   | Bind       lhs.cTrf  = CBind_Bind @nm (@bindAspects.cTrf ++ [@loc.tyAsp])
-               loc.tyAsp = CBound_RelevTy acbaspkeyStrict $ varUpd @lhs.finalRVarMp $ fromMaybe freshUnit @loc.ty
+               loc.tyAsp = CBound_RelevTy acbaspkeyStrict $ @bindTy
+               loc.bindTy = varUpd @lhs.finalRVarMp $ fromMaybe freshUnit @loc.ty
+
+SEM CBound
+  | Bind       loc.bindTy = varUpd @lhs.finalRVarMp $ fromMaybe freshUnit @loc.ty
 %%]
