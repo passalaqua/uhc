@@ -374,7 +374,8 @@ SEM CExpr
                                                     in  relTySchUnify tau1 tau2
   | Let         loc         .   ty              =   @body.ty
   | Case        loc         .   ty              =   @alts.ty -- FIXME: Should unify with @dflt.ty!
-  | * - Tup Var Let App Lam Case lhs.ty         =   freshUnit
+  | Ann         loc         .   ty              =   @expr.ty
+  | * - Tup Var Let App Lam Case Ann lhs.ty     =   freshUnit
 %%]
 
 %%[(8 codegen)
