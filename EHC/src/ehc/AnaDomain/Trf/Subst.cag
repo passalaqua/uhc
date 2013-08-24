@@ -45,7 +45,7 @@ relTySchUnify t1 t2
   where t = wrap_TyAGItf
               (sem_TyAGItf (TyAGItf_AGItf t1))
               (Inh_TyAGItf { rvarLookup_Inh_TyAGItf = varlookupFix emptyRVarMp
-                           , otherTy_Inh_TyAGItf = Nothing -- Just t2
+                           , otherTy_Inh_TyAGItf = Just t2
                            })
 %%]
 
@@ -156,6 +156,7 @@ errorUnif = error "Unification error."
 ATTR TyAGItf AllNT     [ | | subst USE {|+>} {emptyRVarMp}: RVarMp ]
 ATTR TyAGItf AllNT     [ | | copy: SELF ]
 
+
 SEM RelTy
   | Unit            lhs    .   subst        =    case @lhs.otherTy of
                                                    Just (RelTy_Alpha v) -> rvmpRelTy v @copy
@@ -184,6 +185,7 @@ SEM Relev
                                                    Just b -> rvmpRelev @v b
                                                    Nothing -> emptyRVarMp
   | * - Beta        lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just t | t == @copy -> emptyRVarMp
                                                    Just (Relev_Beta v) -> rvmpRelev v @copy
                                                    Nothing -> emptyRVarMp
                                                    _ -> errorUnif
