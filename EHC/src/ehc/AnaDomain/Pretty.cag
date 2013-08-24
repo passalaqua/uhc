@@ -36,7 +36,7 @@ instance PP RelTyScheme where
 ppRelTy :: RelTy -> PP_Doc
 ppRelTy x
   =  let  t = wrap_RelTy (sem_RelTy x)
-                         (Inh_RelTy  )
+                         (Inh_RelTy {parNeed_Inh_RelTy=False})
      in   pp_Syn_RelTy t
 
 instance PP RelTy where
@@ -84,15 +84,24 @@ ATTR AllNT [ | | pp USE {>-<} {empty} : PP_Doc ]
 
 SEM RelTyScheme
   | Ty          lhs         .   pp          =   @loc.alpha >|< @loc.beta >|< @loc.gamma >|< @ty.pp
+                ty          .   parNeed     =   False
                 loc         .   alpha       =   if Set.null @alphas then empty else pp "\\a/" >|< ppParens (show @alphas)
                 loc         .   beta        =   if Set.null @betas  then empty else pp "\\b/" >|< ppParens (show @betas)
                 loc         .   gamma       =   if Set.null @gammas then empty else pp "\\g/" >|< ppParens (show @gammas)
 
+ATTR RelTy [ parNeed : Bool | | ]
+
 SEM RelTy
   | Unit        lhs         .   pp          =   pp "()"
   | Alpha       lhs         .   pp          =   pp @v
-  | Arrow       lhs         .   pp          =   @arg.pp >#< "-" >|< ppParens (@phi.pp >|< "," >|< @psi.pp) >|< "->" >#< @res.pp
-  | Data        lhs         .   pp          =   pp "D" >|< ppParens (show @params.ppL)
+  | Arrow       lhs         .   pp          =   let wrap = if @lhs.parNeed then ppParens else id
+                                                in  wrap $ @arg.pp >#< "-" >|< ppParens (@phi.pp >|< "," >|< @psi.pp) >|< "->" >#< @res.pp
+                arg         .   parNeed     =   True
+                res         .   parNeed     =   False
+  | Data        lhs         .   pp          =   pp "D" >|< ppParensCommas @params.ppL
+
+SEM RelTyL
+  | Cons        hd          .   parNeed     =   False
 
 SEM Relev
   | Top         lhs         .   pp          =   pp "T"
@@ -103,7 +112,7 @@ SEM Applic
   | Top         lhs         .   pp          =   pp "T"
   | App         lhs         .   pp          =   pp "A"
   | Gamma       lhs         .   pp          =   let g = "G" >|< pp @v
-                                                in  if null @deps.ppL then g else ppBrackets (g >#< "+->" >#< @deps.ppL)
+                                                in  if null @deps.ppL then g else ppBrackets (g >#< "+->" >#< ppCommas @deps.ppL)
 %%]
 
 %%[(8 codegen)
