@@ -63,13 +63,10 @@ SEM RelTyScheme
 %%]
 
 %%[(8 codegen)
-ATTR AllNT [ freshMp: {Map.Map UID UID} | | ]
-
-SEM TyAGItf
-  | AGItf       loc         .   freshMp     = Map.empty
+ATTR RelTy RelTyL AllAnaAnnTy [ freshMp: {Map.Map UID UID} | | ]
 
 SEM RelTyScheme
-  | Ty          loc         .   freshMp     = Map.union (Map.fromList $ zip @loc.quants @loc.freshTvL) @lhs.freshMp
+  | Ty          loc         .   freshMp     = Map.fromList $ zip @loc.quants @loc.freshTvL
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

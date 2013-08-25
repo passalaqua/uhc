@@ -161,7 +161,7 @@ SEM CExpr
                 body        .   env             =   let newEnv = @binds.rvarMp `varUpd` @lhs.env
                                                         envVars = map (varFreeSet.fst) $ gamElts newEnv
                                                         envVars' = foldr Set.union Set.empty envVars
-                                                        gens = gamMapElts (first $ genTySch envVars') @binds.gathRecEnv
+                                                        gens = gamMapElts (first $ genTySch envVars') $ @binds.rvarMp `varUpd` @binds.gathRecEnv
                                                     in  gamPushGam gens newEnv
   | Case        expr        .   env             =   @lhs.env
                 loc         .   altsEnv         =   @expr.rvarMp `varUpd` @lhs.env
@@ -312,6 +312,10 @@ contextSplit t e1 e2 = fst $ gamMapThr opE2 [] e1
 ATTR AllCodeNT [ | | retEnv USE {`gamUnion`} {emptyGam}: REnv ]
 
 SEM CExpr
+  | Int Char String      lhs.   retEnv          =   @lhs.env
+%%[[(97 codegen)
+  | Integer     lhs         .   retEnv          =   @lhs.env
+%%]]
   -- Updating the gamma before moving back. Let's just hope gamMapThr is always top first.
   | Var         loc         .   retEnv          =   let updVar (@nm,(tau,_)) True  = ((@nm,(tau,Relev_Rel)),False)
                                                         updVar v             False = (v,False)
@@ -327,7 +331,6 @@ SEM CExpr
   | Case        loc         .   retEnv          =   let exprEnv = (@dflt.rvarMp |+> @alts.rvarMp) `varUpd` @expr.retEnv
                                                         altsEnv = @dflt.rvarMp `varUpd` @alts.retEnv
                                                     in  exprEnv <>: (altsEnv <>. @dflt.retEnv)
-  | * - Var Lam App Let Case lhs.retEnv         =   @lhs.env
 
 SEM CAlt
   | Alt         lhs         .   retEnv          =   snd $ gamPop @expr.retEnv
