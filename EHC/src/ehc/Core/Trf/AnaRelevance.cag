@@ -152,6 +152,7 @@ SEM CodeAGItf
 
 SEM CExpr
   | Lam         body        .   env             =   gamPushGam @exprEnv @lhs.env
+                bind        .   env             =   @exprEnv
                 loc         .   lUniqAlpha      :   UNIQUEREF gUniq
                 loc         .   exprEnv         =   gamSingleton @argNm (freshAlpha @lUniqAlpha, Relev_Top)
   | App         func        .   env             =   @lhs.env
@@ -347,7 +348,7 @@ SEM CAltL
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR CExpr [ | | ty: RelTyScheme ]
+ATTR CExpr CBind [ | | ty: RelTyScheme ]
 
 SEM CExpr
   -- Value (unit) types are included in the catch all below
@@ -357,7 +358,7 @@ SEM CExpr
                                                     in  relTySchInst @lUniq ty
                 loc         .   lUniq           :   UNIQUEREF gUniq
   | Tup         loc         .   ty              =   freshUnit -- TODO!
-  | Lam         loc         .   ty              =   varUpd @body.rvarMp $ @retTy
+  | Lam         loc         .   ty              =   varUpd @body.rvarMp @retTy
                 loc         .   lUniqGamma      :   UNIQUEREF gUniq
                 loc         .   retTy           =   let (_, [(a,p)]) = unzip $ gamToAssocL @retEnvLocal
                                                         gamma = Applic_Gamma @lUniqGamma []
@@ -369,13 +370,19 @@ SEM CExpr
                 loc         .   gamma           =   Applic_Gamma @lUniqGamma []
                 loc         .   unification     =   let tau1 = varUpd @arg.rvarMp @func.ty
                                                         tau2 = makeArrow @arg.phi @gamma
-                                                               (panicJust "Argument type error." @arg.ty)
+                                                               (panicJust "Argument type error." @arg.mbTy)
                                                                @alpha
                                                     in  relTySchUnify tau1 tau2
   | Let         loc         .   ty              =   @body.ty
   | Case        loc         .   ty              =   @alts.ty -- FIXME: Should unify with @dflt.ty!
   | Ann         loc         .   ty              =   @expr.ty
   | * - Tup Var Let App Lam Case Ann lhs.ty     =   freshUnit
+
+SEM CBind
+  | Bind        loc         .   ty              =   let fresh = freshAlpha @lUniqAlpha
+                                                        envVals = @bindAspects.mbTy <|> (fst <$> renvLookup @nm @lhs.env)
+                                                    in  fromMaybe fresh envVals
+                loc         .   lUniqAlpha      :   UNIQUEREF gUniq
 %%]
 
 %%[(8 codegen)
@@ -392,30 +399,27 @@ SEM CAltL
 %%]
 
 %%[(8 codegen)
-ATTR CBind CBoundL CBound [ | | ty: {Maybe RelTyScheme} ]
-
-SEM CBind
-  | Bind        loc         .   ty              =   @bindAspects.ty
+ATTR CBoundL CBound [ | | mbTy: {Maybe RelTyScheme} ]
 
 SEM CBound
-  | Bind        loc         .   ty              =   Just @expr.ty
+  | Bind        loc         .   mbTy            =   Just @expr.ty
                 loc         .   quantTy         =   case @expr.ty of
                                                       t@(RelTyScheme_Ty a b g (RelTy_Arrow _ _ ty _)) ->
                                                         varUpd @expr.rvarMp $ RelTyScheme_Ty a b g ty
                                                       t -> t
                 loc         .   lUniqAlpha      :   UNIQUEREF gUniq
                 loc         .   freshTy         =   freshAlpha @lUniqAlpha
-  | Val         lhs         .   ty              =   Just @expr.ty
+  | Val         lhs         .   mbTy            =   Just @expr.ty
 %%[[8
-  | * - Bind Val lhs        .   ty              =   Nothing
+  | * - Bind Val lhs        .   mbTy            =   Nothing
 %%][90
-  | FFE         lhs         .   ty              =   Just @expr.ty
-  | * - Bind Val FFE lhs    .   ty              =   Nothing
+  | FFE         lhs         .   mbTy            =   Just @expr.ty
+  | * - Bind Val FFE lhs    .   mbTy            =   Nothing
 %%]]
 
 SEM CBoundL
-  | Nil         lhs         .   ty              =   Nothing
-  | Cons        lhs         .   ty              =   @hd.ty <|> @tl.ty
+  | Nil         lhs         .   mbTy            =   Nothing
+  | Cons        lhs         .   mbTy            =   @hd.mbTy <|> @tl.mbTy
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -526,8 +530,8 @@ SEM CExpr
 SEM CBind
   | Bind       lhs.cTrf  = CBind_Bind @nm (@bindAspects.cTrf ++ [@loc.tyAsp])
                loc.tyAsp = CBound_RelevTy acbaspkeyStrict $ @bindTy
-               loc.bindTy = varUpd @lhs.finalRVarMp $ fromMaybe freshUnit @loc.ty
+               loc.bindTy = varUpd @lhs.finalRVarMp @loc.ty
 
 SEM CBound
-  | Bind       loc.bindTy = varUpd @lhs.finalRVarMp $ fromMaybe freshUnit @loc.ty
+  | Bind       loc.bindTy = varUpd @lhs.finalRVarMp @expr.ty
 %%]
