@@ -161,7 +161,7 @@ SEM CExpr
                 body        .   env             =   let newEnv = @binds.rvarMp `varUpd` @lhs.env
                                                         envVars = map (varFreeSet.fst) $ gamElts newEnv
                                                         envVars' = foldr Set.union Set.empty envVars
-                                                        gens = gamMapElts (first $ genTySch envVars') $ @binds.rvarMp `varUpd` @binds.gathRecEnv
+                                                        gens = gamMapElts (first $ genTySch envVars') $ @binds.rvarMp `varUpd` @binds.gathEnv
                                                     in  gamPushGam gens newEnv
   | Case        expr        .   env             =   @lhs.env
                 loc         .   altsEnv         =   @expr.rvarMp `varUpd` @lhs.env
