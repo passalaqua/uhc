@@ -125,7 +125,7 @@ renvLookup = gamLookup
 
 -- | lookup in REnv first, then global BindingMp
 renvgLookup :: HsName -> REnv -> BindingMp -> Maybe RelTyScheme
-renvgLookup n renv lammp = (fmap fst $ renvLookup n renv)
+renvgLookup n renv lammp = (fst <$> renvLookup n renv)
                            <|> (fmap libindaspRelevTy $ bindingMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
 %%]
 
@@ -317,8 +317,8 @@ SEM CExpr
   | Integer     lhs         .   retEnv          =   @lhs.env
 %%]]
   -- Updating the gamma before moving back. Let's just hope gamMapThr is always top first.
-  | Var         loc         .   retEnv          =   let updVar (@nm,(tau,_)) True  = ((@nm,(tau,Relev_Rel)),False)
-                                                        updVar v             False = (v,False)
+  | Var         loc         .   retEnv          =   let updVar (nm,(tau,_)) True | nm == @nm = ((@nm,(tau,Relev_Rel)),False)
+                                                        updVar v            b    = (v,b)
                                                     in  fst $ gamMapThr updVar True @lhs.env
   | Lam         loc     .(retEnvLocal, retEnv') =   gamPop @body.retEnv
                 loc         .   retEnv          =   @envTrf @retEnv'
