@@ -476,32 +476,6 @@ SEM CodeAGItf
 %%% Constraint solving, AST driven
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[doesWhat.Case.altQual
-Case (and let) expressions only can contribute to the outside constraint solving if it is certain that the constraints will arise.
-For case expressions this is only the case if a constraint arises in all alternatives, for a let only when the let is strict.
-Solving then needs to be done for the conditionally arising constraints.
-
-20101130: TBD for let expressions.
-%%]
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Variables already bound
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%[(8 codegen)
-ATTR AllExpr [ boundRelevTyVarS: UIDS | | ]
-%%]
-
-%%%[(8 codegen)
-SEM CBound
-  | Bind        expr        .   boundRelevTyVarS=   @exprBoundS
-%%%]
-
-%%[(8 codegen)
-SEM CModule
-  | Mod         expr        .   boundRelevTyVarS=   Set.empty
-%%]
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Transformation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
