@@ -34,7 +34,7 @@ Analyse Core, using relevance analysis, to relate properties (like relevance) of
 %%[(8 codegen) hs import({%{EH}BindingInfo})
 %%]
 
-%%[(8 codegen) hs import({%{EH}AnaDomain.Trf.Instantiate},{%{EH}AnaDomain.Trf.Subst})
+%%[(8 codegen) hs import({%{EH}AnaDomain.Trf.Instantiate},{%{EH}AnaDomain.Trf.Subst},{%{EH}AnaDomain.Trf.TyTrans})
 %%]
 
 -- debug only
@@ -124,9 +124,12 @@ renvLookup :: HsName -> REnv -> Maybe (RelTyScheme, Relev)
 renvLookup = gamLookup
 
 -- | lookup in REnv first, then global BindingMp
-renvgLookup :: HsName -> REnv -> BindingMp -> Maybe RelTyScheme
-renvgLookup n renv lammp = (fst <$> renvLookup n renv)
-                           <|> (fmap libindaspRelevTy $ bindingMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
+renvgLookup :: HsName -> REnv -> UID -> DataGam -> BindingMp -> Maybe RelTyScheme
+renvgLookup n renv uniq dg lammp = (fst <$> renvLookup n renv)
+                                   <|> (libindaspRelevTy
+                                        <$> bindingMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
+                                   <|> ((relTyFromTy uniq dg.libindaspTy)
+                                        <$> bindingMpLookupAsp n acbaspkeyDefaultTy lammp)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -195,6 +198,7 @@ SEM CBound
 
 SEM CPat
   | Var         lhs         .   gathEnv         =   gamSingleton @pnm (@lhs.knTy, Relev_Top)
+--  | Con         lhs         .   gathEnv         =   gamSingleton -- TODO!
 
 SEM CExpr
   | Var         lhs         .   gathEnv         =   gamSingleton @nm (@loc.ty, Relev_Top)
@@ -231,15 +235,13 @@ SEM CModule
 -- TODO!
 %%]
 
-%%%[(8 codegen)
+%%[(8 codegen)
 -- | the type of the case itself (instead of alternatives)
 ATTR AllPat AllAlt [ knTyCase: RelTyScheme | | ]
-%%%]
 
-%%%[(8 codegen)
-SEM CAltL
-  | Cons        hd          .   knTy            =   @altKnDwTy
-%%%]
+SEM CExpr
+  | Case        alts        .   knTyCase        =   @expr.ty
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Relevance annotations down
@@ -356,11 +358,23 @@ ATTR CExpr CBind [ | | ty: RelTyScheme ]
 SEM CExpr
   -- Value (unit) types are included in the catch all below
   -- More complex types
-  | Var         loc         .   ty              =   let lookup = renvgLookup @nm @lhs.env @lhs.bindingMp
+  | Var         loc         .   ty              =   let lookup = renvgLookup @nm @lhs.env @lUniq @lhs.dataGam @lhs.bindingMp
                                                         ty = fromMaybe (freshAlpha @lUniq) lookup
                                                     in  relTySchInst @lUniq ty
                 loc         .   lUniq           :   UNIQUEREF gUniq
-  | Tup         loc         .   ty              =   freshUnit -- TODO!
+  | Tup         loc         .   ty              =   fromMaybe id @loc.mbArrows $ freshData @tag
+                loc         .   mbArrows        =   do (_,dti) <- @loc.dataInfo
+                                                       let anns = dtiConFldAnnL dti
+                                                       let alphas = freshAlpha <$> (mkNewLevUIDL (length anns) @lUniqAlphas)
+                                                       let phis   = (\(DataConFldAnnInfo x) -> case x of
+                                                                        Strictness_Strict -> Relev_Rel
+                                                                        _ -> Relev_Top) <$> anns
+                                                       let gammas = Applic_Gamma <$> (mkNewLevUIDL (length anns) @lUniqGammas) <*> (repeat [])
+                                                       let arrows = makeArrow <$> phis <*> gammas <*> alphas
+                                                       return $ foldr (.) id arrows
+                loc         .   dataInfo        =   dataGamTagLookup @tag @lhs.dataGam
+                loc         .   lUniqAlphas     :   UNIQUEREF gUniq
+                loc         .   lUniqGammas     :   UNIQUEREF gUniq
   | Lam         loc         .   ty              =   varUpd @body.rvarMp @retTy
                 loc         .   lUniqGamma      :   UNIQUEREF gUniq
                 loc         .   retTy           =   let (_, [(a,p)]) = unzip $ gamToAssocL @retEnvLocal
@@ -392,7 +406,8 @@ SEM CBind
 ATTR CAlt CAltL [ | | ty: RelTyScheme ]
 
 SEM CAlt
-  | Alt         lhs         .   ty              =   @expr.ty
+  | Alt         loc         .   ty              =   @expr.ty
+                loc         .   unification     =   relTySchUnify @ty @lhs.knTyCase
 
 SEM CAltL
   | Nil         lhs         .   ty              =   freshAlpha @loc.lUniq
@@ -453,6 +468,11 @@ SEM CExpr
   | App         lhs         .   rvarMp          =   @unification
                                                     |+> @func.rvarMp
                                                     |+> @arg.rvarMp
+
+SEM CAlt
+  | Alt         lhs         .   rvarMp          =   @unification
+                                                    |+> @pat.rvarMp
+                                                    |+> @expr.rvarMp
 
 SEM CAltL
   | Cons        lhs         .   rvarMp          =   @unification
