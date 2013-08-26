@@ -1,0 +1,115 @@
+%%[0
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Haskell importable interface to convert regular Ty to RelevTy 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen) hs module {%{EH}AnaDomain.Trf.TyTrans}
+%%]
+
+%%[(8 codegen) hs import({%{EH}Base.Common},{%{EH}Ty},{%{EH}Gam},{%{EH}Gam.DataGam},UHC.Util.Utils)
+%%]
+
+%%[(8 codegen) hs import({%{EH}AnaDomain} hiding (TyAGItf(..)))
+%%]
+
+%%[(8 codegen) hs import(Data.Set hiding (filter,map),Data.Maybe,Control.Applicative ((<$>)))
+%%]
+
+%%[doesWhat
+Interface to generate safe relevance types from regular types.
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% relTyFromTy interface
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen) ag import({Ty/AbsSyn})
+WRAPPER TyAGItf
+%%]
+
+%%[(8 codegen) hs export(relTyFromTy)
+relTyFromTy :: UID -> DataGam -> Ty -> RelTyScheme
+relTyFromTy uniq dataGam ty
+  = ty'
+  where t = wrap_TyAGItf
+              (sem_TyAGItf (TyAGItf_AGItf ty))
+              (Inh_TyAGItf
+                 { gUniq_Inh_TyAGItf        = uniq
+                 , tagGam_Inh_TyAGItf       = tagGam
+                 })
+        tags = fromMaybe [] $ dataGamTagsOfTy ty dataGam
+        tags' = filter (not.ctagIsRec) tags
+        tagGam = assocLToGam $ map (\t -> (ctagNm t, t)) tags'
+        ty' = repl_Syn_TyAGItf t
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Unique and data environment
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+ATTR AllTyAGItf AllTyAGItf [ gUniq: UID | |]
+
+ATTR AllTyAGItf AllTyAndFlds [ tagGam: {Gam HsName CTag} | | ]
+
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Gathering variable names
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+   -- FIXME: The aspect above is incorrect
+ATTR AllTyAndFlds [ | | variables USE {`union`} {empty}: {Set TyVarId} ]
+ATTR AllTyAndFlds [ varMp : {Gam TyVarId RelTyScheme} | | ]
+
+SEM TyAGItf
+  | AGItf       ty          .   varMp       = let alphas = freshAlpha <$> (mkNewLevUIDL (size @ty.variables) @lhs.gUniq)
+                                              in  assocLToGam $ zip (toList @ty.variables) alphas
+
+SEM LabelAGItf
+  | AGItf       lab         .   varMp       = emptyGam
+
+SEM Ty
+  | Var         lhs         .   variables   = singleton @tv
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Replacing Ty with RelTyScheme
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+   -- FIXME: The aspect above is incorrect
+ATTR TyAGItf [ | | repl: {RelTyScheme} ]
+
+SEM TyAGItf
+  | AGItf       lhs         .   repl        = @ty.repl
+
+ATTR Ty [ | | repl: {RelTyScheme} ]
+
+SEM Ty
+  | Var         lhs         .   repl        = panicJust "Error while annotating provided datatype."
+                                              $ gamLookup @tv @lhs.varMp
+  | Con         lhs         .   repl        = maybe freshUnit freshData (gamLookup @nm @lhs.tagGam)
+  | App         lhs         .   repl        = makeArrow @func.phi Applic_Top @func.repl @arg.repl
+  | Ann         lhs         .   repl        = @ty.repl
+  | Dbg         lhs         .   repl        = undefined
+  | Any         lhs         .   repl        = undefined
+  | Pred        lhs         .   repl        = undefined
+  | Impls       lhs         .   repl        = undefined
+                                              
+
+ATTR TyAnn Ty [ | | phi: {Relev} ]
+
+SEM Ty
+  | Ann         lhs         .   phi         = @ann.phi
+  | * - Ann     lhs         .   phi         = Relev_Top
+
+SEM TyAnn
+  | Strictness  lhs         .   phi         = if @s == Strictness_Strict then Relev_Rel else Relev_Top
+  | * - Strictness lhs      .   phi         = Relev_Top
+%%]

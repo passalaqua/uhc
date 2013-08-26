@@ -56,10 +56,14 @@ DERIVING *
 %%% Special values
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(freshUnit, freshAlpha, freshArrow, makeArrow, freshTySch)
+%%[(8 codegen) hs export(freshUnit, freshData, freshAlpha, freshArrow, makeArrow, freshTySch)
 -- | Generates a simple Unit type.
 freshUnit :: RelTyScheme
 freshUnit = freshTySch RelTy_Unit
+
+-- | Generates a new datatype
+freshData :: CTag -> RelTyScheme
+freshData t = freshTySch $ RelTy_Data t []
 
 -- | Generates a fresh type variable type
 freshAlpha :: UID -> RelTyScheme
@@ -254,14 +258,14 @@ instance Serialize RelTy where
   sput (RelTy_Unit               ) = sputWord8 0
   sput (RelTy_Alpha v            ) = sputWord8 1 >> sput v
   sput (RelTy_Arrow re ap arg res) = sputWord8 2 >> sput re >> sput ap >> sput arg >> sput res
-  sput (RelTy_Data  ps           ) = sputWord8 3 >> sput ps
+  sput (RelTy_Data t ps          ) = sputWord8 3 >> sput t >> sput ps
   sget
     = do t <- sgetWord8
          case t of
            0 -> return RelTy_Unit
            1 -> liftM  RelTy_Alpha sget
            2 -> liftM4 RelTy_Arrow sget sget sget sget
-           3 -> liftM  RelTy_Data sget
+           3 -> liftM2 RelTy_Data sget sget
 
 instance Serialize Relev where
   sput (Relev_Top   ) = sputWord8 0

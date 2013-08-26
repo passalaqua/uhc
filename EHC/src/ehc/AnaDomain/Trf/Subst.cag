@@ -125,7 +125,7 @@ SEM RelTy
                     psi    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return app }
                     arg    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return arg }
                     res    .   otherTy      =    do { (RelTy_Arrow rel app arg res) <- @lhs.otherTy; return res }
-  | Data            params .   otherTy      =    do { (RelTy_Data ps) <- @lhs.otherTy; return ps }
+  | Data            params .   otherTy      =    do { (RelTy_Data t ps) <- @lhs.otherTy; return ps }
 
 ATTR RelTyL [ otherTy: (Maybe RelTyL) | | ]
 SEM RelTyL
@@ -176,7 +176,7 @@ SEM RelTy
                                                    _ -> errorUnif
   | Data            lhs    .   subst        =    case @lhs.otherTy of
                                                    Just (RelTy_Alpha v) -> rvmpRelTy v @copy
-                                                   Just (RelTy_Data _) -> @params.subst
+                                                   Just (RelTy_Data _ _) -> @params.subst
                                                    Nothing -> emptyRVarMp
                                                    _ -> errorUnif
 

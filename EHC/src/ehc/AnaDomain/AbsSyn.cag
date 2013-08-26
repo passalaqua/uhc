@@ -35,7 +35,8 @@ DATA RelTy
                 arg                             : RelTy  -- Argument type
                 res                             : RelTy  -- Result type
   -- Datatypes
-  | Data        params                          : RelTyL -- Type parameters
+  | Data        tag                             : CTag   -- Type tag
+                params                          : RelTyL -- Type parameters
 
 TYPE RelTyL	=	[RelTy]
 
