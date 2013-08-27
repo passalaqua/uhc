@@ -128,8 +128,8 @@ renvgLookup :: HsName -> REnv -> UID -> DataGam -> BindingMp -> Maybe RelTySchem
 renvgLookup n renv uniq dg lammp = (fst <$> renvLookup n renv)
                                    <|> (libindaspRelevTy
                                         <$> bindingMpLookupAsp n acbaspkeyDefaultRelevTy lammp)
-                                   <|> ((relTyFromTy uniq dg.libindaspTy)
-                                        <$> bindingMpLookupAsp n acbaspkeyDefaultTy lammp)
+--                                   <|> ((relTyFromTy uniq dg.libindaspTy)
+--                                        <$> bindingMpLookupAsp n acbaspkeyDefaultTy lammp)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
