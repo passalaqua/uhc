@@ -29,15 +29,16 @@ WRAPPER TyAGItf
 %%]
 
 %%[(8 codegen) hs export(relTySchInst)
-relTySchInst :: UID -> RelTyScheme -> RelTyScheme
+relTySchInst :: UID -> RelTyScheme -> (RelTyScheme,UIDS)
 relTySchInst uniq ty
-  = ty'
+  = (ty',gs)
   where t = wrap_TyAGItf
               (sem_TyAGItf (TyAGItf_AGItf ty))
               (Inh_TyAGItf
                  { gUniq_Inh_TyAGItf        = uniq
                  })
         ty' = repl_Syn_TyAGItf t
+        gs  = freshGs_Syn_TyAGItf t
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -49,7 +50,9 @@ ATTR AllNT [ | gUniq: UID | ]
 ATTR TyAGItf [ gUniq: UID | | ]
 
 SEM RelTyScheme
-  | Ty          loc         .   lUniq       : UNIQUEREF gUniq
+  | Ty          loc         .   lUniqA      : UNIQUEREF gUniq
+  | Ty          loc         .   lUniqB      : UNIQUEREF gUniq
+  | Ty          loc         .   lUniqG      : UNIQUEREF gUniq
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -58,15 +61,22 @@ SEM RelTyScheme
 
 %%[(8 codegen)
 SEM RelTyScheme
-  | Ty          loc         .   quants      = toList @alphas ++ toList @betas ++ toList @gammas
-                loc         .   freshTvL    = mkNewLevUIDL (length @loc.quants) @lUniq
+  | Ty          loc         .   freshTvLA   = mkNewLevUIDL (size @alphas) @lUniqA
+                loc         .   freshTvLB   = mkNewLevUIDL (size @betas) @lUniqB
+                loc         .   freshTvLG   = mkNewLevUIDL (size @gammas) @lUniqG
 %%]
 
 %%[(8 codegen)
-ATTR RelTy RelTyL AllAnaAnnTy [ freshMp: {Map.Map UID UID} | | ]
+ATTR RelTy RelTyL AllAnaAnnTy [ freshMpA : {Map.Map UID UID} | | ]
+ATTR RelTy RelTyL AllAnaAnnTy [ freshMpB : {Map.Map UID UID} | | ]
+ATTR RelTy RelTyL AllAnaAnnTy [ freshMpG : {Map.Map UID UID} | | ]
+ATTR TyAGItf RelTyScheme [ | | freshGs : {UIDS} ]
 
 SEM RelTyScheme
-  | Ty          loc         .   freshMp     = Map.fromList $ zip @loc.quants @loc.freshTvL
+  | Ty          loc         .   freshMpA    = Map.fromList $ zip (toList @alphas) @freshTvLA
+                loc         .   freshMpB    = Map.fromList $ zip (toList @betas) @freshTvLB
+                loc         .   freshMpG    = Map.fromList $ zip (toList @gammas) @freshTvLG
+                loc         .   freshGs     = fromList @freshTvLG
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -85,13 +95,13 @@ SEM RelTyScheme
 
 %%[(8 codegen)
 SEM RelTy
-  | Alpha       loc         .   repl     = RelTy_Alpha $ Map.findWithDefault @v @v @lhs.freshMp
+  | Alpha       loc         .   repl     = RelTy_Alpha $ Map.findWithDefault @v @v @lhs.freshMpA
   | Arrow       loc         .   repl     = RelTy_Arrow @phi.repl @psi.repl @arg.repl @res.repl
 %%]
 
 %%[(8 codegen)
 SEM Relev
-  | Beta        loc         .   repl     = Relev_Beta $ Map.findWithDefault @v @v @lhs.freshMp
+  | Beta        loc         .   repl     = Relev_Beta $ Map.findWithDefault @v @v @lhs.freshMpB
 SEM Applic
-  | Gamma       loc         .   repl     = Applic_Gamma (Map.findWithDefault @v @v @lhs.freshMp) @deps.repl
+  | Gamma       loc         .   repl     = Applic_Gamma (Map.findWithDefault @v @v @lhs.freshMpG) @deps.repl
 %%]

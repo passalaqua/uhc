@@ -209,18 +209,35 @@ SEM CExpr
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR AllCodeNT [ rho: RhoEnv | | gathRho USE {`gamUnion`} {emptyGam}: RhoEnv ]
-%%]
+ATTR AllCodeNT [ rho: UIDS | | gathRho USE {`Set.union`} {Set.empty}: UIDS ]
+ATTR CAltL [ | | mbGathRho: {Maybe UIDS} ]
+ATTR CBindL [ | | bindsGathRho: {UIDS} ]
 
-%%[(8 codegen)
 -- Tying the knot on a per module basis:
 SEM CodeAGItf
   | AGItf      module       .   rho             =   @module.gathRho
 
 SEM CExpr
   -- Resetting so it gets contained locally in abstractions:
-  | Lam        lhs          .   gathRho         =   emptyGam
-  -- | Let
+  | Lam        lhs          .   gathRho         =   Set.empty
+  | Let        loc          .   bindsGathRho    =   case @categ of
+                                                      CBindCateg_Strict -> @binds.gathRho
+                                                      CBindCateg_Plain  -> @binds.bindsGathRho
+                                                      _                 -> Set.empty
+               lhs          .   gathRho         =   @body.gathRho `Set.union` @bindsGathRho
+
+SEM CBindL
+  | Nil        lhs          .   bindsGathRho    =   Set.empty
+  | Cons       lhs          .   bindsGathRho    =   if (@knPhi == Relev_Rel)
+                                                    then @tl.bindsGathRho `Set.union` @hd.gathRho
+                                                    else @tl.bindsGathRho
+
+SEM CAltL
+  | Nil        lhs          .   mbGathRho       =   Nothing
+  | Cons       loc          .   mbGathRho       =   do tl <- @tl.mbGathRho
+                                                       return (tl `Set.intersection` @hd.gathRho)
+                                                    <|> Just @hd.gathRho
+               lhs          .   gathRho         =   fromJust @mbGathRho
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -261,6 +278,13 @@ SEM CExpr
                                                       CBindCateg_Plain  -> Relev_Top
                                                       CBindCateg_Rec    -> @lhs.knPhi -- TODO
                                                       _                 -> Relev_Top -- Just being safe
+                binds       .   phiL            =   snd <$> gamElts @retEnvLocal
+
+ATTR CBindL [ phiL : {[Relev]} | | ]
+SEM CBindL
+  | Cons        loc         .   knPhi           =   head @lhs.phiL
+                hd          .   knPhi           =   @knPhi
+                tl          .   phiL            =   tail @lhs.phiL
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -322,17 +346,17 @@ SEM CExpr
   | Var         loc         .   retEnv          =   let updVar (nm,(tau,_)) True | nm == @nm = ((@nm,(tau,Relev_Rel)),False)
                                                         updVar v            b    = (v,b)
                                                     in  fst $ gamMapThr updVar True @lhs.env
-  | Lam         loc     .(retEnvLocal, retEnv') =   gamPop @body.retEnv
+  | Lam         loc     .(retEnvLocal,retEnv')  =   gamPop @body.retEnv
                 loc         .   retEnv          =   @envTrf @retEnv'
-                            .   envTrf          =   if {- (@loc.gamma `elem` @lhs.rho) -- TODO: Waiting for rhos to be developed
-                                                       && -} (@lhs.knPhi == Relev_Rel)
+                            .   envTrf          =   if (@loc.lUniqGamma `Set.member` @lhs.rho)
+                                                       && (@lhs.knPhi == Relev_Rel)
                                                     then constrainEnv
                                                     else id
-  | App         loc         .   retEnv          =   (varUpd @arg.rvarMp @func.retEnv) <>: @arg.retEnv
-  | Let         loc         .   retEnv          =   snd $ gamPop @body.retEnv
+  | App         loc         .   retEnv          =   (varUpd @arg.rvarMp @func.retEnv) <>. @arg.retEnv
+  | Let         loc     .(retEnvLocal,retEnv)   =   gamPop @body.retEnv
   | Case        loc         .   retEnv          =   let exprEnv = (@dflt.rvarMp |+> @alts.rvarMp) `varUpd` @expr.retEnv
                                                         altsEnv = @dflt.rvarMp `varUpd` @alts.retEnv
-                                                    in  exprEnv <>: (altsEnv <>. @dflt.retEnv)
+                                                    in  exprEnv <>. (altsEnv <>: @dflt.retEnv)
 
 SEM CAlt
   | Alt         lhs         .   retEnv          =   snd $ gamPop @expr.retEnv
@@ -345,7 +369,7 @@ SEM CAltL
   | Cons        lhs         .   retMbEnv        =   Just @loc.retEnv
                 loc         .   retEnv          =   case @tl.retMbEnv of
                                                       Nothing -> @hd.retEnv
-                                                      Just env -> (@tl.rvarMp `varUpd` @hd.retEnv) <>. env
+                                                      Just env -> (@tl.rvarMp `varUpd` @hd.retEnv) <>: env
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -358,7 +382,7 @@ ATTR CExpr CBind [ | | ty: RelTyScheme ]
 SEM CExpr
   -- Value (unit) types are included in the catch all below
   -- More complex types
-  | Var         loc         .   ty              =   let lookup = renvgLookup @nm @lhs.env @lUniq @lhs.dataGam @lhs.bindingMp
+  | Var         loc         .   (ty,rho)        =   let lookup = renvgLookup @nm @lhs.env @lUniq @lhs.dataGam @lhs.bindingMp
                                                         ty = fromMaybe (freshAlpha @lUniq) lookup
                                                     in  relTySchInst @lUniq ty
                 loc         .   lUniq           :   UNIQUEREF gUniq
