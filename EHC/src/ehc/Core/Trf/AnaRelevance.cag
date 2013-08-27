@@ -321,11 +321,11 @@ constrainEnv = let f (k,(t,_)) = (k,(t,Relev_Top))
 contextSplit :: Bool -> REnv -> REnv -> REnv
 contextSplit t e1 e2 = fst $ gamMapThr opE2 [] e1
   where
-    op Relev_Top b | t == True = Relev_Top
-                   | otherwise = b
-    op Relev_Rel b | t == True = b
-                   | otherwise = Relev_Rel
-    op _         _ = panic "Found a beta for top level annotation!"
+    join Relev_Rel b = b
+    join Relev_Top b = Relev_Top
+    meet Relev_Rel b = Relev_Rel
+    meet Relev_Top b = b
+    op = if t then join else meet
     opE2 orig@(k, (tau, rel)) ks | k `elem` ks = (orig, ks) -- Poor man's shadow
                                  | otherwise = let rel2 = snd
                                                           $ panicJust "Splitting contexts with different domains."
