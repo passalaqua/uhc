@@ -272,6 +272,10 @@ SEM CodeAGItf
 
 SEM CExpr
   | Lam         body        .   knPhi           =   Relev_Rel
+  | App         func        .   knPhi           =   @lhs.knPhi
+                arg         .   knPhi           =   @argPhi
+                loc         .   lUniqArgPhi     :   UNIQUEREF gUniq
+                loc         .   argPhi          =   Relev_Beta @lUniqArgPhi
   | Let         body        .   knPhi           =   @lhs.knPhi
                 binds       .   knPhi           =   case @categ of
                                                       CBindCateg_Strict -> Relev_Rel
@@ -343,7 +347,7 @@ SEM CExpr
   | Integer     lhs         .   retEnv          =   @lhs.env
 %%]]
   -- Updating the gamma before moving back. Let's just hope gamMapThr is always top first.
-  | Var         loc         .   retEnv          =   let updVar (nm,(tau,_)) True | nm == @nm = ((@nm,(tau,Relev_Rel)),False)
+  | Var         loc         .   retEnv          =   let updVar (nm,(tau,_)) True | nm == @nm = ((@nm,(tau,@lhs.knPhi)),False)
                                                         updVar v            b    = (v,b)
                                                     in  fst $ gamMapThr updVar True @lhs.env
   | Lam         loc     .(retEnvLocal,retEnv')  =   gamPop @body.retEnv
@@ -407,13 +411,17 @@ SEM CExpr
   | App         loc         .   ty              =   varUpd @unification @loc.alpha
                 loc         .   lUniqAlpha      :   UNIQUEREF gUniq
                 loc         .   alpha           =   freshAlpha @lUniqAlpha
+                loc         .   lUniqAPhi       :   UNIQUEREF gUniq
+                loc         .   arrowPhi        =   Relev_Beta @lUniqAPhi
                 loc         .   lUniqGamma      :   UNIQUEREF gUniq
                 loc         .   gamma           =   Applic_Gamma @lUniqGamma []
                 loc         .   unification     =   let tau1 = varUpd @arg.rvarMp @func.ty
-                                                        tau2 = makeArrow @arg.phi @gamma
+                                                        tau2 = makeArrow @arrowPhi @gamma
                                                                (panicJust "Argument type error." @arg.mbTy)
                                                                @alpha
-                                                    in  relTySchUnify tau1 tau2
+                                                        sub1 = relTySchUnify tau1 tau2
+                                                        sub2 = rvmpRelev @lUniqArgPhi @arrowPhi
+                                                    in  sub1 |+> sub2
   | Let         loc         .   ty              =   @body.ty
   | Case        loc         .   ty              =   @alts.ty -- FIXME: Should unify with @dflt.ty!
   | Ann         loc         .   ty              =   @expr.ty
@@ -462,23 +470,6 @@ SEM CBound
 SEM CBoundL
   | Nil         lhs         .   mbTy            =   Nothing
   | Cons        lhs         .   mbTy            =   @hd.mbTy <|> @tl.mbTy
-%%]
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Relevance annotations up
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%[(8 codegen)
-ATTR CExpr CBound [ | | phi: Relev ]
-
-SEM CExpr
-  -- More complex types
-  | Var         lhs         .   phi             =   Relev_Rel
-  | * - Var Let App Lam Case lhs.phi            =   @lhs.knPhi
-
-SEM CBound
-  | Bind        lhs         .   phi             =   @expr.phi
-  | * - Bind    lhs         .   phi             =   Relev_Top
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
