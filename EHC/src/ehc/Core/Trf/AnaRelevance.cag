@@ -315,21 +315,16 @@ constrainEnv = let f (k,(t,_)) = (k,(t,Relev_Top))
 
 -- | Performs environment splits with joins
 (<>:) :: REnv -> REnv -> REnv
-(<>:) = contextSplit True
+(<>:) = contextSplit join
 
 -- | Performs environment splits with meets
 (<>.) :: REnv -> REnv -> REnv
-(<>.) = contextSplit False
+(<>.) = contextSplit meet
 
--- | Performs environment splits with joins (True) or meets (False)
-contextSplit :: Bool -> REnv -> REnv -> REnv
-contextSplit t e1 e2 = fst $ gamMapThr opE2 [] e1
+-- | Performs environment splits with joins or meets
+contextSplit :: (Relev -> Relev -> Relev) -> REnv -> REnv -> REnv
+contextSplit op e1 e2 = fst $ gamMapThr opE2 [] e1
   where
-    join Relev_Rel b = b
-    join Relev_Top b = Relev_Top
-    meet Relev_Rel b = Relev_Rel
-    meet Relev_Top b = b
-    op = if t then join else meet
     opE2 orig@(k, (tau, rel)) ks | k `elem` ks = (orig, ks) -- Poor man's shadow
                                  | otherwise = let rel2 = snd
                                                           $ panicJust "Splitting contexts with different domains."

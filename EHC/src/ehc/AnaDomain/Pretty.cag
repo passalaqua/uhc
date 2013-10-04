@@ -107,12 +107,16 @@ SEM Relev
   | Top         lhs         .   pp          =   pp "T"
   | Rel         lhs         .   pp          =   pp "R"
   | Beta        lhs         .   pp          =   "B" >|< pp @v
+  | Meet        lhs         .   pp          =   ppParens (@a.pp >#< "/\\" >#< @b.pp)
+  | Join        lhs         .   pp          =   ppParens (@a.pp >#< "\\/" >#< @b.pp)
 
 SEM Applic
   | Top         lhs         .   pp          =   pp "T"
   | App         lhs         .   pp          =   pp "A"
   | Gamma       lhs         .   pp          =   let g = "G" >|< pp @v
                                                 in  if null @deps.ppL then g else ppBrackets (g >#< "+->" >#< ppCommas @deps.ppL)
+  | Meet        lhs         .   pp          =   ppParens (@a.pp >#< "/\\" >#< @b.pp)
+  | Join        lhs         .   pp          =   ppParens (@a.pp >#< "\\/" >#< @b.pp)
 %%]
 
 %%[(8 codegen)

@@ -107,18 +107,30 @@ emptyAnaEnv = AnaEnv Set.empty
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen) hs export(AnaLattice(..))
-class AnaLattice a where
+class (Eq a) => AnaLattice a where
   top   :: a
   bot   :: a
 
   isTop :: a -> Bool
+  isTop = (==top)
   isBot :: a -> Bool
+  isBot = (==bot)
   isVar :: a -> Maybe UID
 
   fresh :: UID -> a
 
-  meet  :: a -> a -> Maybe a
-  join  :: a -> a -> Maybe a
+  meetOp :: a -> a -> a
+  meet  :: a -> a -> a
+  meet a b | isBot a || isBot b = bot
+           | isTop a = b
+           | isTop b = a
+           | otherwise = a `meetOp` b
+  joinOp :: a -> a -> a
+  join  :: a -> a -> a
+  join a b | isTop a || isTop b = top
+           | isBot a = b
+           | isBot b = a
+           | otherwise = a `joinOp` b
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -130,37 +142,25 @@ instance AnaLattice Relev where
   top   = Relev_Top
   bot   = Relev_Rel
 
-  isTop Relev_Top = True
-  isTop _         = False
-
-  isBot Relev_Rel = True
-  isBot _         = False
-
   isVar (Relev_Beta b) = Just b
   isVar _              = Nothing
 
   fresh = Relev_Beta
 
-  meet _ _ = panic "Meet Relev"
-  join _ _ = panic "Join Relev"
+  meetOp = Relev_Meet
+  joinOp = Relev_Join
 
 instance AnaLattice Applic where
   top   = Applic_Top
   bot   = Applic_App
-  
-  isTop Applic_Top = True
-  isTop _          = False
-
-  isBot Applic_App = True
-  isBot _          = False
 
   isVar (Applic_Gamma v _) = Just v
   isVar _                  = Nothing
 
   fresh uid = Applic_Gamma uid []
 
-  meet _ _ = panic "Meet Applic"
-  join _ _ = panic "Join Applic"
+  meetOp = Applic_Meet
+  joinOp = Applic_Join
 %%]
 
 %%%[8 hs
@@ -268,24 +268,32 @@ instance Serialize RelTy where
            3 -> liftM2 RelTy_Data sget sget
 
 instance Serialize Relev where
-  sput (Relev_Top   ) = sputWord8 0
-  sput (Relev_Rel   ) = sputWord8 1
-  sput (Relev_Beta v) = sputWord8 2 >> sput v
+  sput (Relev_Top     ) = sputWord8 0
+  sput (Relev_Rel     ) = sputWord8 1
+  sput (Relev_Beta v  ) = sputWord8 2 >> sput v
+  sput (Relev_Meet a b) = sputWord8 3 >> sput a >> sput b
+  sput (Relev_Join a b) = sputWord8 4 >> sput a >> sput b
   sget
     = do t <- sgetWord8
          case t of
            0 -> return Relev_Top
            1 -> return Relev_Rel
            2 -> liftM  Relev_Beta sget
+           3 -> liftM2 Relev_Meet sget sget
+           4 -> liftM2 Relev_Join sget sget
 
 instance Serialize Applic where
   sput (Applic_Top      ) = sputWord8 0
   sput (Applic_App      ) = sputWord8 1
   sput (Applic_Gamma v d) = sputWord8 2 >> sput v >> sput d
+  sput (Applic_Meet  a b) = sputWord8 3 >> sput a >> sput b
+  sput (Applic_Join  a b) = sputWord8 4 >> sput a >> sput b
   sget
     = do t <- sgetWord8
          case t of
            0 -> return Applic_Top
            1 -> return Applic_App
            2 -> liftM2 Applic_Gamma sget sget
+           3 -> liftM2 Applic_Meet sget sget
+           4 -> liftM2 Applic_Join sget sget
 %%]

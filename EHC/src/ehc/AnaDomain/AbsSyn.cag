@@ -56,6 +56,11 @@ DATA Relev
   | Rel
   -- Beta: It is a variable and may assume either value
   | Beta         v                               : {UID}
+  -- Meet and Join: It's a meet or join of two betas
+  | Meet         a                               : Relev
+                 b                               : Relev
+  | Join         a                               : Relev
+                 b                               : Relev
 
 -- Set of applications
 -- Using lists because UUAG plays better with them
@@ -69,6 +74,11 @@ DATA Applic
   -- Gamma: It is a variable and has dependencies
   | Gamma        v                               : {UID}
                  deps                            : Rho
+  -- Meet and Join: It's a meet or join of two gammas
+  | Meet         a                               : Applic
+                 b                               : Applic
+  | Join         a                               : Applic
+                 b                               : Applic
 
 SET AllAnaAnnTy	 =       Relev Rho Applic
 %%]
