@@ -190,11 +190,8 @@ ATTR AllBind AllPatFld AllPat CExpr
 ATTR AllBind  [ | | gathRecEnv USE {`gamUnion`} {emptyGam}: REnv ]
 
 SEM CBound
-  | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm (@quantTy, @gathRelev)
-                            .   gathRecEnv      =   gamSingleton @lhs.nm (@freshTy, @gathRelev)
-                            .   gathRelev       =   case @lhs.letBindingsCateg of
-                                                      CBindCateg_Strict -> Relev_Rel
-                                                      otherwise         -> Relev_Top
+  | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm (@quantTy, @lhs.knPhi)
+                            .   gathRecEnv      =   gamSingleton @lhs.nm (@freshTy, @lhs.knPhi)
 
 SEM CPat
   | Var         lhs         .   gathEnv         =   gamSingleton @pnm (@lhs.knTy, Relev_Top)
@@ -277,18 +274,18 @@ SEM CExpr
                 loc         .   lUniqArgPhi     :   UNIQUEREF gUniq
                 loc         .   argPhi          =   Relev_Beta @lUniqArgPhi
   | Let         body        .   knPhi           =   @lhs.knPhi
-                binds       .   knPhi           =   case @categ of
+                binds       .   knPhi           =   @lhs.knPhi -- Not supposed to be used
+                binds       .   categ           =   @categ
+
+ATTR CBindL [ categ: CBindCateg | | ]
+SEM CBindL
+  | Cons        loc         .   knPhi           =   case @lhs.categ of
                                                       CBindCateg_Strict -> Relev_Rel
-                                                      CBindCateg_Plain  -> Relev_Top
+                                                      CBindCateg_Plain  -> Relev_Beta @lUniqBeta
                                                       CBindCateg_Rec    -> @lhs.knPhi -- TODO
                                                       _                 -> Relev_Top -- Just being safe
-                binds       .   phiL            =   snd <$> gamElts @retEnvLocal
-
-ATTR CBindL [ phiL : {[Relev]} | | ]
-SEM CBindL
-  | Cons        loc         .   knPhi           =   head @lhs.phiL
                 hd          .   knPhi           =   @knPhi
-                tl          .   phiL            =   tail @lhs.phiL
+                loc         .   lUniqBeta       :   UNIQUEREF gUniq
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
