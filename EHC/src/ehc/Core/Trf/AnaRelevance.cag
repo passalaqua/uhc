@@ -228,7 +228,7 @@ SEM CExpr
 
 SEM CBindL
   | Nil        lhs          .   bindsGathRho    =   Set.empty
-  | Cons       lhs          .   bindsGathRho    =   if (@knPhi == Relev_Rel)
+  | Cons       lhs          .   bindsGathRho    =   if (varUpd @lhs.finalRVarMp @knPhi == Relev_Rel)
                                                     then @tl.bindsGathRho `Set.union` @hd.gathRho
                                                     else @tl.bindsGathRho
 

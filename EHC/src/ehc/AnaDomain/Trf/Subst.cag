@@ -24,10 +24,10 @@ Substitution for AnaDomain.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen) ag import({AnaDomain/AbsSyn})
-WRAPPER TyAGItf
+WRAPPER TyAGItf Relev
 %%]
 
-%%[(8 codegen) hs export(relTySchAppVarLookup)
+%%[(8 codegen) hs export(relTySchAppVarLookup, relevAppVarLookup)
 relTySchAppVarLookup :: VarLookup m UID RVarMpInfo => m -> RelTyScheme -> RelTyScheme
 relTySchAppVarLookup varmp ty
   = repl_Syn_TyAGItf t
@@ -36,6 +36,15 @@ relTySchAppVarLookup varmp ty
               (Inh_TyAGItf { rvarLookup_Inh_TyAGItf = varlookupFix varmp
                            , otherTy_Inh_TyAGItf = Nothing
                            })
+
+relevAppVarLookup :: VarLookup m UID RVarMpInfo => m -> Relev -> Relev
+relevAppVarLookup varmp relev
+  = repl_Syn_Relev t
+  where t = wrap_Relev
+              (sem_Relev relev)
+              (Inh_Relev { rvarLookup_Inh_Relev = varlookupFix varmp
+                         , otherTy_Inh_Relev = Nothing
+                         })
 %%]
 
 %%[(8 codegen) hs export(relTySchUnify)
