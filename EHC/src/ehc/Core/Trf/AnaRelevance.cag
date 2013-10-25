@@ -174,8 +174,8 @@ SEM CExpr
                 dflt        .   env             =   @dfltEnv
 
 SEM CAlt
-  | Alt         expr        .   env             =   let upded = @lhs.altRVarMp `varUpd` @pat.gathEnv
-                                                    in  gamPushGam upded @lhs.env
+  | Alt         expr        .   env             =   let updated = @lhs.altRVarMp `varUpd` @pat.gathEnv
+                                                    in  gamPushGam updated @lhs.env
 
 ATTR CAlt CAltL [ altRVarMp: RVarMp | | ]
 SEM CAltL
