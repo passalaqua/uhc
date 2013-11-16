@@ -234,6 +234,7 @@ SEM CExpr
 
 SEM CBindL
   | Nil        lhs          .   bindsGathRho    =   Set.empty
+                                                    -- FIXME: This should be safe for letrec, but it's not what my algorithm describes
   | Cons       lhs          .   bindsGathRho    =   if (varUpd @lhs.finalRVarMp @knPhi == Relev_Rel)
                                                     then @tl.bindsGathRho `Set.union` @hd.gathRho
                                                     else @tl.bindsGathRho
