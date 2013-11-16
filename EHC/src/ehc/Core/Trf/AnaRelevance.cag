@@ -191,7 +191,16 @@ ATTR AllBind  [ | | gathRecEnv USE {`gamUnion`} {emptyGam}: REnv ]
 
 SEM CBound
   | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm (@quantTy, @lhs.knPhi)
-                            .   gathRecEnv      =   gamSingleton @lhs.nm (@freshTy, @lhs.knPhi)
+                            .   gathRecEnv      =   case @lhs.categ of
+                                                      CBindCateg_Rec    -> let phi = Relev_Beta @lUniqREBeta
+                                                                               psi = Applic_Gamma @lUniqREGamma []
+                                                                               -- TODO: Might be a good idea to add phi and psi to the gen sets below
+                                                                               ty = RelTyScheme_Ty Set.empty Set.empty Set.empty
+                                                                                    (RelTy_Arrow phi psi @freshTy @freshTy)
+                                                                           in  gamSingleton @lhs.nm (ty, Relev_Top)
+                                                      _                 -> emptyGam
+                loc         .   lUniqREBeta     :   UNIQUEREF gUniq
+                loc         .   lUniqREGamma    :   UNIQUEREF gUniq
 
 SEM CPat
   | Var         lhs         .   gathEnv         =   gamSingleton @pnm (@lhs.knTy, Relev_Top)
@@ -277,12 +286,12 @@ SEM CExpr
                 binds       .   knPhi           =   @lhs.knPhi -- Not supposed to be used
                 binds       .   categ           =   @categ
 
-ATTR CBindL [ categ: CBindCateg | | ]
+ATTR CBindL CBind CBound [ categ: CBindCateg | | ]
 SEM CBindL
   | Cons        loc         .   knPhi           =   case @lhs.categ of
                                                       CBindCateg_Strict -> Relev_Rel
                                                       CBindCateg_Plain  -> Relev_Beta @lUniqBeta
-                                                      CBindCateg_Rec    -> @lhs.knPhi -- TODO
+                                                      CBindCateg_Rec    -> Relev_Beta @lUniqBeta
                                                       _                 -> Relev_Top -- Just being safe
                 hd          .   knPhi           =   @knPhi
                 loc         .   lUniqBeta       :   UNIQUEREF gUniq
@@ -349,7 +358,8 @@ SEM CExpr
                                                     then constrainEnv
                                                     else id
   | App         loc         .   retEnv          =   (varUpd @arg.rvarMp @func.retEnv) <>. @arg.retEnv
-  | Let         loc     .(retEnvLocal,retEnv)   =   gamPop @body.retEnv
+  | Let         loc         .   retEnv          =   let (bodyEnv,_) = gamPop @body.retEnv
+                                                    in  bodyEnv <>: @binds.retEnv -- FIXME: Still need to contain appropriately
   | Case        loc         .   retEnv          =   let exprEnv = (@dflt.rvarMp |+> @alts.rvarMp) `varUpd` @expr.retEnv
                                                         altsEnv = @dflt.rvarMp `varUpd` @alts.retEnv
                                                     in  exprEnv <>. (altsEnv <>: @dflt.retEnv)
@@ -380,7 +390,7 @@ SEM CExpr
   -- More complex types
   | Var         loc         .   (ty,rho)        =   let lookup = renvgLookup @nm @lhs.env @lUniq @lhs.dataGam @lhs.bindingMp
                                                         ty = fromMaybe (freshAlpha @lUniq) lookup
-                                                    in  relTySchInst @lUniq ty
+                                                    in  relTySchInst @lhs.gUniq ty
                 loc         .   lUniq           :   UNIQUEREF gUniq
   | Tup         loc         .   ty              =   fromMaybe id @loc.mbArrows $ freshData @tag
                 loc         .   mbArrows        =   do (_,dti) <- @loc.dataInfo
@@ -445,12 +455,13 @@ ATTR CBoundL CBound [ | | mbTy: {Maybe RelTyScheme} ]
 
 SEM CBound
   | Bind        loc         .   mbTy            =   Just @expr.ty
-                loc         .   quantTy         =   case @expr.ty of
-                                                      t@(RelTyScheme_Ty a b g (RelTy_Arrow _ _ ty _)) ->
-                                                        varUpd @expr.rvarMp $ RelTyScheme_Ty a b g ty
-                                                      t -> t
                 loc         .   lUniqAlpha      :   UNIQUEREF gUniq
-                loc         .   freshTy         =   freshAlpha @lUniqAlpha
+                loc         .   freshTy         =   RelTy_Alpha @lUniqAlpha
+                loc         .   quantTy         =   case @lhs.categ of
+                                                      CBindCateg_Plain  -> @expr.ty
+                                                      CBindCateg_Strict -> @expr.ty
+                                                      -- Generalization done in Let
+                                                      CBindCateg_Rec    -> RelTyScheme_Ty Set.empty Set.empty Set.empty @freshTy
   | Val         lhs         .   mbTy            =   Just @expr.ty
 %%[[8
   | * - Bind Val lhs        .   mbTy            =   Nothing
