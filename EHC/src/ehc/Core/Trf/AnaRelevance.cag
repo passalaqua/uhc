@@ -160,8 +160,7 @@ SEM CExpr
                 loc         .   exprEnv         =   gamSingleton @argNm (freshAlpha @lUniqAlpha, Relev_Top)
   | App         func        .   env             =   @lhs.env
                 arg         .   env             =   @func.rvarMp `varUpd` @lhs.env
-  | Let         binds       .   env             =   gamAddGam @binds.gathRecEnv @lhs.env
-                body        .   env             =   let newEnv = @binds.rvarMp `varUpd` @lhs.env
+  | Let         body        .   env             =   let newEnv = @binds.rvarMp `varUpd` @lhs.env
                                                         envVars = map (varFreeSet.fst) $ gamElts newEnv
                                                         envVars' = foldr Set.union Set.empty envVars
                                                         gens = gamMapElts (first $ genTySch envVars') $ @binds.rvarMp `varUpd` @binds.gathEnv
@@ -188,6 +187,15 @@ SEM CAltL
 ATTR AllBind AllPatFld AllPat CExpr
               [ | | gathEnv    USE {`gamUnion`} {emptyGam}: REnv ]
 ATTR AllBind  [ | | gathRecEnv USE {`gamUnion`} {emptyGam}: REnv ]
+ATTR CBindL   [ gathRecEnvKn : REnv | | ]
+
+SEM CExpr
+  | Let         binds       .   gathRecEnvKn    =   @binds.gathRecEnv
+
+SEM CBindL
+  | Cons        hd          .   env             =   case @lhs.categ of
+                                                      Just (CBindCateg_Rec) -> gamPushGam @lhs.gathRecEnvKn @lhs.env
+                                                      _                     -> @lhs.env
 
 SEM CBound
   | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm (@quantTy, @lhs.knPhi)
@@ -288,7 +296,7 @@ SEM CExpr
                 binds       .   knPhi           =   @lhs.knPhi -- Not supposed to be used
                 binds       .   categ           =   Just @categ
 
-ATTR CBindL CBind CBoundL CBound [ categ: {Maybe CBindCateg} | | ]
+ATTR CBindL CBind CBound [ categ: {Maybe CBindCateg} | | ]
 SEM CBindL
   | Cons        loc         .   knPhi           =   do categ <- @lhs.categ
                                                        let ret = case categ of
@@ -299,6 +307,9 @@ SEM CBindL
                 hd          .   knPhi           =   fromMaybe Relev_Top @knPhi
                 tl          .   knPhi           =   Relev_Top
                 loc         .   lUniqBeta       :   UNIQUEREF gUniq
+
+SEM CBoundL
+  | Cons        hd          .   categ           =   Nothing
 
 SEM CPatFld
   | Fld         bind        .   categ           =   Nothing
@@ -325,6 +336,11 @@ ATTR AllNT [ | | repl : SELF ]
 constrainEnv :: REnv -> REnv
 constrainEnv = let f (k,(t,_)) = (k,(t,Relev_Top))
                in  gamMap f
+
+-- | Conditionally constrains an environmnet to top only elements
+(>?) :: Relev -> REnv -> REnv
+(>?) Relev_Top = id
+(>?) _         = constrainEnv
 
 -- | Performs environment splits with joins
 (<>:) :: REnv -> REnv -> REnv
@@ -359,11 +375,9 @@ SEM CExpr
                                                         updVar v            b    = (v,b)
                                                     in  fst $ gamMapThr updVar True @lhs.env
   | Lam         loc     .(retEnvLocal,retEnv')  =   gamPop @body.retEnv
-                loc         .   retEnv          =   @envTrf @retEnv'
-                            .   envTrf          =   if (@loc.lUniqGamma `Set.member` @lhs.rho)
-                                                       && (@lhs.knPhi == Relev_Rel)
-                                                    then constrainEnv
-                                                    else id
+                loc         .   retEnv          =   if @loc.lUniqGamma `Set.member` @lhs.rho
+                                                    then @lhs.knPhi >? @retEnv'
+                                                    else @retEnv'
   | App         loc         .   retEnv          =   (varUpd @arg.rvarMp @func.retEnv) <>. @arg.retEnv
   | Let         loc         .   retEnv          =   let (_,bodyEnv) = gamPop @body.retEnv
                                                     in  bodyEnv <>: @binds.retEnv -- FIXME: Still need to contain appropriately
@@ -383,6 +397,17 @@ SEM CAltL
                 loc         .   retEnv          =   case @tl.retMbEnv of
                                                       Nothing -> @hd.retEnv
                                                       Just env -> (@tl.rvarMp `varUpd` @hd.retEnv) <>: env
+
+SEM CBindL
+  | Nil         lhs         .   retEnv          =   @lhs.env
+  | Cons        lhs         .   retEnv          =   case @lhs.categ of
+                                                      Just (CBindCateg_Strict) -> @hd.retEnv
+                                                      Just (CBindCateg_Plain)  -> (fromJust @knUpdPhi) >? @hd.retEnv
+                                                      Just (CBindCateg_Rec)    -> let (_,env) = gamPop @hd.retEnv
+                                                                                  in  ((fromJust @knUpdPhi) >? env) <>: @tl.retEnv
+                                                      _                        -> emptyGam
+                loc         .   knUpdPhi        =   do phi <- @knPhi
+                                                       return $ @lhs.finalRVarMp `varUpd` phi
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -465,11 +490,8 @@ SEM CBound
                 loc         .   lUniqAlpha      :   UNIQUEREF gUniq
                 loc         .   freshTy         =   RelTy_Alpha @lUniqAlpha
                 loc         .   quantTy         =   case @lhs.categ of
-                                                      Just (CBindCateg_Plain)  -> @expr.ty
-                                                      Just (CBindCateg_Strict) -> @expr.ty
-                                                      -- Generalization done in Let
-                                                      Just (CBindCateg_Rec)    -> RelTyScheme_Ty Set.empty Set.empty Set.empty @freshTy
-                                                      _                        -> panic "Not a valid category for quantified types."
+                                                      Just (CBindCateg_Rec) -> freshTySch @freshTy
+                                                      _                     -> @expr.ty
   | Val         lhs         .   mbTy            =   Just @expr.ty
 %%[[8
   | * - Bind Val lhs        .   mbTy            =   Nothing
