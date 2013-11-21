@@ -339,8 +339,8 @@ constrainEnv = let f (k,(t,_)) = (k,(t,Relev_Top))
 
 -- | Conditionally constrains an environmnet to top only elements
 (>?) :: Relev -> REnv -> REnv
-(>?) Relev_Top = id
-(>?) _         = constrainEnv
+(>?) Relev_Top = constrainEnv
+(>?) _         = id
 
 -- | Performs environment splits with joins
 (<>:) :: REnv -> REnv -> REnv
@@ -380,7 +380,7 @@ SEM CExpr
                                                     else @retEnv'
   | App         loc         .   retEnv          =   (varUpd @arg.rvarMp @func.retEnv) <>. @arg.retEnv
   | Let         loc         .   retEnv          =   let (_,bodyEnv) = gamPop @body.retEnv
-                                                    in  bodyEnv <>: @binds.retEnv -- FIXME: Still need to contain appropriately
+                                                    in  bodyEnv <>. @binds.retEnv
   | Case        loc         .   retEnv          =   let exprEnv = (@dflt.rvarMp |+> @alts.rvarMp) `varUpd` @expr.retEnv
                                                         altsEnv = @dflt.rvarMp `varUpd` @alts.retEnv
                                                     in  exprEnv <>. (altsEnv <>: @dflt.retEnv)
@@ -404,7 +404,7 @@ SEM CBindL
                                                       Just (CBindCateg_Strict) -> @hd.retEnv
                                                       Just (CBindCateg_Plain)  -> (fromJust @knUpdPhi) >? @hd.retEnv
                                                       Just (CBindCateg_Rec)    -> let (_,env) = gamPop @hd.retEnv
-                                                                                  in  ((fromJust @knUpdPhi) >? env) <>: @tl.retEnv
+                                                                                  in  ((fromJust @knUpdPhi) >? env) <>. @tl.retEnv
                                                       _                        -> emptyGam
                 loc         .   knUpdPhi        =   do phi <- @knPhi
                                                        return $ @lhs.finalRVarMp `varUpd` phi
