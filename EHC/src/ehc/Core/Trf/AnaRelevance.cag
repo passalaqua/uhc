@@ -222,10 +222,9 @@ SEM CExpr
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-TYPE ApplicS = SET Applic
-ATTR AllCodeNT [ rho: UIDS | | gathRho USE {`Set.union`} {Set.empty}: ApplicS ]
-ATTR CAltL [ | | mbGathRho: {Maybe ApplicS} ]
-ATTR CBindL [ | | bindsGathRho: ApplicS ]
+ATTR AllCodeNT [ rho: UIDS | | gathRho USE {`Set.union`} {Set.empty}: {Set.Set Applic} ]
+ATTR CAltL [ | | mbGathRho: {Maybe (Set.Set Applic)} ]
+ATTR CBindL [ | | bindsGathRho: {Set.Set Applic} ]
 
 -- Tying the knot on a per module basis:
 SEM CodeAGItf
