@@ -222,17 +222,21 @@ SEM CExpr
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR AllCodeNT [ rho: UIDS | | gathRho USE {`Set.union`} {Set.empty}: UIDS ]
-ATTR CAltL [ | | mbGathRho: {Maybe UIDS} ]
-ATTR CBindL [ | | bindsGathRho: {UIDS} ]
+TYPE ApplicS = SET Applic
+ATTR AllCodeNT [ rho: UIDS | | gathRho USE {`Set.union`} {Set.empty}: ApplicS ]
+ATTR CAltL [ | | mbGathRho: {Maybe ApplicS} ]
+ATTR CBindL [ | | bindsGathRho: ApplicS ]
 
 -- Tying the knot on a per module basis:
 SEM CodeAGItf
-  | AGItf      module       .   rho             =   @module.gathRho
+  | AGItf      module       .   rho             =   let uids = liftM uidFromGamma @module.gathRho
+                                                    in  Set.fromJust <$> (filter isJust) uids
 
 SEM CExpr
   -- Resetting so it gets contained locally in abstractions:
   | Lam        lhs          .   gathRho         =   Set.empty
+  | App        lhs          .   gathRho         =   let local = Set.singleton $ (varUpd @rvarMp @gamma)
+                                                    in  @func.gathRho `Set.union` @arg.gathRho `Set.union` local
   | Let        loc          .   bindsGathRho    =   case @categ of
                                                       CBindCateg_Strict -> @binds.gathRho
                                                       CBindCateg_Plain  -> @binds.bindsGathRho
@@ -442,14 +446,14 @@ SEM CExpr
                 loc         .   retTy           =   let (_, [(a,p)]) = unzip $ gamToAssocL @retEnvLocal
                                                         gamma = Applic_Gamma @lUniqGamma []
                                                     in  makeArrow p gamma a @body.ty
-  | App         loc         .   ty              =   varUpd @unification @loc.alpha
+  | App         loc         .   ty              =   varUpd @rvarMp @loc.alpha
                 loc         .   lUniqAlpha      :   UNIQUEREF gUniq
                 loc         .   alpha           =   freshAlpha @lUniqAlpha
                 loc         .   lUniqAPhi       :   UNIQUEREF gUniq
                 loc         .   arrowPhi        =   Relev_Beta @lUniqAPhi
                 loc         .   lUniqGamma      :   UNIQUEREF gUniq
                 loc         .   gamma           =   Applic_Gamma @lUniqGamma []
-                loc         .   unification     =   let tau1 = varUpd @arg.rvarMp @func.ty
+                loc         .   extraUnif       =   let tau1 = varUpd @arg.rvarMp @func.ty
                                                         tau2 = makeArrow @arrowPhi @gamma
                                                                (panicJust "Argument type error." @arg.mbTy)
                                                                @alpha
@@ -513,7 +517,7 @@ SEM CBoundL
 ATTR AllNT [ | | rvarMp USE {|+>} {emptyRVarMp}: RVarMp ]
 
 SEM CExpr
-  | App         lhs         .   rvarMp          =   @unification
+  | App         loc         .   rvarMp          =   @extraUnif
                                                     |+> @func.rvarMp
                                                     |+> @arg.rvarMp
 
