@@ -43,6 +43,9 @@ instance VarUpdatable (RelTyScheme,Relev) RVarMp where
 instance VarUpdatable Relev RVarMp where
   varUpd = relevAppVarLookup
 
+instance VarUpdatable Applic RVarMp where
+  varUpd = applicAppVarLookup
+
 instance VarExtractable RelTyScheme UID where
   varFreeSet = tyFv
 %%]
