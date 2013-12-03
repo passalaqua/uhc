@@ -89,8 +89,8 @@ mergeTySch (RelTyScheme_Ty a1 b1 g1 t1) (RelTyScheme_Ty a2 b2 g2 t2) =
 
 -- | Function to extract the UID from gammas
 uidFromGamma :: Applic -> Maybe UID
-uidFromGamma (Applic g _) = Just g
-uidFromGamma _            = Nothing
+uidFromGamma (Applic_Gamma g _) = Just g
+uidFromGamma _                  = Nothing
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

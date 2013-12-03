@@ -228,8 +228,8 @@ ATTR CBindL [ | | bindsGathRho: {Set.Set Applic} ]
 
 -- Tying the knot on a per module basis:
 SEM CodeAGItf
-  | AGItf      module       .   rho             =   let uids = liftM uidFromGamma @module.gathRho
-                                                    in  Set.fromJust <$> (filter isJust) uids
+  | AGItf      module       .   rho             =   let uids = Set.map uidFromGamma @module.gathRho
+                                                    in  Set.map fromJust $ (Set.filter isJust) uids
 
 SEM CExpr
   -- Resetting so it gets contained locally in abstractions:
