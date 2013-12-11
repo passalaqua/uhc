@@ -188,9 +188,11 @@ ATTR AllBind AllPatFld AllPat CExpr
               [ | | gathEnv    USE {`gamUnion`} {emptyGam}: REnv ]
 ATTR AllBind  [ | | gathRecEnv USE {`gamUnion`} {emptyGam}: REnv ]
 ATTR CBindL   [ gathRecEnvKn : REnv | | ]
+ATTR CBindL   [ bodyRetEnv : REnv | | ]
 
 SEM CExpr
   | Let         binds       .   gathRecEnvKn    =   @binds.gathRecEnv
+                            .   bodyRetEnv      =   @body.retEnv
 
 SEM CBindL
   | Cons        hd          .   env             =   case @lhs.categ of
@@ -245,9 +247,9 @@ SEM CExpr
 SEM CBindL
   | Nil        lhs          .   bindsGathRho    =   Set.empty
                                                     -- FIXME: This should be safe for letrec, but it's not what my algorithm describes
-  | Cons       lhs          .   bindsGathRho    =   if (varUpd @lhs.finalRVarMp (fromMaybe Relev_Top @knPhi) == Relev_Rel)
-                                                    then @tl.bindsGathRho `Set.union` @hd.gathRho
-                                                    else @tl.bindsGathRho
+  | Cons       lhs          .   bindsGathRho    =   if (@knUpdPhi /= Relev_Top)
+                                                        then @tl.bindsGathRho `Set.union` @hd.gathRho
+                                                        else @tl.bindsGathRho
 
 SEM CAltL
   | Nil        lhs          .   mbGathRho       =   Nothing
@@ -301,14 +303,15 @@ SEM CExpr
 
 ATTR CBindL CBind CBound [ categ: {Maybe CBindCateg} | | ]
 SEM CBindL
-  | Cons        loc         .   knPhi           =   do categ <- @lhs.categ
-                                                       let ret = case categ of
-                                                                   CBindCateg_Strict -> Relev_Rel
-                                                                   CBindCateg_Plain  -> Relev_Beta @lUniqBeta
-                                                                   CBindCateg_Rec    -> Relev_Beta @lUniqBeta
-                                                       return ret
-                hd          .   knPhi           =   fromMaybe Relev_Top @knPhi
-                tl          .   knPhi           =   Relev_Top
+  | Cons        loc         .   knPhi           =   case @lhs.categ of
+                                                      Just CBindCateg_Strict -> Relev_Rel
+                                                      Just CBindCateg_Plain  -> Relev_Beta @lUniqBeta
+                                                      Just CBindCateg_Rec    -> Relev_Beta @lUniqBeta
+                                                      Nothing                -> @lhs.knPhi
+                hd          .   knPhi           =   @knPhi
+                loc         .   knUpdPhi        =   let fromEnv = renvLookup @hd.nm @lhs.bodyRetEnv
+                                                    in  maybe Relev_Top ((varUpd @lhs.finalRVarMp).snd) fromEnv
+                tl          .   knPhi           =   @lhs.knPhi
                 loc         .   lUniqBeta       :   UNIQUEREF gUniq
 
 SEM CBoundL
@@ -405,12 +408,10 @@ SEM CBindL
   | Nil         lhs         .   retEnv          =   @lhs.env
   | Cons        lhs         .   retEnv          =   case @lhs.categ of
                                                       Just (CBindCateg_Strict) -> @hd.retEnv
-                                                      Just (CBindCateg_Plain)  -> (fromJust @knUpdPhi) >? @hd.retEnv
+                                                      Just (CBindCateg_Plain)  -> @knUpdPhi >? @hd.retEnv
                                                       Just (CBindCateg_Rec)    -> let (_,env) = gamPop @hd.retEnv
-                                                                                  in  ((fromJust @knUpdPhi) >? env) <>. @tl.retEnv
+                                                                                  in  (@knUpdPhi >? env) <>. @tl.retEnv
                                                       _                        -> emptyGam
-                loc         .   knUpdPhi        =   do phi <- @knPhi
-                                                       return $ @lhs.finalRVarMp `varUpd` phi
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
