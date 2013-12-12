@@ -457,9 +457,10 @@ SEM CExpr
                                                         tau2 = makeArrow @arrowPhi @gamma
                                                                (panicJust "Argument type error." @arg.mbTy)
                                                                @alpha
-                                                        sub1 = relTySchUnify tau1 tau2
+                                                        sub1 = relTySchUnify @lUniqUnify tau1 tau2
                                                         sub2 = rvmpRelev @lUniqArgPhi @arrowPhi
                                                     in  sub1 |+> sub2
+                loc         .   lUniqUnify      :   UNIQUEREF gUniq
   | Let         loc         .   ty              =   @body.ty
   | Case        loc         .   ty              =   @alts.ty -- FIXME: Should unify with @dflt.ty!
   | Ann         loc         .   ty              =   @expr.ty
@@ -477,13 +478,15 @@ ATTR CAlt CAltL [ | | ty: RelTyScheme ]
 
 SEM CAlt
   | Alt         loc         .   ty              =   @expr.ty
-                loc         .   unification     =   relTySchUnify @ty @lhs.knTyCase
+                loc         .   unification     =   relTySchUnify @lUniqUnify @ty @lhs.knTyCase
+                loc         .   lUniqUnify      :   UNIQUEREF gUniq
 
 SEM CAltL
   | Nil         lhs         .   ty              =   freshAlpha @loc.lUniq
                 loc         .   lUniq           :   UNIQUEREF gUniq
   | Cons        lhs         .   ty              =   varUpd @unification @hd.ty
-                loc         .   unification     =   relTySchUnify @hd.ty @tl.ty
+                loc         .   unification     =   relTySchUnify @lUniqUnify @hd.ty @tl.ty
+                loc         .   lUniqUnify      :   UNIQUEREF gUniq
 %%]
 
 %%[(8 codegen)

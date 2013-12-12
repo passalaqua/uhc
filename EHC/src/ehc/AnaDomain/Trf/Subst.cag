@@ -14,7 +14,7 @@ Substitution for AnaDomain.
 %%[(8 codegen) hs module {%{EH}AnaDomain.Trf.Subst} import({%{EH}Base.Common},{%{EH}AnaDomain},{%{EH}VarMp})
 %%]
 
-%%[(8 codegen) hs import(UHC.Util.Utils)
+%%[(8 codegen) hs import(UHC.Util.Utils, Data.Maybe(fromJust))
 %%]
 %%[(8 codegen) hs import(Data.Set)
 %%]
@@ -35,6 +35,7 @@ relTySchAppVarLookup varmp ty
               (sem_TyAGItf (TyAGItf_AGItf ty))
               (Inh_TyAGItf { rvarLookup_Inh_TyAGItf = varlookupFix varmp
                            , otherTy_Inh_TyAGItf = Nothing
+                           , replUID_Inh_TyAGItf = Nothing
                            })
 
 relevAppVarLookup :: VarLookup m UID RVarMpInfo => m -> Relev -> Relev
@@ -44,6 +45,7 @@ relevAppVarLookup varmp relev
               (sem_Relev relev)
               (Inh_Relev { rvarLookup_Inh_Relev = varlookupFix varmp
                          , otherTy_Inh_Relev = Nothing
+                         , replUID_Inh_Relev = Nothing
                          })
 
 applicAppVarLookup :: VarLookup m UID RVarMpInfo => m -> Applic -> Applic
@@ -53,18 +55,20 @@ applicAppVarLookup varmp applic
               (sem_Applic applic)
               (Inh_Applic { rvarLookup_Inh_Applic = varlookupFix varmp
                           , otherTy_Inh_Applic = Nothing
+                          , replUID_Inh_Applic = Nothing
                           })
 
 %%]
 
 %%[(8 codegen) hs export(relTySchUnify)
-relTySchUnify :: RelTyScheme -> RelTyScheme -> RVarMp
-relTySchUnify t1 t2
+relTySchUnify :: UID -> RelTyScheme -> RelTyScheme -> RVarMp
+relTySchUnify uid t1 t2
   = subst_Syn_TyAGItf t
   where t = wrap_TyAGItf
               (sem_TyAGItf (TyAGItf_AGItf t1))
               (Inh_TyAGItf { rvarLookup_Inh_TyAGItf = varlookupFix emptyRVarMp
                            , otherTy_Inh_TyAGItf = Just t2
+                           , replUID_Inh_TyAGItf = Just uid
                            })
 %%]
 
@@ -104,6 +108,7 @@ SEM Applic
 %%[(8 codegen)
 ATTR AllNT     [ | | repl: SELF  		]
 ATTR TyAGItf   [ | | repl: RelTyScheme    	]
+ATTR AllNT TyAGItf [ replUID : {Maybe UID} | |  ]
 %%]
 
 %%[(8 codegen)
@@ -211,9 +216,12 @@ SEM Relev
 
 SEM Applic
   | Gamma           lhs    .   subst        =    case @lhs.otherTy of
+                                                   Just (Applic_Gamma v ds) -> let n = Applic_Gamma (fromJust @lhs.replUID) (ds ++ @deps.copy)
+                                                                               in  (rvmpApplic v n) |+> (rvmpApplic @v n)
                                                    Just g -> rvmpApplic @v g
                                                    Nothing -> emptyRVarMp
   | * - Gamma       lhs    .   subst        =    case @lhs.otherTy of
+                                                   -- FIXME: What do we do about ds below?
                                                    Just (Applic_Gamma v ds) -> rvmpApplic v @copy
                                                    Nothing -> emptyRVarMp
                                                    _ -> errorUnif
