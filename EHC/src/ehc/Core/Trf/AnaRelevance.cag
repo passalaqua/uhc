@@ -444,7 +444,7 @@ SEM CExpr
   | Lam         loc         .   ty              =   varUpd @body.rvarMp @retTy
                 loc         .   lUniqGamma      :   UNIQUEREF gUniq
                 loc         .   retTy           =   let (_, [(a,p)]) = unzip $ gamToAssocL @retEnvLocal
-                                                        gamma = Applic_Gamma @lUniqGamma []
+                                                        gamma = Applic_Gamma @lUniqGamma (Set.toList @body.gathRho)
                                                     in  makeArrow p gamma a @body.ty
   | App         loc         .   ty              =   varUpd @rvarMp @loc.alpha
                 loc         .   lUniqAlpha      :   UNIQUEREF gUniq
