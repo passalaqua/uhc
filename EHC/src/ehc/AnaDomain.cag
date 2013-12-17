@@ -14,7 +14,7 @@ Analysis domains
 %%[(8 codegen) hs module {%{EH}AnaDomain} import({%{EH}Base.Builtin},{%{EH}Base.Common},{%{EH}Opts.Base},{%{EH}VarMp})
 %%]
 
-%%[(8 codegen) hs import(qualified Data.Map as Map,qualified Data.Set as Set, Data.List, Data.Maybe)
+%%[(8 codegen) hs import(qualified Data.Map as Map,qualified Data.Set as Set, Data.List, Data.Maybe, Data.Set(Set))
 %%]
 %%[(8 codegen) hs import(Control.Monad.State hiding (join), Control.Applicative)
 %%]
@@ -162,7 +162,7 @@ instance AnaLattice Applic where
   isVar (Applic_Gamma v _) = Just v
   isVar _                  = Nothing
 
-  fresh uid = Applic_Gamma uid []
+  fresh uid = Applic_Gamma uid Set.empty
 
   meetOp = Applic_Meet
   joinOp = Applic_Join

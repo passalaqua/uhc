@@ -64,7 +64,7 @@ DATA Relev
 
 -- Set of applications
 -- Using lists because UUAG plays better with them
-TYPE Rho         =       [Applic]
+TYPE Rho         =       SET Applic
 
 DATA Applic
   -- Top: No conclusion can be drawn or it is known to not be applied

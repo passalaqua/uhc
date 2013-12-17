@@ -203,7 +203,7 @@ SEM CBound
   | Bind        loc         .   gathEnv         =   gamSingleton @lhs.nm (@quantTy, @lhs.knPhi)
                             .   gathRecEnv      =   case @lhs.categ of
                                                       Just (CBindCateg_Rec)    -> let phi = Relev_Beta @lUniqREBeta
-                                                                                      psi = Applic_Gamma @lUniqREGamma []
+                                                                                      psi = Applic_Gamma @lUniqREGamma Set.empty
                                                                                       -- TODO: Might be a good idea to add phi and psi to the gen sets below
                                                                                       ty = freshTySch $ RelTy_Arrow phi psi @freshTy @freshTy
                                                                                   in  gamSingleton @lhs.nm (ty, Relev_Top)
@@ -435,7 +435,7 @@ SEM CExpr
                                                        let phis   = (\(DataConFldAnnInfo x) -> case x of
                                                                         Strictness_Strict -> Relev_Rel
                                                                         _ -> Relev_Top) <$> anns
-                                                       let gammas = Applic_Gamma <$> (mkNewLevUIDL (length anns) @lUniqGammas) <*> (repeat [])
+                                                       let gammas = Applic_Gamma <$> (mkNewLevUIDL (length anns) @lUniqGammas) <*> (repeat Set.empty)
                                                        let arrows = makeArrow <$> phis <*> gammas <*> alphas
                                                        return $ foldr (.) id arrows
                 loc         .   dataInfo        =   dataGamTagLookup @tag @lhs.dataGam
@@ -444,7 +444,7 @@ SEM CExpr
   | Lam         loc         .   ty              =   varUpd @body.rvarMp @retTy
                 loc         .   lUniqGamma      :   UNIQUEREF gUniq
                 loc         .   retTy           =   let (_, [(a,p)]) = unzip $ gamToAssocL @retEnvLocal
-                                                        gamma = Applic_Gamma @lUniqGamma (Set.toList @body.gathRho)
+                                                        gamma = Applic_Gamma @lUniqGamma @body.gathRho
                                                     in  makeArrow p gamma a @body.ty
   | App         loc         .   ty              =   varUpd @rvarMp @loc.alpha
                 loc         .   lUniqAlpha      :   UNIQUEREF gUniq
@@ -452,7 +452,7 @@ SEM CExpr
                 loc         .   lUniqAPhi       :   UNIQUEREF gUniq
                 loc         .   arrowPhi        =   Relev_Beta @lUniqAPhi
                 loc         .   lUniqGamma      :   UNIQUEREF gUniq
-                loc         .   gamma           =   Applic_Gamma @lUniqGamma []
+                loc         .   gamma           =   Applic_Gamma @lUniqGamma Set.empty
                 loc         .   extraUnif       =   let tau1 = varUpd @arg.rvarMp @func.ty
                                                         tau2 = makeArrow @arrowPhi @gamma
                                                                (panicJust "Argument type error." @arg.mbTy)

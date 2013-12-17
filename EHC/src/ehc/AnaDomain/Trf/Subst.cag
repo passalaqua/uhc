@@ -160,12 +160,7 @@ ATTR Relev [ otherTy: (Maybe Relev) | | ]
 
 ATTR Applic [ otherTy: (Maybe Applic) | | ]
 SEM Applic
-  | Gamma           deps   .   otherTy      =    do { (Applic_Gamma _ ds) <- @lhs.otherTy; return ds }
-
-ATTR Rho [ otherTy: (Maybe Rho) | | ]
-SEM Rho
-  | Cons            tl     .   otherTy      =    do { (_:tl) <- @lhs.otherTy; return tl }
-                    hd     .   otherTy      =    do { (hd:_) <- @lhs.otherTy; return hd }
+  | Gamma           deps   .   otherTy      =    do { (Applic_Gamma _ ds) <- @lhs.otherTy; return ds } -- FIXME! Needs to union both ds to unify properly!
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -216,7 +211,7 @@ SEM Relev
 
 SEM Applic
   | Gamma           lhs    .   subst        =    case @lhs.otherTy of
-                                                   Just (Applic_Gamma v ds) -> let n = Applic_Gamma (fromJust @lhs.replUID) (ds ++ @deps.copy)
+                                                   Just (Applic_Gamma v ds) -> let n = Applic_Gamma (fromJust @lhs.replUID) (ds `union` @deps.copy)
                                                                                in  (rvmpApplic v n) |+> (rvmpApplic @v n)
                                                    Just g -> rvmpApplic @v g
                                                    Nothing -> emptyRVarMp

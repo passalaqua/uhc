@@ -14,7 +14,7 @@ Substitution for AnaDomain.
 %%[(8 codegen) hs module {%{EH}AnaDomain.Ftv} import({%{EH}Base.Common},{%{EH}AnaDomain})
 %%]
 
-%%[(8 codegen) hs import(qualified Data.Set as Set)
+%%[(8 codegen) hs import(Data.Set)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -57,21 +57,21 @@ appFv ty
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen)
-ATTR AllNT TyAGItf [ | | tyFv  USE {`Set.union`} {Set.empty} : UIDS ]
-ATTR AllNT TyAGItf [ | | relFv USE {`Set.union`} {Set.empty} : UIDS ]
-ATTR AllNT TyAGItf [ | | appFv USE {`Set.union`} {Set.empty} : UIDS ]
+ATTR AllNT TyAGItf [ | | tyFv  USE {`union`} {empty} : UIDS ]
+ATTR AllNT TyAGItf [ | | relFv USE {`union`} {empty} : UIDS ]
+ATTR AllNT TyAGItf [ | | appFv USE {`union`} {empty} : UIDS ]
 %%]
 
 %%[(8 codegen)
 SEM RelTyScheme
-  | Ty              lhs.tyFv  = Set.difference @ty.tyFv @alphas
-                    lhs.relFv = Set.difference @ty.relFv @betas
-                    lhs.appFv = Set.difference @ty.appFv @gammas
+  | Ty              lhs.tyFv  = difference @ty.tyFv @alphas
+                    lhs.relFv = difference @ty.relFv @betas
+                    lhs.appFv = difference @ty.appFv @gammas
 
 SEM Relev
-  | Beta            lhs.relFv = Set.singleton(@v)
+  | Beta            lhs.relFv = singleton(@v)
 
 SEM Applic
-  | Gamma           lhs.appFv = Set.singleton(@v) `Set.union` @deps.appFv
+  | Gamma           lhs.appFv = singleton(@v) `union` @deps.appFv
 %%]
 

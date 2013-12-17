@@ -13,7 +13,7 @@
 %%[(8 codegen) hs import({%{EH}Base.Common})
 %%]
 
-%%[(8 codegen) hs import(qualified Data.Map as Map, qualified Data.Set as Set, Data.Char)
+%%[(8 codegen) hs import(qualified Data.Map as Map, qualified Data.Set as Set, Data.Set(foldr), Data.Char)
 %%]
 
 %%[(8 codegen).WRAPPER ag import({AnaDomain/AbsSyn})
@@ -120,7 +120,11 @@ SEM Applic
 %%]
 
 %%[(8 codegen)
-SEM RelTyL Rho [ | | ppL: {[PP_Doc]} ]
+SEM RelTyL [ | | ppL: {[PP_Doc]} ]
   | Nil         lhs         .   ppL         =   []
   | Cons        lhs         .   ppL         =   @hd.pp : @tl.ppL
+
+SEM Rho [ | | ppL: {[PP_Doc]} ]
+  | Nil         lhs         .   ppL         =   []
+  | Entry       lhs         .   ppL         =   @val.pp : @tl.ppL
 %%]
