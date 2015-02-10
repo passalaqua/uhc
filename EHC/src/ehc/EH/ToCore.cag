@@ -1,4 +1,18 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Is module main module?
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen)
+SEM AGItf
+  | AGItf       loc         .   isMainMod   =   
+%%[[8
+                                                True
+%%][50
+                                                @lhs.isMainMod
+%%]]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Is main body 'main'?
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -9,13 +23,7 @@ SEM AGItf
                                                   Just n | n == hsnMain -> True
                                                   _                     -> False
                             .   insertMainUse
-                                            =   not @mainUseExists
-%%]
-
-%%[(50 codegen)
-SEM AGItf
-  | AGItf       loc         .   insertMainUse
-                                            :=  not @mainUseExists && @lhs.isMainMod
+                                            =   not @mainUseExists && @isMainMod
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -25,29 +33,60 @@ SEM AGItf
 %%[(8 codegen).mainDefExists
 SEM AGItf
   | AGItf       loc         .   mainDefExists
+                                            =   not $ null @expr.letValMainCBindL
+                            .   insertMainDef
+                                            =   not @mainDefExists && @isMainMod
+%%]
+                            .   mainDefExists
                                             =   let ds = [ b | (_,g) <- @expr.letValCBindL, b <- g, cbindNm b == hsnMain ]
                                                 in  not (null ds)
-                            .   insertMainDef
-                                            =   not @mainDefExists
-%%]
-
-%%[(50 codegen)
-SEM AGItf
-  | AGItf       loc         .   insertMainDef
-                                            :=  not @mainDefExists && @lhs.isMainMod
-%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Generation of core
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%%[(50 codegen)
+-- | Import/export info is required
+ATTR
+  AGItf
+    [ importUsedModules: ImportUsedModules
+      moduleImportExportImpl : ModuleImportExportImpl
+    | | ]
+%%]
+
 %%[(8 codegen)
 ATTR AGItf [ | | cmodule: CModule ]
 
 SEM AGItf
-  | AGItf       lhs         .   cmodule     =   let b = if @insertMainUse then acoreVar hsnMain else @expr.letCBody
-                                                    d = if @insertMainDef then acoreLet CBindCateg_Plain [acoreBind1Ty hsnMain (acoreTyErr $ "EH.ToCore.AGItf.main") @expr.letCBody] else id
+  | AGItf       lhs         .   cmodule     =   let bm    = acoreVar hsnMain
+                                                    bb    = @expr.letCBody
+                                                    db    = acoreLet acoreBindcategPlain [acoreBind1Ty hsnMain (acoreTyErr $ "EH.ToCore.AGItf.main") $ acoreRunMain @expr.letCBody]
+                                                    mb m  = acoreLet acoreBindcategPlain [mkb $ acoreRunMain me]
+                                                          where (me,mkb) = cbindExtractExprMk m
+                                                    (b,d) = case (@expr.letValMainCBindL, @mainUseExists, @isMainMod) of
+                                                        ([]   , False, True) -> (bm, db   )
+                                                        ((m:_), False, True) -> (bm, mb m )
+                                                        ([]   , True , True) -> (bb, db   )
+                                                        ((m:_), True , True) -> (bb, mb m )
+                                                        ((m:_), _    , _   ) -> (bb, mb m )
+                                                        (_    , _    , _   ) -> (bb, id   )
+                                                    alldata =
+                                                      [ (tn, [ (cn, dtiCTag dti) | (cn,dti) <- Map.toList $ dgiConstrTagMp dgi ])
+                                                      | (tn,dgi) <- gamToAssocL @expr.gathDataGam, not (dgiIsNewtype dgi)
+                                                      ]
+                                                    allConNmS = Set.fromList [ cn | (_,cs) <- alldata, (cn,_) <- cs ]
                                                 in  CModule_Mod @lhs.moduleNm
+%%[[8
+                                                        [] []
+%%][50
+                                                        (   [ CExport_ExportData (hsnQualified tn) (Just [ hsnQualified cn | (cn,_) <- cs ]) | (tn,cs) <- alldata ]
+                                                         ++ [ CExport_Export (hsnQualified n) | n <- Map.keys $ mieimplHsName2FldMp @lhs.moduleImportExportImpl, n `Set.notMember` allConNmS ]
+                                                        )
+                                                        (map CImport_Import $ Set.toList $ iumHSDeclModules @lhs.importUsedModules)
+%%]]
+                                                        [ CDeclMeta_Data tn [ CDataCon_Con cn (ctagTag ctag) (ctagArity ctag) | (cn,ctag) <- cs ]
+                                                        | (tn,cs) <- alldata
+                                                        ]
                                                         (
 %%[[9
                                                            cSubstAppExpr True @expr.cSubst
@@ -64,7 +103,7 @@ SEM AGItf
                                                            Nothing
 %%]]
                                                         )
-                                                        [ (tn,Map.toList m) | (tn,dgi) <- gamToAssocL @expr.gathDataGam, not (dgiIsNewtype dgi), let m = Map.map dtiCTag $ dgiConstrTagMp dgi ]
+                                                        -- [ (tn,Map.toList m) | (tn,dgi) <- gamToAssocL @expr.gathDataGam, not (dgiIsNewtype dgi), let m = Map.map dtiCTag $ dgiConstrTagMp dgi ]
                 loc         .   extraCBindL =   []
 %%]
 
@@ -432,9 +471,9 @@ SEM Expr
                                                         -- . (\v -> v `seq` tr "Expr.DataFields.dfexpr" ("arity" >#< length dflt) v)
                                                         . listSaturateWith 0 (ctagArity (dtiCTag dti) - 1) (\(_,(_,Just o)) -> o) dflt
                                                         -- . (\v -> v `seq` tr "Expr.DataFields.dfexpr2" ("arity" >#< length dflt) v)
-                                                        . fuMap (\l mke -> let o = dtiOffsetOfFld l dti in (mke dti o,o))
+                                                        . fuMap (\l mke -> let o = fldInt $ dtiOffsetOfFld l dti in (mke dti o,o))
                                                       where dflt = [ (o,(f,(CExpr_TupIns (acoreBuiltinUndefined @lhs.opts) (dtiCTag dti) f (acoreInt @lhs.opts o) (mkDflt f),Just o)))
-                                                                   | (f,i) <- Map.toList $ dtiFldMp dti, let o = dfiOffset i
+                                                                   | (f,i) <- Map.toList $ dtiFldMp dti, let o = fldInt $ dfiOffset i
                                                                    ]
                                                 in  if dgiIsNewtype @dgi
                                                     then acoreLet CBindCateg_Plain @dataFieldExpr.dfeCBindL
@@ -446,7 +485,7 @@ SEM Expr
                                                            _ -> acoreLet CBindCateg_Plain (err ++  @dataFieldExpr.dfeCBindL)
                                                                   (acoreSatSelsCasesTy (rceUpdEnv (acoreVar en) @rceEnv) (Just (mkHNm @lUniq,(acoreTyErr $ "EH.ToCore.Expr.DataFields: " ++ show (mkHNm @lUniq)))) @dataFieldExpr.dfeCExpr alts)
                                                              where alts = [ ( dtiCTag dti
-                                                                            , [ (f,acoreTyErr $ "EH.Expr.DataFields.dfexpr: " ++ show f,{-f,-}dfiOffset i) | (f,i) <- Map.toList $ dtiFldMp dti ]
+                                                                            , [ (f,acoreTyErr $ "EH.Expr.DataFields.dfexpr: " ++ show f,{-f,-} fldInt $ dfiOffset i) | (f,i) <- Map.toList $ dtiFldMp dti ]
                                                                             , Nothing
                                                                             , mkTup dti acoreVar (CExpr_Tup $ dtiCTag dti) @dataFieldExpr.fuCExprL
                                                                             )
@@ -515,7 +554,7 @@ SEM DataConstr
 %%[(8 codegen)
 SEM Decl
   | Data        loc         .   fldSelCBindL=   let (xn1:xn2:_) = hsnLclSupply
-                                                    tgSels f i = [ (t,[(f,acoreTyErr $ "EH.ToCore.Decl.Data.tgSels:" ++ show f,{-f,-}o)],Nothing,acoreVar f) | (t,o) <- Map.toList $ dficInTagMp i ]
+                                                    tgSels f i = [ (t,[(f,acoreTyErr $ "EH.ToCore.Decl.Data.tgSels:" ++ show f, {-f,-} fldInt o)],Nothing,acoreVar f) | (t,o) <- Map.toList $ dficInTagMp i ]
                                                     ty1 f = valGamLookupTyDefault f @lhs.finValGam
                                                     ty2 t = SysF.ty2TyC @lhs.opts @lhs.sysfEnv t
                                                 in  if @isNewtype
@@ -728,7 +767,8 @@ SEM PatExpr
                                                     sat = -- (\v -> v `seq` tr "PatExpr.DataFields.rpatBindss" ("tag" >#< @tag >#< "arity" >#< max) v) $
                                                           listSaturateWith 0 max (foffOffset . fst) $
                                                           -- (\v -> v `seq` tr "PatExpr.DataFields.rpatBindss2" ("tag" >#< @tag >#< "arity" >#< max) v) $
-                                                            (zipWith (\o n -> (o,(FldKnownOffset n o,RPat_Var (RPatNmOrig n) (acoreTyErr $ "EH.ToCore.PatExpr.DataFields: " ++ show n) False))) [0..max] hsnLclSupply)
+                                                          -- (zipWith (\o n -> (o,(FldKnownOffset n o,RPat_Var (RPatNmOrig n) (acoreTyErr $ "EH.ToCore.PatExpr.DataFields: " ++ show n) False))) [0..max] hsnLclSupply)
+                                                            (map (\(n,o) -> (fldInt o, (FldKnownOffset n (fldInt o),RPat_Var (RPatNmOrig n) (acoreTyErr $ "EH.ToCore.PatExpr.DataFields: " ++ show n) False))) (refGen 0 1 $ take (max+1) hsnLclSupply))
                                                 in  ( map (fsL2PatOffsetL @lhs.opts . sat) $ grp fsL      -- groups of bindings which can be dealt with simultaneously
                                                     , fsL2PatOffsetL @lhs.opts fsL                        -- bindings
                                                     , fsL2PatOffsetL @lhs.opts $ sat []                   -- 0 binding
@@ -807,7 +847,7 @@ SEM PatExpr
 
 %%[(8 codegen)
 SEM DataFieldPatExpr
-  | Ext         loc         .   ioffset     =   dfiOffset $ panicJust "DataFieldPatExpr.Ext.ioffset" $ Map.lookup @nm $ dtiFldMp @dataFieldPatExpr.dti
+  | Ext         loc         .   ioffset     =   fldInt $ dfiOffset $ panicJust "DataFieldPatExpr.Ext.ioffset" $ Map.lookup @nm $ dtiFldMp @dataFieldPatExpr.dti
                             .   offset      =   acoreInt @lhs.opts @ioffset :: CExpr
 
 SEM RecPatExpr
@@ -966,12 +1006,32 @@ Merging is done to group all mutual recursive stuff together, in particular inst
 Reordering and splitting up in smaller groups is then done later by a Core transformation.
 
 %%[(8 codegen) hs
-mkLetCBodyBindL :: Bool -> CBindCateg -> [(CBindCateg,CBindL)] -> [(CBindCateg,CBindL)] -> [(CBindCateg,CBindL)] -> CExpr -> ([(CBindCateg,CBindL)],CExpr)
+-- | Combine bindings and extract main binding
+mkLetCBodyBindL
+  :: Bool
+     -> CBindCateg -> [(CBindCateg,CBindL)] -> [(CBindCateg,CBindL)] -> [(CBindCateg,CBindL)] -> CExpr
+     -> ( [(CBindCateg,CBindL)]		-- all remaining let bindings not bound in body
+        , CBindL					-- if non empty singleton list it holds the def for main
+        , CExpr						-- bound bindings together with body
+        )
 mkLetCBodyBindL isStrict howToBind locBindL locOthBindL bodyBindL body
-  = if isStrict
-    then (locOthBindL,foldr (\(c,b) e -> acoreLet c b e) body (merge $ locBindL ++ bodyBindL))
-    else (merge $ locOthBindL ++ locBindL ++ bodyBindL, body)
-  where merge (cb1@(c1,b1) : tl)
+  | isStrict =
+         ( locOthBindL
+         , locMainBindL
+         , foldr (\(c,b) e -> acoreLet c b e) body (merge $ locNoMainBindL ++ bodyBindL)
+         )
+  | otherwise =
+         ( merge $ locOthBindL ++ locNoMainBindL ++ bodyBindL
+         , locMainBindL
+         , body
+         )
+  where (locMainBindL, locNoMainBindL)
+          = split locBindL
+          where split ((c,g):bs) = (m ++ mbs, (c,nm) : nmbs)
+                  where (m  ,nm  ) = partition (\b -> cbindNm b == hsnMain) g
+                        (mbs,nmbs) = split bs
+                split []         = ([], [])
+        merge (cb1@(c1,b1) : tl)
           = case merge tl of
               (c2,b2) : tl' | c1 == c2 && c1 == CBindCateg_Rec
                   -> (c1,b1++b2) : tl'
@@ -989,12 +1049,15 @@ ATTR
         , backCBindL
 %%]]
             : {[(CBindCateg,CBindL)]}
+          letValMainCBindL: CBindL
           letCBody: CExpr
     ]
 
 SEM Expr
-  | Let         (loc.letCBindRemL,loc.letCBody) =   mkLetCBodyBindL @isStrict @howToBind @letValCBindL @letCBindOtherL @body.letValCBindL @body.letCBody
+  | Let         (loc.letCBindRemL, loc.letCBindMainL, loc.letCBody)
+                                                =   mkLetCBodyBindL @isStrict @howToBind @letValCBindL @letCBindOtherL @body.letValCBindL @body.letCBody
                 lhs         .   letValCBindL    =   @letCBindRemL
+                            .   letValMainCBindL=	@letCBindMainL ++ @body.letValMainCBindL
                             .   letTyCBindL     =   @letTyCBindL ++ @body.letTyCBindL
                             .   frontCBindL     =   @frontCBindL ++ @body.frontCBindL
 %%[[90
@@ -1002,6 +1065,7 @@ SEM Expr
 %%]]
   | * - Let     lhs         .   letCBody        =   @cexpr
                             .   letValCBindL    =   []
+                            .   letValMainCBindL=   []
                             .   letTyCBindL     =   []
                             .   frontCBindL     =   []
 %%[[90

@@ -2,7 +2,7 @@
 %%% Fake AG dependencies to avoid INDUCED cycles
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[99
+%%[(99 hmtyinfer)
 SEM Decl
   | Data
   		-- constrs.dataConstrNmL < constrs.tyNm
@@ -10,10 +10,10 @@ SEM Decl
   		constrs.polVarMp < constrs.dataAltTy
   		constrs.polVarMp < constrs.tyKiGam
   		constrs.dataAltTyL < constrs.kiVarMp
-  		constrs.kiVarMp < constrs.maxArity
+  		-- constrs.kiVarMp < constrs.maxArity
   		-- constrs.kiVarMp < constrs.dataTy
   		constrs.intlTyKiGam < constrs.patValGam
-  		constrs.intlTyKiGam < constrs.tyNm
+  		-- constrs.intlTyKiGam < constrs.tyNm
   
   | TySig
   		tyExpr.ty < tyExpr.knPolCtx
@@ -73,20 +73,3 @@ SEM PrExpr
   		res.intlTyKiGam < res.kiVarMp
 %%]
 
-%%[99
-%%]
-
-%%[99
-%%]
-
-%%[99
-%%]
-
-%%[99
-%%]
-
-%%[99
-%%]
-
-%%[99
-%%]

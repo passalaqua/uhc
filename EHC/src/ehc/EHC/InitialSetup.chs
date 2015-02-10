@@ -21,7 +21,7 @@ Initial values
 %%[8 import(qualified {%{EH}EH.MainAG} as EHSem)
 %%]
 -- Core semantics
-%%[(8 codegen grin) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%[(8 core) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
 %%]
 -- HI semantics
 %%[5020 import(qualified {%{EH}HI.MainAG} as HISem)
@@ -30,8 +30,10 @@ Initial values
 %%[50 import(qualified {%{EH}HS.ModImpExp} as HSSemMod)
 %%]
 
--- BindingMp, SysF
-%%[8 import({%{EH}BindingInfo})
+%%[(50 codegen) hs import({%{EH}CodeGen.ImportUsedModules}, {%{EH}CodeGen.ModuleImportExportImpl})
+%%]
+-- LamMp, SysF
+%%[(8 codegen) import({%{EH}LamInfo})
 %%]
 
 %%[9 import(qualified {%{EH}Gam.ClGam} as Pr(initClGam))
@@ -71,23 +73,27 @@ initialHSSem opts
 initialEHSem :: EHCOpts -> FPath -> EHSem.Inh_AGItf
 initialEHSem opts fp
   = EHSem.Inh_AGItf
-      { EHSem.moduleNm_Inh_AGItf        = mkHNm (fpathBase fp)
-      , EHSem.gUniq_Inh_AGItf           = uidStart
-      , EHSem.opts_Inh_AGItf            = opts
+      { EHSem.moduleNm_Inh_AGItf        		= mkHNm (fpathBase fp)
+      , EHSem.gUniq_Inh_AGItf           		= uidStart
+      , EHSem.opts_Inh_AGItf            		= opts
 %%[[50
-      , EHSem.isMainMod_Inh_AGItf       = False
-      , EHSem.idQualGam_Inh_AGItf       = emptyGam
+      , EHSem.isMainMod_Inh_AGItf       		= False
+      , EHSem.idQualGam_Inh_AGItf       		= emptyGam
 %%]]
 %%[[(50 hmtyinfer)
-      , EHSem.valGam_Inh_AGItf          = emptyGam
-      , EHSem.dataGam_Inh_AGItf         = emptyGam
-      , EHSem.tyGam_Inh_AGItf           = initTyGam
-      , EHSem.tyKiGam_Inh_AGItf         = initTyKiGam
-      , EHSem.polGam_Inh_AGItf          = initPolGam
-      , EHSem.kiGam_Inh_AGItf           = initKiGam
-      , EHSem.clGam_Inh_AGItf           = Pr.initClGam
-      , EHSem.clDfGam_Inh_AGItf         = emptyGam
-      , EHSem.chrStore_Inh_AGItf        = initScopedPredStore
+      , EHSem.valGam_Inh_AGItf          		= emptyGam
+      , EHSem.dataGam_Inh_AGItf         		= emptyGam
+      , EHSem.tyGam_Inh_AGItf           		= initTyGam
+      , EHSem.tyKiGam_Inh_AGItf         		= initTyKiGam
+      , EHSem.polGam_Inh_AGItf          		= initPolGam
+      , EHSem.kiGam_Inh_AGItf           		= initKiGam
+      , EHSem.clGam_Inh_AGItf           		= Pr.initClGam
+      , EHSem.clDfGam_Inh_AGItf         		= emptyGam
+      , EHSem.chrStore_Inh_AGItf        		= initScopedPredStore
+%%]]
+%%[[(50 codegen)
+      , EHSem.importUsedModules_Inh_AGItf		= emptyImportUsedModules
+      , EHSem.moduleImportExportImpl_Inh_AGItf	= emptyModuleImportExportImpl
 %%]]
       }
 %%]
@@ -96,10 +102,13 @@ initialEHSem opts fp
 initialCore2GrSem :: EHCOpts -> Core2GrSem.Inh_CodeAGItf
 initialCore2GrSem opts
   = Core2GrSem.Inh_CodeAGItf
-      { Core2GrSem.gUniq_Inh_CodeAGItf           = uidStart
-      , Core2GrSem.dataGam_Inh_CodeAGItf         = emptyGam
-      , Core2GrSem.opts_Inh_CodeAGItf            = opts
-      , Core2GrSem.bindingMp_Inh_CodeAGItf       = initBindingMp
+      { Core2GrSem.gUniq_Inh_CodeAGItf           	= uidStart
+      , Core2GrSem.dataGam_Inh_CodeAGItf         	= emptyGam
+      , Core2GrSem.opts_Inh_CodeAGItf            	= opts
+      , Core2GrSem.lamMp_Inh_CodeAGItf           	= initLamMp
+%%[[50
+      , Core2GrSem.importUsedModules_Inh_CodeAGItf	= emptyImportUsedModules
+%%]]
       }
 %%]
 

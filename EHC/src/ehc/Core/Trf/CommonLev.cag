@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -104,6 +104,7 @@ SEM CExpr
                 loc         .   levOf       =   @expr.levOf `max` @offset.levOf `max` @fldExpr.levOf
   | Lam         loc         .   levOf       =   fvsLev @lhs.cvarIntroMp cLevModule @body.fvS
   | Let         loc         .   levOf       =   fvsLev @lhs.cvarIntroMp cLevModule @fvS
+  | Tup         loc         .   levOf       =   cLevModule
 %%[[50
   | String      loc         .   levOf       =   cLevIntern
 %%]]

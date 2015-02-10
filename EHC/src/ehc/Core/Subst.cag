@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -7,9 +7,11 @@
 %%% Substituting holes
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs module {%{EH}Core.Subst} import(Data.Maybe,qualified Data.Set as Set,qualified Data.Map as Map,UHC.Util.Pretty,UHC.Util.Utils,{%{EH}Opts.Base},{%{EH}Base.Common},{%{EH}Ty},{%{EH}Core},{%{EH}VarMp},{%{EH}Core.Pretty},{%{EH}Core.FvS})
+%%[(8 codegen) hs module {%{EH}Core.Subst} import(Data.Maybe,qualified Data.Set as Set,qualified Data.Map as Map,UHC.Util.Pretty,UHC.Util.Utils,{%{EH}Opts.Base},{%{EH}Base.Common},{%{EH}Ty},{%{EH}Core},{%{EH}VarMp},{%{EH}Core.FvS})
 %%]
 
+%%[(8 coreout) hs import({%{EH}Core.Pretty})
+%%]
 %%[(8 codegen) hs import({%{EH}AbstractCore})
 %%]
 
@@ -226,7 +228,7 @@ SEM CExpr
 %%]
 
 %%[(8 codegen)
-ATTR AllCodeNT CodeAGItf [ | | cRepl: SELF ]
+ATTR AllNT CodeAGItf [ | | cRepl: SELF ]
 %%]
 
 %%[(8 codegen)

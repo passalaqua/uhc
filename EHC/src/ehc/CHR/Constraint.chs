@@ -1,3 +1,7 @@
+%%[0 hs
+{-# LANGUAGE CPP #-}
+%%]
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Constraint Handling Rules: Constraint language
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -16,7 +20,7 @@
 
 %%[(50 hmtyinfer || hmtyast) import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
 %%]
-%%[(50 hmtyinfer || hmtyast) import(Data.Typeable(Typeable,Typeable2), Data.Generics(Data))
+%%[(50 hmtyinfer || hmtyast) import(Data.Typeable, Data.Generics(Data))
 %%]
 
 %%[(50 hmtyinfer || hmtyast) import({%{EH}Opts.Base})
@@ -55,7 +59,11 @@ mkReduction p i ps
 %%]
 
 %%[(50 hmtyinfer || hmtyast)
+#if __GLASGOW_HASKELL__ >= 708
+deriving instance Typeable  Constraint
+#else
 deriving instance Typeable2 Constraint
+#endif
 deriving instance (Data x, Data y) => Data (Constraint x y)
 %%]
 
@@ -108,7 +116,7 @@ instance (VarUpdatable p s,VarUpdatable info s) => VarUpdatable (Constraint p in
 %%% Resolution trace reification, for error reporting
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(9 hmtyinfer) export(UnresolvedTrace(..))
+%%[(9 hmtyinfer || hmtyast) export(UnresolvedTrace(..))
 -- | The trace of an unresolved predicate
 data UnresolvedTrace p info
   = UnresolvedTrace_None									-- no trace required when all is resolved

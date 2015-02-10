@@ -2,14 +2,14 @@
 %%% Code generation target
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) module {%{EH}Base.Target}
+%%[8 module {%{EH}Base.Target}
 %%]
 
-%%[(8 codegen) import(qualified Data.Map as Map,Data.List)
+%%[8 import(qualified Data.Map as Map,Data.List)
 %%]
-%%[(8 codegen) import(UHC.Util.Pretty,UHC.Util.Utils)
+%%[8 import(UHC.Util.Pretty,UHC.Util.Utils)
 %%]
-%%[(50 codegen) import(UHC.Util.Binary, UHC.Util.Serialize)
+%%[50 import(UHC.Util.Binary, UHC.Util.Serialize)
 %%]
 
 %%[doesWhat doclatex
@@ -74,11 +74,12 @@ Currently there are target flavors for:
 %%% Targets for code generation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) export(Target(..))
+%%[8 export(Target(..))
 -- | All possible targets, even though they may not be configured (done in supportedTargetMp)
 data Target
   = Target_None								-- no codegen
-  | Target_None_Core_None					-- only Core
+%%[[(8 codegen)
+  | Target_None_Core_AsIs					-- only Core
   | Target_None_TyCore_None					-- only TyCore
 
   -- jazy
@@ -86,6 +87,7 @@ data Target
 
   -- javascript
   | Target_Interpreter_Core_JavaScript		-- javascript based on Core
+  | Target_Interpreter_GrinCmm_JavaScript	-- javascript based on Grin -> Cmm
 %%[[(8888 codegen java)
   -- not used at all
   | Target_Interpreter_Core_Java			-- java based on Core, as src. Will be obsolete.
@@ -105,20 +107,23 @@ data Target
 
   -- grin, clr, wholeprogC
   | Target_FullProgAnal_Grin_CLR			-- full program analysis on grin, generating for Common Language Runtime (.NET / Mono)
+%%]]
   deriving ( Eq, Ord, Enum )
 %%]
 
 Concrete naming convention.
 Is derived from the abstract, attempting to keep each part of similar size (mostly 4 letters).
 
-%%[(8 codegen)
+%%[8
 instance Show Target where
   show Target_None							= "NONE"
-  show Target_None_Core_None				= "core"
+%%[[(8 codegen)
+  show Target_None_Core_AsIs				= "cr"
   show Target_None_TyCore_None				= "tycore"
   show Target_Interpreter_Core_Jazy			= "jazy"
   show Target_Interpreter_Core_JavaScript	= "js"
-%%[[(8888 codegen java)
+  show Target_Interpreter_GrinCmm_JavaScript= "cmmjs"
+%%[[(8888 java)
   show Target_Interpreter_Core_Java			= "java"
 %%]]
   show Target_FullProgAnal_Grin_C			= "C"
@@ -126,14 +131,17 @@ instance Show Target where
   show Target_FullProgAnal_Grin_JVM			= "jvm"
   show Target_Interpreter_Grin_C			= "bc"
   show Target_FullProgAnal_Grin_CLR			= "clr"
+%%]]
 %%]
 
 Default target
 
-%%[(8 codegen) export(defaultTarget)
+%%[8 export(defaultTarget)
 defaultTarget :: Target
 %%[[(8 codegen grin)
 defaultTarget = Target_Interpreter_Grin_C
+%%][(103 corerun)
+defaultTarget = Target_None_Core_AsIs
 %%][8
 defaultTarget = Target_None
 %%]]
@@ -141,7 +149,7 @@ defaultTarget = Target_None
 
 Supported targets.
 
-%%[(8 codegen) export(supportedTargetMp, showSupportedTargets', showSupportedTargets)
+%%[8 export(supportedTargetMp, showSupportedTargets', showSupportedTargets)
 supportedTargetMp :: Map.Map String Target
 (supportedTargetMp,allTargetInfoMp)
   = (Map.fromList ts, Map.fromList is)
@@ -149,28 +157,33 @@ supportedTargetMp :: Map.Map String Target
           [ ((show t, t),(t,i))
           | (t,i)
               <- []
-                 -- ++ [ mk Target_None_Core_None [] ]
-%%[[(8 codegen jazy)
+%%[[(8 corebackend)
+                 ++ [ mk Target_None_Core_AsIs [] ]
+%%]]
+%%[[(8 jazy)
                  ++ [ mk Target_Interpreter_Core_Jazy [FFIWay_Jazy] ]
 %%]]
-%%[[(8 codegen javascript)
+%%[[(8 javascript)
                  ++ [ mk Target_Interpreter_Core_JavaScript [FFIWay_JavaScript] ]
 %%]]
-%%[[(8888 codegen java)
+%%[[(8 cmm javascript)
+                 -- ++ [ mk Target_Interpreter_GrinCmm_JavaScript [FFIWay_JavaScript] ]
+%%]]
+%%[[(8888 java)
                  -- ++ [ mk Target_Interpreter_Core_Java [] ]
 %%]]
-%%[[(8 codegen grin)
+%%[[(8 grin)
                  ++ [ mk Target_Interpreter_Grin_C [FFIWay_CCall]
                     ]
 %%]]
-%%[[(8 codegen grin wholeprogC)
+%%[[(8 grin wholeprogC)
                  ++ [ mk Target_FullProgAnal_Grin_C [FFIWay_CCall]
                     ]
 %%]]
-%%[[(8 codegen llvm wholeprogC)
+%%[[(8 llvm wholeprogC)
                  ++ [ mk Target_FullProgAnal_Grin_LLVM [FFIWay_CCall] ]
 %%]]
-%%[[(8 codegen clr wholeprogC)
+%%[[(8 clr wholeprogC)
                  ++ [ mk Target_FullProgAnal_Grin_CLR [FFIWay_CCall] ]
 %%]]
           ]
@@ -189,7 +202,7 @@ showSupportedTargets
 %%% Target flavors
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) export(TargetFlavor(..))
+%%[8 export(TargetFlavor(..))
 data TargetFlavor
   = TargetFlavor_Plain						-- no special stuff
   | TargetFlavor_Debug						-- debugging variant
@@ -197,12 +210,12 @@ data TargetFlavor
   deriving (Eq,Ord,Enum)
 %%]
 
-%%[(8 codegen) export(defaultTargetFlavor)
+%%[8 export(defaultTargetFlavor)
 defaultTargetFlavor :: TargetFlavor
 defaultTargetFlavor = TargetFlavor_Plain
 %%]
 
-%%[(8 codegen)
+%%[8
 instance Show TargetFlavor where
   show TargetFlavor_Plain				= "plain"
   show TargetFlavor_Debug				= "debug"
@@ -210,7 +223,7 @@ instance Show TargetFlavor where
 
 Supported target variants.
 
-%%[(8 codegen) export(allTargetFlavorMp,showAllTargetFlavors',showAllTargetFlavors)
+%%[8 export(allTargetFlavorMp,showAllTargetFlavors',showAllTargetFlavors)
 allTargetFlavorMp :: Map.Map String TargetFlavor
 allTargetFlavorMp
   = Map.fromList ts
@@ -252,25 +265,51 @@ targetDoesHPTAnalysis t
       _ 								-> False
 %%]
 
+%%[(8888 codegen) export(targetIsViaCmm)
+targetIsViaCmm :: Target -> Bool
+targetIsViaCmm t
+  = case t of
+%%[[(8 cmm)
+      _ 								-> targetIsViaGrinCmmJavaScript t
+%%][8
+      _ 								-> False
+%%]]
+{-# INLINE targetIsViaCmm #-}
+%%]
+
+%%[(8888 codegen) export(targetIsViaGrin)
+targetIsViaGrin :: Target -> Bool
+targetIsViaGrin t
+  = case t of
+%%[[(8 grin)
+      _ 								-> targetIsViaGrinCmmJavaScript t || targetIsGrinBytecode t || targetDoesHPTAnalysis t
+%%][8
+      _ 								-> False
+%%]]
+{-# INLINE targetIsViaGrin #-}
+%%]
+
 %%[(8 codegen) export(targetIsGrinBytecode)
 targetIsGrinBytecode :: Target -> Bool
 targetIsGrinBytecode t
   = case t of
-%%[[(8 codegen grin)
+%%[[(8 grin)
       Target_Interpreter_Grin_C		 	-> True
 %%]]
       _ 								-> False
+{-# INLINE targetIsGrinBytecode #-}
 %%]
 
-%%[(8 codegen) export(targetIsGrin)
-targetIsGrin :: Target -> Bool
-targetIsGrin t
+%%[(8 codegen) export(targetAllowsGrinNodePtrMix)
+targetAllowsGrinNodePtrMix :: Target -> Bool
+targetAllowsGrinNodePtrMix t
   = case t of
-%%[[(8 codegen grin)
-      _ 								-> targetIsGrinBytecode t || targetDoesHPTAnalysis t
+%%[[(8 grin)
+      _		 							-> targetIsGrinBytecode t
 %%][8
       _ 								-> False
 %%]]
+{-# INLINE targetAllowsGrinNodePtrMix #-}
 %%]
 
 %%[(8 codegen) export(targetIsC)
@@ -284,16 +323,18 @@ targetIsC t
       Target_Interpreter_Grin_C		 	-> True
 %%]]
       _ 								-> False
+{-# INLINE targetIsC #-}
 %%]
 
 %%[(8 codegen) export(targetAllowsOLinking)
 targetAllowsOLinking :: Target -> Bool
 targetAllowsOLinking t
   = case t of
-%%[[(8 codegen grin)
+%%[[(8 grin)
       Target_Interpreter_Grin_C		 	-> True
 %%]]
       _ 								-> False
+{-# INLINE targetAllowsOLinking #-}
 %%]
 
 %%[(8 codegen) export(targetAllowsJarLinking)
@@ -304,14 +345,16 @@ targetAllowsJarLinking t
       Target_Interpreter_Core_Jazy		-> True
 %%]]
       _ 								-> False
+{-# INLINE targetAllowsJarLinking #-}
 %%]
 
 %%[(8 codegen) export(targetIsCore)
 targetIsCore :: Target -> Bool
 targetIsCore t
   = case t of
-      Target_None_Core_None				-> True
+      Target_None_Core_AsIs				-> True
       _ 								-> False
+{-# INLINE targetIsCore #-}
 %%]
 
 %%[(8 codegen) export(targetIsTyCore)
@@ -320,6 +363,7 @@ targetIsTyCore t
   = case t of
       Target_None_TyCore_None			-> True
       _ 								-> False
+{-# INLINE targetIsTyCore #-}
 %%]
 
 %%[(8 codegen) export(targetIsJVM)
@@ -330,16 +374,41 @@ targetIsJVM t
       Target_Interpreter_Core_Jazy		-> True
 %%]]
       _ 								-> False
+{-# INLINE targetIsJVM #-}
+%%]
+
+%%[(8 codegen) export(targetIsViaGrinCmmJavaScript)
+targetIsViaGrinCmmJavaScript :: Target -> Bool
+targetIsViaGrinCmmJavaScript t
+  = case t of
+%%[[(8 cmm javascript)
+      Target_Interpreter_GrinCmm_JavaScript	-> True
+%%]]
+      _ 									-> False
+{-# INLINE targetIsViaGrinCmmJavaScript #-}
+%%]
+
+%%[(8 codegen) export(targetIsViaCoreJavaScript)
+targetIsViaCoreJavaScript :: Target -> Bool
+targetIsViaCoreJavaScript t
+  = case t of
+%%[[(8 javascript)
+      Target_Interpreter_Core_JavaScript	-> True
+%%]]
+      _ 									-> False
+{-# INLINE targetIsViaCoreJavaScript #-}
 %%]
 
 %%[(8 codegen) export(targetIsJavaScript)
 targetIsJavaScript :: Target -> Bool
 targetIsJavaScript t
   = case t of
-%%[[(8 codegen javascript)
-      Target_Interpreter_Core_JavaScript	-> True
-%%]]
+%%[[(8 javascript)
+      _ 									-> targetIsViaCoreJavaScript t || targetIsViaGrinCmmJavaScript t
+%%][8
       _ 									-> False
+%%]]
+{-# INLINE targetIsJavaScript #-}
 %%]
 
 %%[(8 codegen grin llvm wholeprogAnal wholeprogC) export(targetIsLLVM)
@@ -350,6 +419,7 @@ targetIsLLVM t
       Target_FullProgAnal_Grin_LLVM 	-> True
 %%]]
       _ 								-> False
+{-# INLINE targetIsLLVM #-}
 %%]
 
 %%[(8 codegen grin clr wholeprogC) export(targetIsCLR)
@@ -360,6 +430,7 @@ targetIsCLR t
       Target_FullProgAnal_Grin_CLR	 	-> True
 %%]]
       _ 								-> False
+{-# INLINE targetIsCLR #-}
 %%]
 
 %%[(8 codegen) export(targetIsOnUnixAndOrC)
@@ -367,21 +438,22 @@ targetIsCLR t
 targetIsOnUnixAndOrC :: Target -> Bool
 targetIsOnUnixAndOrC t
   = targetIsC t || targetIsJVM t
+{-# INLINE targetIsOnUnixAndOrC #-}
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Possible FFI interface routes
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) export(FFIWay(..))
+%%[8 export(FFIWay(..))
 data FFIWay
   = FFIWay_Prim				-- as primitive
   | FFIWay_CCall			-- as C call
   | FFIWay_Jazy				-- as Java/Jazy
-%%[[(8 javascript)
+%%[[(8 codegen javascript)
   | FFIWay_JavaScript		-- JavaScript
 %%]]
-%%[[(8 clr grin wholeprogC)
+%%[[(8 codegen clr grin wholeprogC)
   | FFIWay_CLR				-- as CLR, just a placeholder
 %%]]
   deriving (Eq,Ord,Enum)
@@ -390,10 +462,10 @@ instance Show FFIWay where
   show FFIWay_Prim			= "prim"
   show FFIWay_CCall			= "ccall"
   show FFIWay_Jazy			= "jazy"
-%%[[(8 javascript)
+%%[[(8 codegen javascript)
   show FFIWay_JavaScript	= "js"
 %%]]
-%%[[(8 clr grin wholeprogC)
+%%[[(8 codegen clr grin wholeprogC)
   show FFIWay_CLR			= "dotnet"
 %%]]
 
@@ -403,29 +475,35 @@ instance PP FFIWay where
 
 The default FFIWay for FFIWay_Prim for a target
 
-%%[(8 codegen) export(ffiWayForPrim)
+%%[8 export(ffiWayForPrim)
 ffiWayForPrim :: Target -> Maybe FFIWay
-%%[[(8 jazy)
+%%[[(8 codegen jazy)
 ffiWayForPrim Target_Interpreter_Core_Jazy			= Just FFIWay_Jazy
 %%]]
-%%[[(8 javascript)
+%%[[(8 codegen javascript)
 ffiWayForPrim Target_Interpreter_Core_JavaScript	= Just FFIWay_JavaScript
 %%]]
-%%[[(8 grin clr wholeprogC)
+%%[[(8 codegen cmm javascript)
+ffiWayForPrim Target_Interpreter_GrinCmm_JavaScript	= Just FFIWay_JavaScript
+%%]]
+%%[[(8 codegen grin clr wholeprogC)
 ffiWayForPrim Target_FullProgAnal_Grin_CLR			= Just FFIWay_CLR
 %%]]
-%%[[(8 grin llvm wholeprogC)
+%%[[(8 codegen grin llvm wholeprogC)
 ffiWayForPrim Target_FullProgAnal_Grin_LLVM			= Just FFIWay_CCall
 %%]]
-ffiWayForPrim t | targetIsC t						= Just FFIWay_CCall
-                | otherwise							= Nothing
+ffiWayForPrim t
+%%[[(8 codegen)
+  | targetIsC t			              				= Just FFIWay_CCall
+%%]]
+  | otherwise			              				= Nothing
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Additional info about targets
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) export(TargetInfo(..),TargInfoMp)
+%%[8 export(TargetInfo(..),TargInfoMp)
 data TargetInfo
   = TargetInfo
       { targiAllowedFFI		:: [FFIWay]
@@ -434,18 +512,20 @@ data TargetInfo
 type TargInfoMp = Map.Map Target TargetInfo
 %%]
 
-%%[(8 codegen) export(allTargetInfoMp,allFFIWays)
+%%[8 export(allTargetInfoMp,allFFIWays)
 allTargetInfoMp :: TargInfoMp
 
+-- | All allowed platform dependent ways to do a FFI call, a primitive 'FFIWay_Prim' is always allowed even though there might be no backend for it.
+-- This allows code still to compile when no target/backend is available.
 allFFIWays :: [FFIWay]
-allFFIWays = nub $ concatMap targiAllowedFFI $ Map.elems allTargetInfoMp
+allFFIWays = nub $ (FFIWay_Prim :) $ concatMap targiAllowedFFI $ Map.elems allTargetInfoMp
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Instances: Typeable, Data
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(50 codegen)
+%%[50
 deriving instance Typeable Target
 deriving instance Data Target
 
@@ -460,7 +540,7 @@ deriving instance Data TargetFlavor
 %%% Instances: Binary, Serialize
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(50 codegen)
+%%[50
 instance Binary Target where
   put = putEnum8
   get = getEnum8

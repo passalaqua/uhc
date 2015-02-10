@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -7,7 +7,7 @@
 %%% Main
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[1 module {%{EH}EH.Parser} import(System.IO, UU.Parsing, UU.Parsing.Offside, UHC.Util.ParseUtils, UU.Scanner.GenToken, {%{EH}Base.Builtin},{%{EH}Base.Common}, {%{EH}Base.TermLike}, {%{EH}Scanner.Common}, {%{EH}EH})
+%%[1 module {%{EH}EH.Parser} import(System.IO, UU.Parsing, UU.Parsing.Offside, UHC.Util.ParseUtils, UU.Scanner.GenToken, {%{EH}Base.HsName.Builtin},{%{EH}Base.Common}, {%{EH}Base.TermLike}, {%{EH}Scanner.Common}, {%{EH}EH})
 %%]
 
 %%[1 export(pAGItf)
@@ -131,7 +131,7 @@ pDecl           =    mkEH Decl_Val        <$>  pPatExprBase  <*   pEQUAL   <*> p
 %%[6.pDecl
                 <|>  mkEH Decl_KiSig      <$>  pCon          <*   pDCOLON    <*> pKiExpr
 %%]
-%%[8.pDecl
+%%[(8 codegen).pDecl
                 <|>  (\(conv,_) saf imp nm sig
                         -> mkEH Decl_FFI conv saf
                              (

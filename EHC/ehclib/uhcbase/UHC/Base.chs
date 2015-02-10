@@ -260,7 +260,7 @@ foreign import prim primByteArrayToString :: ByteArray -> String
 
 #if defined (__UHC_TARGET_C__) || defined (__UHC_TARGET_LLVM__)
 foreign import prim packedStringToInteger :: PackedString -> Integer
-#elif defined(__UHC_TARGET_JS__)
+#elif defined(__UHC_TARGET_JS__) || defined(__UHC_TARGET_CR__)
 foreign import prim "primPackedStringToInteger" packedStringToInteger :: PackedString -> Integer
 #else
 foreign import prim "primCStringToInteger" packedStringToInteger :: PackedString -> Integer
@@ -684,7 +684,7 @@ instance Bounded Bool where
 -- type Char builtin
 type String = [Char]    -- strings are lists of characters
 
-#ifdef __UHC_TARGET_JAZY__
+#if defined(__UHC_TARGET_JAZY__) || defined(__UHC_TARGET_CR__)
 foreign import prim   primEqChar    :: Char -> Char -> Bool
 foreign import prim   primCmpChar   :: Char -> Char -> Ordering
 foreign import prim   primCharToInt   :: Char -> Int
@@ -976,7 +976,7 @@ foreign import prim primQuotInteger :: Integer -> Integer -> Integer
 foreign import prim primRemInteger  :: Integer -> Integer -> Integer
 #endif
 
-#if defined( __UHC_TARGET_BC__ ) || defined(__UHC_TARGET_JS__)
+#if defined( __UHC_TARGET_BC__ ) || defined(__UHC_TARGET_JS__) || defined(__UHC_TARGET_CR__)
 foreign import prim primQuotRemInteger       :: Integer -> Integer -> (Integer,Integer)
 foreign import prim primDivModInteger        :: Integer -> Integer -> (Integer,Integer)
 #endif
@@ -1251,7 +1251,7 @@ foreign import prim  primExpFloat   :: Float -> Float
 foreign import prim  primLogFloat   :: Float -> Float
 foreign import prim  primSqrtFloat  :: Float -> Float
 foreign import prim  primAtan2Float :: Float -> Float -> Float
-#elif defined(__UHC_TARGET_JS__)
+#elif defined(__UHC_TARGET_JS__) || defined(__UHC_TARGET_CR__)
 foreign import prim "primSinDouble"  primSinFloat   :: Float -> Float
 foreign import prim "primCosDouble"  primCosFloat   :: Float -> Float
 foreign import prim "primTanDouble"  primTanFloat   :: Float -> Float
@@ -1282,7 +1282,7 @@ foreign import ccall "tanhf" primTanhFloat  :: Float -> Float
 foreign import ccall "atan2f"  primAtan2Float   :: Float -> Float -> Float
 #endif
 
-#if defined(__UHC_TARGET_JS__)
+#if defined(__UHC_TARGET_JS__) || defined(__UHC_TARGET_CR__)
 foreign import prim "primIsNaNDouble         " primIsNaNFloat              :: Float -> Bool
 foreign import prim "primIsNegativeZeroDouble" primIsNegativeZeroFloat     :: Float -> Bool
 foreign import prim "primIsDenormalizedDouble" primIsDenormalizedFloat     :: Float -> Bool
@@ -1306,7 +1306,7 @@ foreign import prim primEncodeFloat             :: Integer -> Int -> Float
 
 -- primitive Double functions
 
-#if defined( __UHC_TARGET_JAZY__ ) || defined(__UHC_TARGET_JS__)
+#if defined( __UHC_TARGET_JAZY__ ) || defined(__UHC_TARGET_JS__) || defined(__UHC_TARGET_CR__)
 foreign import prim  primSinDouble   :: Double -> Double
 foreign import prim  primCosDouble   :: Double -> Double
 foreign import prim  primTanDouble   :: Double -> Double

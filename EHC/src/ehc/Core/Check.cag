@@ -1,0 +1,311 @@
+%%[0 lhs2tex
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Check core module when provided as source
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen corein) hs module {%{EH}Core.Check}
+%%]
+
+%%[(8 codegen corein) hs import({%{EH}Base.HsName.Builtin},{%{EH}Base.Common},{%{EH}Opts},{%{EH}Ty},{%{EH}Error},{%{EH}Gam},{%{EH}Gam.DataGam})
+%%]
+
+%%[(8 codegen corein) hs import({%{EH}Base.TermLike},{%{EH}AbstractCore},{%{EH}Core})
+%%]
+%%[(8888 codegen corein) hs import({%{EH}LamInfo})
+%%]
+%%[(8888 codegen corein) hs import({%{EH}Core.BindExtract},qualified {%{EH}Core.SysF.AsTy} as SysF)
+%%]
+
+%%[(8 codegen corein) hs import(Data.Maybe, qualified Data.Map as Map, qualified Data.Set as Set, qualified UHC.Util.FastSeq as Seq, qualified UHC.Util.Rel as Rel)
+%%]
+
+%%[(8 codegen corein) hs import(Control.Applicative)
+%%]
+
+%%[(8 codegen corein) hs import(UHC.Util.Pretty)
+%%]
+
+%%[(50 codegen corein) hs import({%{EH}Module.ImportExport})
+%%]
+
+%%[(8 codegen corein).WRAPPER ag import({Core/AbsSyn},{Core/CommonBindNm},{Core/CommonLev},{Core/CommonLevAlt},{Core/CommonLevLamPer1Lam},{Core/CommonLevLet},{Core/CommonCtxtPred},{Core/CommonDataGam})
+WRAPPER CodeAGItf
+%%]
+
+%%[(99 codegen corein)
+-- PRAGMA strictcase
+PRAGMA nocycle
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Haskell itf
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen corein) hs
+%%]
+data CheckEnv
+  = CheckEnv
+      {- cenvLamMp       :: LamMp
+      -}
+
+emptyCheckEnv
+  = CheckEnv
+      -- emptyLamMp
+
+
+%%[(8 codegen corein) hs export(NotYetTransformed(..), NotYetTransformedS)
+-- | What not yet has been transformed in the given Core, absence means some aspect has been transformed everywhere
+data NotYetTransformed
+  = NotYetTransformed_LambdaLifted
+  | NotYetTransformed_ANormal
+  deriving (Eq, Ord, Show, Enum, Bounded)
+
+type NotYetTransformedS = Set.Set NotYetTransformed
+%%]
+
+%%[(8 codegen corein) hs export(cmodCheck', Inh_CodeAGItf(..), Syn_CodeAGItf(..))
+cmodCheck'
+  :: Inh_CodeAGItf
+     -> CModule
+     -> Syn_CodeAGItf
+cmodCheck' inh cmod
+  = t
+  where t = wrap_CodeAGItf
+              (sem_CodeAGItf (CodeAGItf_AGItf cmod))
+              inh
+
+%%]
+cmodCheck
+  :: EHCOpts
+     -> CheckEnv -> CModule
+     -> ( ErrL          -- check errors
+        , HsName        -- the actual name of the module as used.
+        , [HsName]      -- imported modules
+        , Bool          -- has a main
+        )
+cmodCheck opts env cmod
+  = ( Seq.toList $ errs_Syn_CodeAGItf t
+    , realModuleNm_Syn_CodeAGItf t
+    , []
+    , True
+    )
+  where t = cmodCheck' opts env cmod
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Global info
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen corein)
+ATTR
+  AllCodeNT CodeAGItf
+    [ opts: EHCOpts
+      -- env : CheckEnv
+    | | ]
+
+ATTR
+  CodeAGItf CModule
+    [ moduleNm: HsName
+    | | ]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Module name
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen corein)
+ATTR CodeAGItf CModule [ | | realModuleNm: HsName ]
+
+SEM CModule
+  | Mod         loc         .   realModuleNm        =   @moduleNm
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Imported modules
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen corein)
+ATTR CodeAGItf CModule AllImport [ | | impModNmL USE {++} {[]} : {[HsName]} ]
+
+SEM CImport
+  | Import		lhs         .   impModNmL        	=   [@nm]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Export info, similar to the extracted info from .hs source modules
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(50 codegen corein)
+ATTR AllExport [ | | modExpL USE {++} {[]} : {[ModExp]} ]
+
+SEM CExport
+  | Export      lhs         .   modExpL             =   [ModExpEnt (ModEntSpec (hsnQualified @nm) emptyRange Nothing)]
+  | ExportData  lhs         .   modExpL             =   [ModExpEnt (ModEntSpec (hsnQualified @nm) emptyRange (fmap (ModEntSubs . map hsnQualified) @mbConNmL))]
+%%]
+
+%%[(50 codegen corein)
+ATTR AllImport [ | | modImpL USE {++} {[]} : {[ModImp]} ]
+
+SEM CImport
+  | Import		lhs			.   modImpL				=   [ModImp True @nm @nm False [] emptyRange]
+%%]
+
+%%[(50 codegen corein)
+ATTR CExpr AllBindOnly AllDeclMeta [ | | modDefsRel USE {`Rel.union`} {Rel.empty}: ModEntRel ]
+
+SEM CBind
+  | Bind        lhs         .   modDefsRel          =   let o = IdOcc @nm IdOcc_Val
+                                                        in  Rel.fromList [ (hsnQualified (ioccNm o), ModEnt (ioccKind o) o Set.empty emptyRange) ]
+
+SEM CDeclMeta
+  | Data        lhs         .   modDefsRel          =   let to = IdOcc ( @tyNm) IdOcc_Data
+                                                            subs = [ ModEnt (ioccKind o) o Set.empty emptyRange | cn <- @dataCons.dataConNmL, let o = IdOcc ( cn) IdOcc_Val ]
+                                                        in  Rel.singleton (hsnQualified (ioccNm to)) (ModEnt (ioccKind to) to (Set.fromList subs) emptyRange)
+%%]
+
+%%[(50 codegen corein)
+ATTR AllDataCon [ | | dataConNmL USE {++} {[]} : {[HsName]} ]
+
+SEM CDataCon
+  | Con			lhs			.	dataConNmL			=	[@conNm]
+%%]
+
+%%[(50 codegen corein)
+ATTR CodeAGItf CModule [ | | mod: Mod ]
+
+SEM CModule
+  | Mod         lhs         .   mod                 =   Mod @realModuleNm (Just @realModuleNm) (Just @exports.modExpL) @imports.modImpL
+                                                            (@declMetas.modDefsRel `Rel.union` @expr.modDefsRel)
+                                                            Rel.empty []
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Module has 'main'?
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen corein)
+ATTR CodeAGItf CModule CExpr AllBindOnly [ | | hasMain USE {||} {False} : Bool ]
+
+SEM CBind
+  | Bind        lhs         .   hasMain             =   @nm == hsnMain
+
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% That what not has been transformed
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen corein)
+ATTR CodeAGItf CModule CExpr AllBind [ | | notYetTransformed USE {`Set.union`} {Set.empty} : NotYetTransformedS ]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Module is already in ANormal form?
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen corein)
+ATTR CBound [ | | isSimple: Bool ]
+
+SEM CBound
+  | Bind Val    loc         .   isSimple            =   case @expr.whatBelow of
+                                                            ExprIsVar _     -> True
+                                                            ExprIsInt _     -> True
+                                                            ExprIsOtherWHNF -> True
+                                                            _               -> False
+  | * - Bind Val
+  				lhs         .   isSimple            =   False
+
+SEM CExpr
+  | App         loc         .   appNotYetTransformed=   if @arg.isSimple then Set.empty else Set.singleton NotYetTransformed_ANormal
+                lhs         .   notYetTransformed   =   Set.unions [@appNotYetTransformed, @func.notYetTransformed, @arg.notYetTransformed]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Module is already lambda lifted?
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen corein)
+ATTR AllCodeNT [ | | isFreeOfLam USE {&&} {True} : Bool ]
+ATTR CExpr [ | | lamBodyIsFreeOfLam: Bool ]
+
+SEM CExpr
+  | Lam         lhs         .   isFreeOfLam         =   False
+                            .   lamBodyIsFreeOfLam  =   if whatExprIsLam @body.whatBelow
+                                                        then @body.lamBodyIsFreeOfLam
+                                                        else @body.isFreeOfLam
+  | * - Lam     lhs         .   lamBodyIsFreeOfLam  =   False
+
+SEM CBound
+  | Bind Val    loc         .   bindNotYetTransformed
+                                                    =   if whatExprIsLam @expr.whatBelow
+                                                        then if @lhs.isGlobal && @expr.lamBodyIsFreeOfLam
+                                                             then Set.empty
+                                                             else Set.singleton NotYetTransformed_LambdaLifted
+                                                        else if @expr.isFreeOfLam
+                                                             then Set.empty
+                                                             else Set.singleton NotYetTransformed_LambdaLifted
+                lhs         .   notYetTransformed   =   Set.unions [@bindNotYetTransformed, @expr.notYetTransformed]
+
+%%]
+ATTR CodeAGItf CModule CExpr AllBind [ | | isLamLifted USE {&&} {True} : Bool ]
+
+SEM CBound
+  | Bind Val    loc         .   isLamLifted         =   if whatExprIsLam @expr.whatBelow
+                                                        then @lhs.isGlobal && @expr.lamBodyIsFreeOfLam
+                                                        else @expr.isFreeOfLam
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Type checking: errors
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+No errors == ok
+
+%%[(8 codegen corein) hs
+type UndefNmMp = Map.Map MetaLev [ACoreBindRef]
+
+undefmpUnion :: UndefNmMp -> UndefNmMp -> UndefNmMp
+undefmpUnion = Map.unionWith (++)
+%%]
+
+%%[(8 codegen corein)
+ATTR AllNT [ | | undefNmMp USE {`undefmpUnion`} {Map.empty} : UndefNmMp ]
+%%]
+
+%%[(8 codegen corein)
+ATTR AllNT CodeAGItf [ | | errs USE {`Seq.union`} {Seq.empty} : ErrSq ]
+%%]
+
+%%[(8888 codegen corein)
+SEM CBind
+  | Bind        loc         .   nmErrs              =   Seq.unions
+                                                            [ Seq.singleton $ rngLift emptyRange mkErr_NamesNotIntrod ("SysF@" ++ show l) (map mkHNm rs)
+                                                            | (l,rs) <- Map.toList @bindAspects.undefNmMp
+                                                            ]
+                lhs         .   errs                =   if ehcOptCoreSysFCheckOnlyVal @lhs.opts && @bindAspects.gathMinMetaLev > @lhs.mlev
+                                                        then Seq.empty
+                                                        else let e = Seq.unions [@nmErrs,@bindAspects.errs]
+                                                             in  Seq.fromList $ rngLift emptyRange mkNestErr (pp @nm) $ Seq.toList e
+                            -- .   errs                =   Seq.empty
+                            .   undefNmMp           =   Map.empty
+
+SEM CExpr
+  | App         lhs         .   errs                =   Seq.unions [@func.errs,@arg.errs,SysF.moutErrs @mout]
+  | Case        lhs         .   errs                =   Seq.unions ([@expr.errs,@alts.errs] ++ map SysF.moutErrs @moutL)
+
+%%]
+SEM CExpr
+  | Var         lhs         .   errs                =   @nmErrs
+                                                        in  Seq.unions
+                                                              [ @bind.errs, @l0.gathErrs
+                                                              , Seq.fromList $ rngLift emptyRange mkNestErr (ppValBind @t) $ Seq.toList e
+                                                              ]
+SEM Expr
+  | App         lhs         .   errs                =   Seq.unions [@func.errs,@arg.errs,moutErrs @mout]
+  | Case        lhs         .   errs                =   Seq.unions ([@expr.errs,@alts.errs] ++ map moutErrs @moutL)
+  | Cast        lhs         .   errs                =   Seq.unions [@expr.errs,@ty.errs,@castErrs]
+  | Var Tup     lhs         .   errs                =   @nmErrs
+

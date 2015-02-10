@@ -18,8 +18,11 @@ Cleanup between phases
 %%[99 import({%{EH}EHC.CompileRun})
 %%]
 
+%%[99 import(Control.Monad.State)
+%%]
+
 -- HI syntax and semantics
-%%[99 import(qualified {%{EH}HI} as HI)
+%%[9999 import(qualified {%{EH}HI} as HI)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -66,7 +69,12 @@ cpCleanupCore modNmL
 %%[[(99 tycore)
                            , ecuMbTyCore          = Nothing
 %%]]
+%%[[(99 core)
                            , ecuMbCoreSem         = Nothing
+%%]]
+%%[[(99 corein)
+                           , ecuMbCoreSemMod      = Nothing
+%%]]
                            }
                   )
 %%]

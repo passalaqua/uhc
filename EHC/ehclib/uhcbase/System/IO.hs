@@ -101,11 +101,13 @@ module System.IO (
 
     -- ** Terminal operations (not portable: GHC\/Hugs only)
 
+#ifndef __UHC_TARGET_CR__
 #if !defined(__NHC__)
     hIsTerminalDevice,          -- :: Handle -> IO Bool
 
     hSetEcho,                   -- :: Handle -> Bool -> IO ()
     hGetEcho,                   -- :: Handle -> IO Bool
+#endif
 #endif
 
     -- ** Showing handle state (not portable: GHC only)
@@ -155,6 +157,7 @@ module System.IO (
     hPutBufNonBlocking,        -- :: Handle -> Ptr a -> Int -> IO Int
     hGetBufNonBlocking,        -- :: Handle -> Ptr a -> Int -> IO Int
 #endif
+
     -- * Temporary files
 
     openTempFile,
@@ -165,11 +168,14 @@ module System.IO (
 import Data.Bits
 import Data.List
 import Data.Maybe
+
+#endif
+
+#if ! ( defined(__NHC__) || defined(__UHC_TARGET_CR__) )
 import Foreign.C.Error
 import Foreign.C.String
 import Foreign.C.Types
 import System.Posix.Internals
-
 #endif
 
 #ifdef __GLASGOW_HASKELL__
@@ -419,6 +425,15 @@ openBinaryFile = openFile
 hSetBinaryMode _ _ = return ()
 #endif
 
+#ifdef __UHC_TARGET_CR__
+foreign import prim openTempFile
+             :: FilePath   -- ^ Directory in which to create the file
+             -> String     -- ^ File name template. If the template is \"foo.ext\" then
+                           -- the created file will be \"fooXXX.ext\" where XXX is some
+                           -- random number.
+             -> IO (FilePath, Handle)
+foreign import prim openBinaryTempFile :: FilePath -> String -> IO (FilePath, Handle)
+#else
 -- | The function creates a temporary file in ReadWrite mode.
 -- The created file isn\'t deleted automatically, so you need to delete it manually.
 --
@@ -512,6 +527,8 @@ openTempFile' loc tmp_dir template binary = do
         fdToHandle fd   = openFd (fromIntegral fd) False ReadWriteMode binary
 #endif
 
+#endif /* __UHC_TARGET_CR__ */
+
 -- XXX Should use filepath library
 pathSeparator :: Char
 #ifdef mingw32_HOST_OS
@@ -520,12 +537,14 @@ pathSeparator = '\\'
 pathSeparator = '/'
 #endif
 
+#ifndef __UHC_TARGET_CR__
 #ifndef __NHC__
 -- XXX Copied from GHC.Handle
 std_flags, output_flags, rw_flags :: CInt
 std_flags    = o_NONBLOCK   .|. o_NOCTTY
 output_flags = std_flags    .|. o_CREAT
 rw_flags     = output_flags .|. o_RDWR
+#endif
 #endif
 
 #ifdef __NHC__

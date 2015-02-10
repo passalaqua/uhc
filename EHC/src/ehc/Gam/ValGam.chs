@@ -8,9 +8,9 @@
 %%[1 import(UHC.Util.Pretty,UHC.Util.Utils)
 %%]
 
-%%[1 hs import ({%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.Builtin})
+%%[1 hs import ({%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.HsName.Builtin})
 %%]
-%%[1 hs import ({%{EH}Ty},{%{EH}Ty.Pretty})
+%%[(1 hmtyast || hmtyinfer) hs import ({%{EH}Ty},{%{EH}Ty.Pretty})
 %%]
 %%[1 hs import ({%{EH}Gam})
 %%]
@@ -23,10 +23,10 @@
 %%[(2 hmtyinfer || hmtyast) import({%{EH}VarMp},{%{EH}Substitutable})
 %%]
 
-%%[(3 hmtyinfer) import({%{EH}Ty.Trf.Quantify})
+%%[(3 hmtyinfer || hmtyast) import({%{EH}Ty.Trf.Quantify})
 %%]
 
-%%[(50 hmtyinfer) import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
+%%[(50 hmtyinfer || hmtyast) import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
 %%]
 
 %%[9999 import({%{EH}Base.ForceEval})
@@ -37,6 +37,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[1.ValGam.Base export(ValGamInfo(..),ValGam)
+-- If this changes, also change {%{EH}ConfigInternalVersions}
 data ValGamInfo
   = ValGamInfo
 %%[[(1 hmtyinfer || hmtyast)
@@ -47,12 +48,12 @@ data ValGamInfo
 type ValGam = Gam HsName ValGamInfo
 %%]
 
-%%[(50 hmtyinfer)
+%%[(50 hmtyinfer || hmtyast)
 deriving instance Typeable ValGamInfo
 deriving instance Data ValGamInfo
 %%]
 
-%%[8 export(vgiGetSet)
+%%[(8 hmtyinfer || hmtyast) export(vgiGetSet)
 vgiGetSet = (vgiTy,(\x i -> i {vgiTy = x}))
 %%]
 

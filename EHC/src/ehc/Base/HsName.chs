@@ -58,6 +58,7 @@ HsNameUniqifier to guarantee such an invariant.
 data HsNameUniqifier
   = HsNameUniqifier_Blank               -- just a new identifier, with an empty show
   | HsNameUniqifier_New                 -- just a new identifier
+  | HsNameUniqifier_Error      			-- error
   | HsNameUniqifier_GloballyUnique      -- globally unique
   | HsNameUniqifier_Evaluated           -- evaluated
   | HsNameUniqifier_Field               -- extracted field
@@ -82,9 +83,18 @@ data HsNameUniqifier
 %%[[(8 javascript)
   | HsNameUniqifier_JSSwitchResult      -- var for result of switch
 %%]]
-%%[[(90 codegen)
+%%[[(8 grin)
+  | HsNameUniqifier_GRINTmpVar      	-- tmp var at GRIN level
+%%]]
+%%[[(8 cmm)
+  | HsNameUniqifier_CMMTmpVar      		-- tmp var at CMM level
+%%]]
+%%[[90
   | HsNameUniqifier_FFE                 -- name of value to be ff exported
   | HsNameUniqifier_FFECoerced          -- name of possibly coerced value to be ff exported
+%%]]
+%%[[(8 core)
+  | HsNameUniqifier_CoreAPI             -- Used by the Core API, to allow external programs to generate new identifiers.
 %%]]
   deriving (Eq,Ord,Enum)
 
@@ -92,6 +102,7 @@ data HsNameUniqifier
 instance Show HsNameUniqifier where
   show HsNameUniqifier_Blank                = ""
   show HsNameUniqifier_New                  = "NEW"
+  show HsNameUniqifier_Error       			= "ERR"
   show HsNameUniqifier_GloballyUnique       = "UNQ"
   show HsNameUniqifier_Evaluated            = "EVL"
   show HsNameUniqifier_Field                = "FLD"
@@ -116,9 +127,18 @@ instance Show HsNameUniqifier where
 %%[[(8 javascript)
   show HsNameUniqifier_JSSwitchResult       = "JSW"
 %%]]
-%%[[(90 codegen)
+%%[[(8 grin)
+  show HsNameUniqifier_GRINTmpVar       	= "GRN"
+%%]]
+%%[[(8 cmm)
+  show HsNameUniqifier_CMMTmpVar       		= "CMM"
+%%]]
+%%[[90
   show HsNameUniqifier_FFE                  = "FFE"
   show HsNameUniqifier_FFECoerced           = "FFC"
+%%]]
+%%[[(8 core)
+  show HsNameUniqifier_CoreAPI              = "CRA"
 %%]]
 %%]
 
@@ -131,24 +151,32 @@ data HsNameUnique
   | HsNameUnique_UID        !UID
   deriving (Eq,Ord)
 
+showHsNameUnique :: (UID -> String) -> (String -> String) -> HsNameUnique -> String
+showHsNameUnique _    _    (HsNameUnique_None    ) = ""
+showHsNameUnique _    shws (HsNameUnique_String s) = shws s
+showHsNameUnique _    _    (HsNameUnique_Int    i) = show i
+showHsNameUnique shwu _    (HsNameUnique_UID    u) = shwu u
+
 instance Show HsNameUnique where
-  show (HsNameUnique_None    ) = ""
-  show (HsNameUnique_String s) = s
-  show (HsNameUnique_Int    i) = show i
-  show (HsNameUnique_UID    u) = show u
+  show = showHsNameUnique hsnShowUID id
 %%]
 
-%%[7
+%%[7 export(HsNameUniqifierMp)
 type HsNameUniqifierMp = Map.Map HsNameUniqifier [HsNameUnique]
 
 emptyHsNameUniqifierMp :: HsNameUniqifierMp
 emptyHsNameUniqifierMp = Map.empty
 
+-- | Show uniqifier map, parseable back again when properly parameterized.
+showHsNameUniqifierMp'' :: (UID -> String) -> (String -> String) -> (String -> String) -> Bool -> String -> HsNameUniqifierMp -> [String]
+showHsNameUniqifierMp'' shwu shws brk showLen usep us
+  = [ usep ++ slen u ++ show uqf ++ (brk $ concat [ usep ++ showHsNameUnique shwu shws uu | uu <- u, uu /= HsNameUnique_None ]) | (uqf,u) <- Map.toList us ]
+  where slen u | showLen && l /= 1  = usep ++ show l
+               | otherwise          = ""
+               where l = length u
+
 showHsNameUniqifierMp' :: Bool -> String -> HsNameUniqifierMp -> [String]
-showHsNameUniqifierMp' showLen usep us
-  = [ slen u ++ show uqf ++ concat [ usep ++ show uu | uu <- u, uu /= HsNameUnique_None ] | (uqf,u) <- Map.toList us ]
-  where slen u | showLen   = usep ++ show (length u)
-               | otherwise = ""
+showHsNameUniqifierMp' = showHsNameUniqifierMp'' hsnShowUID id id
 
 showHsNameUniqifierMp :: String -> HsNameUniqifierMp -> [String]
 showHsNameUniqifierMp = showHsNameUniqifierMp' True
@@ -171,6 +199,9 @@ instance HsNameUniqueable UID where
 %%[7
 uniqifierMpAdd :: HsNameUniqifier -> HsNameUnique -> HsNameUniqifierMp -> HsNameUniqifierMp
 uniqifierMpAdd ufier u m = Map.unionWith (++) (Map.singleton ufier [u]) m
+
+uniqifierMpUnion :: HsNameUniqifierMp -> HsNameUniqifierMp -> HsNameUniqifierMp
+uniqifierMpUnion = Map.unionWith (++)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -205,6 +236,26 @@ hsnUniqifyEval :: HsName -> HsName
 hsnUniqifyEval = hsnUniqify HsNameUniqifier_Evaluated
 %%]
 
+%%[8 export(hsnStripUniqify)
+-- | Remove uniqification, if present
+hsnStripUniqify :: HsName -> Maybe HsName
+hsnStripUniqify n@(HsName_Modf {hsnUniqifiers=us})
+  | Map.null us   = Nothing
+  | otherwise     = Just $ n {hsnUniqifiers = Map.empty}
+hsnStripUniqify _ = Nothing
+%%]
+
+%%[8 export(hsnSimplifications)
+-- | Simplify name into list of simplifications of increasing complexity, all strictly simpler than the one given. [] therefore means no simplifications exist
+hsnSimplifications :: HsName -> [HsName]
+hsnSimplifications n@(HsName_Modf {}) = case hsnStripUniqify n of
+    Just n' -> hsnSimplifications n' ++ [n']
+    _       -> hsnSimplifications $ hsnBase n
+hsnSimplifications   (HsName_UID  {hsnUID = u}) = map mkHNm $ uidSimplifications u
+-- hsnSimplifications n@(HsName_Base {}          ) = [] -- [n]
+hsnSimplifications _                            = []
+%%]
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Haskell names: hashing
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -212,9 +263,10 @@ hsnUniqifyEval = hsnUniqify HsNameUniqifier_Evaluated
 %%[99
 hsnHashWithSalt :: Int -> HsName -> Int
 hsnHashWithSalt salt (HsName_Base s      ) = hashWithSalt salt s
+hsnHashWithSalt salt (HsName_UID  i      ) = hashWithSalt salt i
 hsnHashWithSalt salt (HsName_Pos  p      ) = hashWithSalt salt p
 hsnHashWithSalt salt (HsName_Modf _ q b u) = hashWithSalt salt q `hashWithSalt` hashWithSalt salt b `hashWithSalt` hashWithSalt salt (Map.toList u)
-hsnHashWithSalt salt (HNmNr i n          ) = i `hashWithSalt` hashWithSalt salt n
+hsnHashWithSalt salt (HsName_Nr i n      ) = i `hashWithSalt` hashWithSalt salt n
 
 instance Hashable HsName where
   hashWithSalt salt n@(HsName_Modf h _ _ _) | h /= 0 = h
@@ -250,9 +302,15 @@ hsnFixateHash n                       = n
 %%% Haskell names, datatype
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[1.HsName.type export(HsName(HsName_Base,HsName_Pos,HNmNr))
+%%[1.HsName.type export(HsName)
+-- | Haskell name representation, exports of constructors only intented for internal use
 data HsName
-  =   HsName_Base                   !String
+  =   HsName_Base
+        { hsnBaseStr            ::  !String
+        }
+  |   HsName_UID
+        { hsnUID                ::  !UID
+        }
 %%[[7
   |   HsName_Modf
         { 
@@ -265,26 +323,70 @@ data HsName
   |   HsName_Pos                    !Int
 %%]]
 %%[[8
-  |   HNmNr                         !Int !OrigName
+  |   HsName_Nr                     !Int !OrigName
 %%]]
   deriving (Eq,Ord)
 %%]
 
-%%[1
+%%[1 export(hsnEmpty)
+hsnEmpty :: HsName
+hsnEmpty = mkHNm ""
+%%]
+
+%%[1111 export(hsnIsEmpty)
+hsnIsEmpty (HsName_Base s) = null s
+%%[[7
+hsnIsEmpty (HsName_Modf {hsnBase=b})
+                           = hsnIsEmpty b
+%%]]
+hsnIsEmpty _               = False
+%%]
+
+%%[7 export(hsnMbPos, hsnIsPos)
+-- | Is HsName a HsName_Pos?
+hsnMbPos :: HsName -> Maybe Int
+hsnMbPos (HsName_Pos p) = Just p
+hsnMbPos _              = Nothing
+
+hsnIsPos :: HsName -> Bool
+hsnIsPos = isJust . hsnMbPos
+{-# INLINE hsnIsPos #-}
+%%]
+
+%%[8 export(hsnMbNr, hsnIsNr)
+-- | Is HsName a HsName_Pos?
+hsnMbNr :: HsName -> Maybe (Int,OrigName)
+hsnMbNr (HsName_Nr i o) = Just (i,o)
+hsnMbNr _               = Nothing
+
+hsnIsNr :: HsName -> Bool
+hsnIsNr = isJust . hsnMbNr
+{-# INLINE hsnIsNr #-}
+%%]
+
+%%[7 export(hsnMkModf)
 -- | Smart constructor for HsName_Modf
 hsnMkModf :: [String] -> HsName -> HsNameUniqifierMp -> HsName
 %%[[1
 hsnMkModf = HsName_Modf 0
 %%][99
-hsnMkModf q b u = hsnFixateHash $ HsName_Modf 0 q b u
+-- hsnMkModf q b u = hsnFixateHash $ HsName_Modf 0 q b u
+hsnMkModf q b u = hsnFixateHash $ either (\(_,n) -> n {hsnQualifiers = q, hsnUniqifiers = hsnUniqifiers n `uniqifierMpUnion` u}) (\b -> HsName_Modf 0 q b u) $ hsnCanonicSplit b
 %%]]
 {-# INLINE hsnMkModf #-}
+%%]
+
+%%[8 export(hsnMkNr)
+-- | Smart constructor for HsName_Nr
+hsnMkNr :: Int -> OrigName -> HsName
+hsnMkNr = HsName_Nr
+{-# INLINE hsnMkNr #-}
 %%]
 
 instance Eq HsName where
   n1 == n2
     = hsnCanonicSplit n1 == hsnCanonicSplit n2
-    where base (HsName_Base s1) (HsName_Base s2) = s1 == s2
+    -- where base (HsName_Base s1) (HsName_Base s2) = s1 == s2
 
 instance Ord HsName where
   n1 `compare` n2 = hsnCanonicSplit n1 `compare` hsnCanonicSplit n2
@@ -297,6 +399,16 @@ mkHNmBase = HsName_Base
 %%][7
 mkHNmBase s = hsnMkModf [] (HsName_Base s) Map.empty
 %%]]
+%%]
+
+%%[1 export(hsnEnsureIsBase)
+-- | Eliminate alternative internal representations
+hsnEnsureIsBase :: HsName -> HsName
+hsnEnsureIsBase n@(HsName_UID _) = mkHNm $ show n
+%%[[7
+hsnEnsureIsBase   (HsName_Pos i) = mkHNm $ show i
+%%]]
+hsnEnsureIsBase n                = n
 %%]
 
 %%[1 export(hsnBaseUnpack',hsnBaseUnpack)
@@ -317,10 +429,16 @@ hsnBaseUnpack _                     = Nothing
 %%]]
 %%]
 
-%%[1 export(hsnMbBaseString,hsnBaseString)
+%%[1 export(hsnMbBaseString,hsnIsBaseString,hsnBaseString)
 -- | If name is a HsName_Base after some unpacking, return the base string, without qualifiers, without uniqifiers
 hsnMbBaseString :: HsName -> Maybe String
 hsnMbBaseString = fmap fst . hsnBaseUnpack
+{-# INLINE hsnMbBaseString #-}
+
+-- | Is name is a HsName_Base after some unpacking?
+hsnIsBaseString :: HsName -> Bool
+hsnIsBaseString = isJust . hsnMbBaseString
+{-# INLINE hsnIsBaseString #-}
 
 hsnBaseString :: HsName -> String
 hsnBaseString = maybe "??" id . hsnMbBaseString
@@ -346,14 +464,16 @@ cmpHsNameOnNm (HsName_Modf _ q1 b1 u1) (HsName_Modf _ q2 b2 u2) = compare (HsNam
 cmpHsNameOnNm n1                       n2                       = compare n1                        n2
 %%]
 
-%%[1 export(mbHNm)
+%%[1111 export(mbHNm)
 mbHNm :: HsName -> Maybe String
 mbHNm = hsnMbBaseString
+{-# INLINE mbHNm #-}
 %%]
 
 %%[1.hsnFromString export(hsnFromString)
 hsnFromString :: String -> HsName
 hsnFromString = mkHNmBase
+{-# INLINE hsnFromString #-}
 %%]
 
 %%[1111.hsnHNmFldToString export(hsnHNmFldToString)
@@ -376,25 +496,38 @@ instance PP HsName where
 %%]
 
 
-%%[7 export(hsnShow)
-hsnShow :: Bool -> String -> String -> HsName -> String
-hsnShow _ _    _    (HsName_Base   s           )  = {- hsnHNmFldToString -} s
-hsnShow l qsep usep (HsName_Modf _ qs b us     )  = concat $ (intersperse qsep $ qs ++ [hsnShow l qsep usep b]) ++ showHsNameUniqifierMp' l usep us
-hsnShow _ _    _    (HsName_Pos    p           )  = show p
+%%[7 export(hsnShow, hsnShow')
+-- | Parameterizable show of HsName when used from within the Show instance for HsName, or for a parseable representation used by (e.g.) Core pretty printing
+hsnShow' :: (UID -> String) -> (String -> String) -> (String -> String) -> String -> String -> HsName -> String
+hsnShow' shwu shws brk qsep usep n
+    = shw n
+  where shw n = case n of
+          HsName_Base   s                 -> s
+          HsName_UID    i                 -> shwu i
+          HsName_Modf _ qs b us           -> concat $ (intersperse qsep $ qs ++ [shw b]) ++ showHsNameUniqifierMp'' shwu shws brk False usep us
+          HsName_Pos    p                 -> show p
 %%[[8
-hsnShow _ _    _    (HNmNr n OrigNone        )  = "x_"        ++ show n
-hsnShow l _    usep (HNmNr n (OrigLocal  hsn))  = "x_"        ++ show n ++ "_" ++ hsnShow l "." usep hsn
-hsnShow l _    usep (HNmNr n (OrigGlobal hsn))  = "global_x_" ++ show n ++ "_" ++ hsnShow l "." usep hsn
-hsnShow l _    usep (HNmNr n (OrigFunc   hsn))  = "fun_x_"    ++ show n ++ "_" ++ hsnShow l "." usep hsn
+          HsName_Nr n OrigNone            -> "x_"        ++ show n
+          HsName_Nr n (OrigLocal  hsn)    -> "x_"        ++ show n ++ "_" ++ shw hsn
+          HsName_Nr n (OrigGlobal hsn)    -> "global_x_" ++ show n ++ "_" ++ shw hsn
+          HsName_Nr n (OrigFunc   hsn)    -> "fun_x_"    ++ show n ++ "_" ++ shw hsn
 %%]]
+
+-- | Parseable show of HsName when used from within the Show instance for HsName
+hsnShow :: String -> String -> HsName -> String
+hsnShow q u n = hsnShow' hsnShowUID id id q u n
+{-# INLINE hsnShow #-}
+
+hsnShowUID i = 'u' : show i
 %%]
 
 %%[1
 instance Show HsName where
 %%[[1
   show (HsName_Base s) = s
+  show (HsName_UID  i) = hsnShowUID i
 %%][7
-  show = hsnShow True "." "_@"
+  show = hsnShow "." "_@"
 %%]]
 %%]
 
@@ -402,7 +535,6 @@ instance Show HsName where
 -- | A HsName is either a complex/aggregrate name or a base case
 hsnCanonicSplit :: HsName -> Either ([String],HsName) HsName
 %%[[7
--- hsnCanonicSplit   (HNmQ        ns    ) = Left $ maybe ([],mkHNmBase "??") (\(i,l) -> (catMaybes $ map hsnMbBaseString i,l) ) (initlast ns)
 hsnCanonicSplit n@(HsName_Modf _ qs _ _) = Left $ (qs, hsnFixateHash (n {hsnQualifiers = []}))
 %%]]
 hsnCanonicSplit n                        = Right n
@@ -422,18 +554,10 @@ hsnInitLast n = either (\(qs,b) -> (map mkHNmBase qs, b)) (\x -> ([],x)) (hsnCan
 hsnPrefix                           ::  String -> HsName -> HsName
 hsnPrefix   p   hsn
   = maybe (mkHNmBase $ p ++ show hsn) (\(s,mk) -> mk $ p ++ s) $ hsnBaseUnpack hsn
-{-
-  = case hsnInitLast hsn of
-      (ns,n) -> mkHNm (ns,hsnFromString (p ++ show n))
--}
 
 hsnSuffix                           ::  HsName -> String -> HsName
 hsnSuffix       hsn   p
   = maybe (mkHNmBase $ show hsn ++ p) (\(s,mk) -> mk $ s ++ p) $ hsnBaseUnpack hsn
-{-
-  = case hsnInitLast hsn of
-      (ns,n) -> mkHNm (ns,hsnFromString (show n ++ p))
--}
 
 mkHNmPrefix :: HSNM x => String -> x -> HsName
 mkHNmPrefix p = hsnPrefix p . mkHNm
@@ -491,16 +615,17 @@ dontStartWithDigit xs@(a:_) | isDigit a || a=='_' = "y"++xs
                             | otherwise           = xs
 
 hsnShowAlphanumericShort :: HsName -> String
-hsnShowAlphanumericShort (HNmNr n (OrigFunc   orig)) = hsnShowAlphanumeric orig
+hsnShowAlphanumericShort (HsName_Nr n (OrigFunc   orig)) = hsnShowAlphanumeric orig
 hsnShowAlphanumericShort x = hsnShowAlphanumeric x
 
 hsnShowAlphanumeric :: HsName -> String
 hsnShowAlphanumeric (HsName_Base s  )           = dontStartWithDigit(stringAlphanumeric s)
+hsnShowAlphanumeric (HsName_UID  i  )           = "u" ++ show i
 hsnShowAlphanumeric (HsName_Pos p)              = "y" ++ show p
-hsnShowAlphanumeric (HNmNr n OrigNone)          = "x" ++ show n
-hsnShowAlphanumeric (HNmNr n (OrigLocal orig))  = "x" ++ show n   -- hsnShowAlphanumeric orig
-hsnShowAlphanumeric (HNmNr n (OrigGlobal orig)) = "global_" ++ hsnShowAlphanumeric orig
-hsnShowAlphanumeric (HNmNr n (OrigFunc   orig)) = "fun_"    ++ hsnShowAlphanumeric orig
+hsnShowAlphanumeric (HsName_Nr n OrigNone)          = "x" ++ show n
+hsnShowAlphanumeric (HsName_Nr n (OrigLocal orig))  = "x" ++ show n   -- hsnShowAlphanumeric orig
+hsnShowAlphanumeric (HsName_Nr n (OrigGlobal orig)) = "global_" ++ hsnShowAlphanumeric orig
+hsnShowAlphanumeric (HsName_Nr n (OrigFunc   orig)) = "fun_"    ++ hsnShowAlphanumeric orig
 hsnShowAlphanumeric (HsName_Modf _ q b u)         = concat $ intersperse "_" $ q ++ [hsnShowAlphanumeric b] ++ map stringAlphanumeric (showHsNameUniqifierMp "_" u)
 -- hsnShowAlphanumeric n                           = concat $ intersperse "_" $ map hsnShowAlphanumeric $ hsnToList n
 %%]
@@ -565,24 +690,38 @@ hsnMapQualified f qn
 -}
 %%]
 
-%%[50 export(hsnQualifier,hsnSetQual,hsnIsQual,hsnMapQual,hsnSetLevQual)
+%%[8 export(hsnQualifier,hsnSetQual,hsnIsQual)
 -- qualifier (i.e. module name) of name
 hsnQualifier :: HsName -> Maybe HsName
+%%[[8
+hsnQualifier = \_ -> Nothing
+%%][50
 hsnQualifier = fst . hsnSplitQualify
+%%]]
 
 -- replace/set qualifier
 hsnSetQual :: HsName -> HsName -> HsName
+%%[[8
+hsnSetQual _ = id
+%%][50
 hsnSetQual m = hsnPrefixQual m . hsnQualified
+%%]]
 
+-- is qualified?
+hsnIsQual :: HsName -> Bool
+%%[[8
+hsnIsQual = \_ -> False
+%%][50
+hsnIsQual = isJust . hsnQualifier
+%%]]
+%%]
+
+%%[50 export(hsnMapQual,hsnSetLevQual)
 hsnMapQual :: (HsName -> HsName) -> HsName -> HsName
 hsnMapQual f qn
   = case hsnSplitQualify qn of
       (Nothing,n) -> qn
       (Just q ,n) -> hsnSetQual (f q) n
-
--- is qualified?
-hsnIsQual :: HsName -> Bool
-hsnIsQual = isJust . hsnQualifier
 
 hsnSetLevQual :: Int -> HsName -> HsName -> HsName
 hsnSetLevQual 0 m n = hsnSetQual m n
@@ -641,6 +780,12 @@ instance HSNM HsName where
 instance HSNM Int where
   mkHNm = mkHNm . show
 
+%%]
+
+%%[1
+instance HSNM UID where
+  mkHNm = HsName_UID
+  -- mkHNm x = hsnFromString ('_' : show x)
 %%]
 
 %%[1.HSNM.String
@@ -731,16 +876,16 @@ instance Binary HsNameUnique where
 
 instance Binary HsName where
   put (HsName_Base  a    ) = putWord8 0 >> put a
---  put (HNmQ         a    ) = putWord8 1 >> put a
+  put (HsName_UID   a    ) = putWord8 1 >> put a
   put (HsName_Pos   a    ) = putWord8 2 >> put a
-  put (HNmNr        a b  ) = putWord8 3 >> put a >> put b
+  put (HsName_Nr        a b  ) = putWord8 3 >> put a >> put b
   put (HsName_Modf  a b c d) = putWord8 4 >> put a >> put b >> put c >> put d
   get = do t <- getWord8
            case t of
              0 -> liftM  HsName_Base    get
-             -- 1 -> liftM  HNmQ           get
+             1 -> liftM  HsName_UID     get
              2 -> liftM  HsName_Pos     get
-             3 -> liftM2 HNmNr          get get
+             3 -> liftM2 HsName_Nr      get get
              4 -> liftM4 HsName_Modf    get get get get
 
 instance Serialize HsName where
@@ -861,14 +1006,16 @@ type HsNameS = Set.Set HsName
 %%% Safe names for Java like backends
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 jazy || javascript) hs export(hsnSafeJavaLike)
--- ensure a name valid for JVM like backends
+%%[(8 codegen) hs export(hsnSafeJavaLike)
+-- ensure a name valid for backends which are more restrictive in their allowed identifier character set
 hsnSafeJavaLike :: HsName -> HsName
 hsnSafeJavaLike
-  = hsnMapQualified (concatMap safe) . hsnJavalikeFixUniqifiers
+  = hsnMapQualified (concatMap safe . first) . hsnJavalikeFixUniqifiers . hsnEnsureIsBase
   where safe '_'                                      = "__"
         safe c | isDigit c || isLetter c || c == '_'  = [c]
                | otherwise                            = "_" ++ showHex (ord c) ""
+        first s@(c:_) | isDigit c = '_' : s
+        first s                   =       s
 %%]
         safe '.'  = "_dot"
         safe ':'  = "_colon"
@@ -880,70 +1027,6 @@ hsnSafeJavaLike
         safe ']'  = "_rbrack"
         safe '@'  = "_at"
         safe  c   = [c]
-
-%%[(8 jazy || javascript) hs export(hsnJavaLikeVar)
--- safe name of a variable
-hsnJavaLikeVar
-  :: ( HsName -> HsName             -- adapt for particular platform, before mangling here
-     , HsName -> HsName             -- post prefix
-     , String -> String             -- adapt module qualifiers
-     )
-     -> HsName -> HsName -> HsName -> HsName
-hsnJavaLikeVar (preadapt, postprefix, updqual) pkg mod v
-%%[[8
-  = hsnSafeJavaLike v
-%%][50
-  = postprefix $ hsnSafeJavaLike $ handleUpper $ qual $ preadapt v
-  where handleUpper v
-          = case hsnBaseUnpack v of
-               Just (s@(c:vs), mk) | isUpper c -> mk (s ++ "_")
-               _ -> v
-        qual v
-          = case hsnBaseUnpack' v of
-               Just (q, s, mk) -> mk (map updqual q) s
-               _ -> v
-%%]]
-%%]
-
-%%[(8 jazy || javascript) hs export(hsnJavaLikeVarCls)
--- name of the class of a variable
-hsnJavaLikeVarCls :: HsName -> HsName -> HsName -> HsName
-hsnJavaLikeVarCls pkg mod v
-%%[[8
-  = hsnSuffix mod ("-" ++ show v)
-%%][50
-  = hsnSetQual pkg v
-%%]]
-%%]
-
-%%[(8 jazy || javascript) hs export(hsnJavaLikeVarToFld)
--- field name of var name
-hsnJavaLikeVarToFld :: HsName -> HsName
-hsnJavaLikeVarToFld v
-%%[[8
-  = v
-%%][50
-  = hsnQualified v
-%%]]
-%%]
-
-%%[(8 jazy || javascript) hs export(hsnJavaLikeDataTy, hsnJavaLikeDataCon, hsnJavaLikeDataFldAt, hsnJavaLikeDataFlds)
--- name of class of data type
-hsnJavaLikeDataTy :: HsName -> HsName -> HsName -> HsName
-hsnJavaLikeDataTy pkg mod d = hsnSafeJavaLike d `hsnSuffix` "_Ty"
-
--- name of class of data constructor
-hsnJavaLikeDataCon :: HsName -> HsName -> HsName -> HsName
-hsnJavaLikeDataCon pkg mod d = hsnSafeJavaLike d `hsnSuffix` "_Con"
-
--- name of field of data
-hsnJavaLikeDataFldAt :: Int -> String
-hsnJavaLikeDataFldAt i = show i
-
--- all names of fields of data
-hsnJavaLikeDataFlds :: Int -> [String]
-hsnJavaLikeDataFlds arity = map hsnJavaLikeDataFldAt [0..arity-1]
-%%]
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -993,6 +1076,14 @@ rpatNmIsOrig (RPatNmOrig _) = True
 rpatNmIsOrig _              = False
 %%]
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Builtin, remainder in {%{EH}Base.HsName.Builtin}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[1 export(hsnUnknown)
+hsnUnknown ::  HsName
+hsnUnknown =   hsnFromString "??"
+%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Track dictionary intentions
@@ -1010,7 +1101,7 @@ data Track
 
 %%]
 
-%%[(50 codegen grin) hs
+%%[(50 codegen) hs
 
 instance Serialize Track where
   sput (TrackNone             ) = sputWord8 0

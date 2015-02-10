@@ -2,15 +2,19 @@
 %%% Prettyprint Grin ByteCode program as C
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen grin) hs module {%{EH}GrinByteCode.ToC} import(UHC.Util.Pretty,{%{EH}Base.Common},{%{EH}Base.Builtin},{%{EH}Opts},{%{EH}GrinByteCode})
+%%[(8 codegen grin) hs module {%{EH}GrinByteCode.ToC} import(UHC.Util.Pretty,{%{EH}Base.Common},{%{EH}Base.HsName.Builtin},{%{EH}Opts},{%{EH}GrinByteCode})
 %%]
 
 %%[(8 codegen grin) hs import(UHC.Util.Pretty,{%{EH}Base.Common},{%{EH}Opts},qualified {%{EH}Config} as Cfg,{%{EH}GrinByteCode}, {%{EH}BindingInfo})
 %%]
-
-%%[(8 codegen grin) hs import({%{EH}Base.GenC})
+%%[(8 codegen grin) hs import(qualified {%{EH}GrinCode} as G)
 %%]
-%%[(8 codegen grin cmm) hs import(qualified {%{EH}Cmm} as C)
+%%[(8 codegen grin) hs import({%{EH}CodeGen.Const} as Const)
+%%]
+
+%%[(8 codegen grin) hs import({%{EH}CodeGen.GenC})
+%%]
+%%[(8 codegen grin cmm cmmbc) hs import(qualified {%{EH}Cmm} as C)
 %%]
 
 %%[(8 codegen grin) hs import(Data.Maybe,Data.Char,Data.Bits,qualified UHC.Util.FastSeq as Seq,UHC.Util.Utils,qualified Data.Map as Map)
@@ -24,7 +28,7 @@ gbmod2C
   :: EHCOpts
      -> Module
      -> ( GenC
-%%[[(8 cmm)
+%%[[(8 cmm cmmbc)
         , C.TopLevelL
 %%]]
         )
@@ -33,7 +37,7 @@ gbmod2C opts m
                        (Inh_AGItf {opts_Inh_AGItf = opts}
                        )
     in  ( pp_Syn_AGItf t
-%%[[(8 cmm)
+%%[[(8 cmm cmmbc)
         , cmmDeclL_Syn_AGItf t
 %%]]
         )
@@ -46,7 +50,7 @@ gbmod2C
     -> Module
     -> ( GenC
        , GenC
-%%[[(8 cmm)
+%%[[(8 cmm cmmbc)
        , C.TopLevelL
        , C.TopLevelL
 %%]]
@@ -61,7 +65,7 @@ gbmod2C opts lkupGrinByteCodeBindingInfo m
                        )
     in  ( pp_Syn_AGItf t
         , ppMain_Syn_AGItf t
-%%[[(8 cmm)
+%%[[(8 cmm cmmbc)
         , cmmDeclL_Syn_AGItf t
         , cmmMainDeclL_Syn_AGItf t
 %%]]
@@ -509,8 +513,8 @@ SEM Module
                                             =   emptyBPEBasedMp
                 loc         .   (_,bytePoolMp,allEntryBPedL)
                                             =   foldr (\(e) (sm,bm,es)
-                                                        -> let (sm',bm',inx) = maybe (sm,bm,Nothing) (\s -> stringConstMpAdd s sm bm) (eiMbNmStr e)
-                                                           in  (sm',bm',(e {eiMbNmStr = inx}) : es)
+                                                        -> let (sm',bm',inx) = maybe (sm,bm,Nothing) (\s -> stringConstMpAdd s sm bm) (G.eiMbNmStr e)
+                                                           in  (sm',bm',(e {G.eiMbNmStr = inx}) : es)
                                                       )
                                                       (@instrs.stringConstMp,@instrs.bytePoolMp,[]) @allEntryL
 %%]
@@ -540,7 +544,7 @@ SEM Module
                                                             (  gencWrapperCFunDef tyPre Nothing
                                                                                   (genc nArgs) [res] (Left bs)
                                                             )
-                                                    | Const_CCallEncWrapper bs@(res:args) <- @constL
+                                                    | Const_FFICallEncWrapper bs@(res:args) <- @constL
                                                     , let nArgs = length args
                                                     ]
 %%]
@@ -1133,11 +1137,11 @@ ppNodeFld :: (PP n,PP o) => n -> o -> GenC
 ppNodeFld n o = gencArrayAt (ppNodeFlds n) o
 
 ppCnst :: EHCOpts -> Const -> GenC
-ppCnst opts (Const_CFunction n)
+ppCnst opts (Const_FFIFunction n)
   = gencCast "GB_Word" $ gencAddrOf (pref ++ {- (if ehcOptPriv opts then "priv_" else "") ++ -} n)
   where pref = ""  -- if take 4 n == "prim" then "gb_" else ""
-ppCnst opts (Const_CCallEncWrapper szs)
-  = ppCnst opts (Const_CFunction $ gencBasicSizeGBFunTyNm gencBasicSizeFunPrefix szs)
+ppCnst opts (Const_FFICallEncWrapper szs)
+  = ppCnst opts (Const_FFIFunction $ gencBasicSizeGBFunTyNm gencBasicSizeFunPrefix szs)
 
 ppLine :: GenC -> GenC
 ppLine p = p >-< text ""
@@ -1160,7 +1164,7 @@ ATTR AllNT AGItf [ | | pp USE {>-<} {empty}: GenC ]
 ATTR AllInstr [ ppNm: {String -> GenC} | | ]
 %%]
 
-%%[(8 codegen grin cmm)
+%%[(8 codegen grin cmm cmmbc)
 ATTR Module AGItf [ | | cmmDeclL: {C.TopLevelL} ]
 %%]
 
@@ -1168,11 +1172,11 @@ ATTR Module AGItf [ | | cmmDeclL: {C.TopLevelL} ]
 ATTR Module AGItf [ | | ppMain: GenC ]
 %%]
 
-%%[(50 codegen grin cmm)
+%%[(50 codegen grin cmm cmmbc)
 ATTR Module AGItf [ | | cmmMainDeclL: {C.TopLevelL} ]
 %%]
 
-%%[(8 codegen grin cmm)
+%%[(8 codegen grin cmm cmmbc)
 SEM Module
   | Mod                     -- 201101220: under construction, rewrite of PP gen to Cmm gen
                 loc         .   cmmTop                  =   [ C.cmt $ "bytecode in C encoding for module " ++ @moduleNm 
@@ -1319,7 +1323,7 @@ SEM Module
                                                                 (zipWith3 (\i l e
                                                                             -> let (bc,bcs) = if ehcOptGenTrace @lhs.opts then (gencAddrArrayAt @ppNmByteCodeTraceTbl i, l) else (gencNULL,0)
                                                                                in  ppCurlysCommas
-                                                                                     [ (maybe gencNULL (gencAddrArrayAt @ppNmBytePool) (eiMbNmStr e)) >#< ppCmtC @lhs.opts (eiNm e)
+                                                                                     [ (maybe gencNULL (gencAddrArrayAt @ppNmBytePool) (G.eiMbNmStr e)) >#< ppCmtC @lhs.opts (G.eiNm e)
                                                                                      , bc, genc bcs
                                                                                      ]
                                                                           ) (scanl (+) 0 bcTrLengthL) bcTrLengthL @allEntryBPedL
@@ -1412,7 +1416,7 @@ SEM Module
 %%[[50
                                                     expnd   = ppLine $ gencVarDecl "GB_NodePtr" @ppNmExpNode
                                                                        >-< (gencStatic $ "int" >#< @ppNmExpNodeOffs >|< "[] =")
-                                                                       >-< ppArr [ eiEntryNr e >#< ppCmtC @lhs.opts (eiNm e) | e <- @expEntryL ]
+                                                                       >-< ppArr [ (fldInt $ G.eiEntryFld e) >#< ppCmtC @lhs.opts (G.eiNm e) | e <- @expEntryL ]
                                                                        >-< gencVarDeclInit "int" @ppNmExpNodeSz (length @expEntryL)
                                                     externs = nl : map (\(_,m) -> (gencExtern $ gencEndsemic $ "void" >#< mkPre m >|< @strNmInitF >|< "(GB_ModEntry*,Word)")
                                                                               >-< (gencExtern $ gencVarDecl "GB_NodePtr" (mkPre m >|< @strNmExpNode))

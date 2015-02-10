@@ -64,7 +64,7 @@ instance (PP c,PP g) => PP (CHR c g s) where
           ppGB []      b@(_:_) = [ppL b]
           ppGB []      []      = []
           ppL [x] = pp x
-          ppL xs  = ppBracketsCommasV xs -- ppParensCommasBlock xs
+          ppL xs  = ppBracketsCommasBlock xs -- ppParensCommasBlock xs
           ppChr l = vlist l -- ppCurlysBlock
 %%]
 
@@ -110,7 +110,7 @@ class CHREmptySubstitution subst where
 A Matchable participates in the reduction process as a reducable constraint.
 
 %%[(9 hmtyinfer || hmtyast) export(CHRMatchable(..))
-class (TTKeyable x) => CHRMatchable env x subst where -- | x -> subst env where
+class (TTKeyable x) => CHRMatchable env x subst where --- | x -> subst env where
   chrMatchTo      :: env -> subst -> x -> x -> Maybe subst
 %%]
 

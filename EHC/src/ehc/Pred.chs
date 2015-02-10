@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -14,7 +14,7 @@
 %%[9 import(UHC.Util.Pretty)
 %%]
 
-%%[9999 import({%{EH}Base.Builtin},Data.Maybe,Data.List,qualified Data.Map as Map,qualified Data.Set as Set,UHC.Util.Pretty,{%{EH}Gam.Full},{%{EH}Base.Common})
+%%[9999 import({%{EH}Base.HsName.Builtin},Data.Maybe,Data.List,qualified Data.Map as Map,qualified Data.Set as Set,UHC.Util.Pretty,{%{EH}Gam.Full},{%{EH}Base.Common})
 %%]
 
 %%[(9999 hmtyinfer) import({%{EH}Opts.Base})

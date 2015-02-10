@@ -14,6 +14,8 @@ C + CPP compilation
 -- general imports
 %%[8 import(Data.Char,Data.Maybe)
 %%]
+%%[8 import(Control.Monad.State)
+%%]
 %%[8 import(qualified Data.Map as Map)
 %%]
 %%[8 import({%{EH}EHC.Common})
@@ -22,7 +24,7 @@ C + CPP compilation
 %%]
 %%[8 import({%{EH}EHC.CompileRun})
 %%]
-%%[(8 codegen) import({%{EH}Opts.CommandLine})
+%%[8 import({%{EH}Opts.CommandLine})
 %%]
 
 -- for now (20111121), not yet used
@@ -35,16 +37,16 @@ C + CPP compilation
 %%]
 %%[8 import({%{EH}EHC.Environment})
 %%]
-%%[(8 codegen) import({%{EH}Base.Target})
+%%[8 import({%{EH}Base.Target})
 %%]
-%%[(99 codegen) import({%{EH}Base.FileSearchLocation},{%{EH}Base.PackageDatabase})
+%%[99 import({%{EH}Base.FileSearchLocation},{%{EH}Base.PackageDatabase})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Compile actions: C compilation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%[8
 gccDefs :: EHCOpts -> [String] -> CmdLineOpts
 gccDefs opts builds
   = map (\(d,mbval) -> cppOpt $ CmdFlag_Define ("__UHC" ++ d ++ "__") mbval)
@@ -59,16 +61,17 @@ gccDefs opts builds
 %%]
 
 %%[(99 codegen)
-gccInclDirs :: EHCOpts -> [PkgModulePartition] -> [String]
+gccInclDirs :: EHCOpts -> [PkgModulePartition] -> [FilePath]
+gccInclDirs opts pkgKeyDirL = ds ++ (map fst $ Map.elems pdmp)
+  where (ds,pdmp) = pkgPartInclDirs opts pkgKeyDirL
+%%]
 gccInclDirs opts pkgKeyDirL
   =            [ mki kind dir | FileLoc kind dir <- ehcOptImportFileLocPath opts, not (null dir) ]
   ++ catMaybes [ mkp p        | p                <- map tup123to12 pkgKeyDirL                                   ]
   where mki (FileLocKind_Dir    ) d = d
         mki (FileLocKind_Pkg _ _) d = Cfg.mkPkgIncludeDir $ filePathMkPrefix d
         mki  FileLocKind_PkgDb    d = Cfg.mkPkgIncludeDir $ filePathMkPrefix d
-        -- mkp (_,d) = Just (Cfg.mkPkgIncludeDir $ filePathMkPrefix d)
         mkp (k,_) = fmap (Cfg.mkPkgIncludeDir . filePathMkPrefix . filelocDir . pkginfoLoc) $ pkgDbLookup k $ ehcOptPkgDb opts
-%%]
 
 %%[(8 codegen) export(cpCompileWithGCC)
 cpCompileWithGCC :: FinalCompileHow -> [HsName] -> HsName -> EHCompilePhase ()
@@ -81,7 +84,7 @@ cpCompileWithGCC how othModNmL modNm
 %%]]
                             _          -> mkOutputFPath opts modNm fp "c"
                  fpO m f = mkPerModuleOutputFPath opts False m f "o"
-                 fpExec = mkPerExecOutputFPath opts modNm fp Cfg.mbSuffixExec
+                 fpExec = mkPerExecOutputFPath opts modNm fp (fmap (flip (,) False) Cfg.mbSuffixExec)
                  variant= Cfg.installVariant opts
                  (fpTarg,targOpt,linkOpts,linkLibOpt,dotOFilesOpt,genOFiles
 %%[[99

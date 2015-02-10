@@ -10,11 +10,11 @@ Used by all compiler driver code
 -- general imports
 %%[1 import(Data.List, Data.Char, Data.Maybe) export(module Data.Maybe, module Data.List, module Data.Char)
 %%]
-%%[1 import(Control.Monad.State, System.IO) export(module System.IO, module Control.Monad.State)
+%%[1 import(Control.Monad.State, System.IO) export(module System.IO)
 %%]
 %%[1 import(UHC.Util.CompileRun, UHC.Util.Pretty, UHC.Util.FPath, UHC.Util.Utils) export(module UHC.Util.CompileRun, module UHC.Util.Pretty, module UHC.Util.FPath, module UHC.Util.Utils)
 %%]
-%%[1 import({%{EH}Base.Common}, {%{EH}Base.Builtin}, {%{EH}Opts}) export(module {%{EH}Base.Common}, module {%{EH}Base.Builtin}, module {%{EH}Opts})
+%%[1 import({%{EH}Base.Common}, {%{EH}Base.HsName.Builtin}, {%{EH}Opts}) export(module {%{EH}Base.Common}, module {%{EH}Base.HsName.Builtin}, module {%{EH}Opts})
 %%]
 %%[1 import({%{EH}Error},{%{EH}Error.Pretty}) export(module {%{EH}Error},module {%{EH}Error.Pretty})
 %%]
@@ -104,10 +104,28 @@ data EHState
 
 The state C compilation can be in, which basically is just administering it has to be compiled
 
-%%[(90 codegen) export(CState(..))
+%%[(90 codegen) export(CState(..), OState(..))
+-- | State for .c files
 data CState
   = CStart
   | CAllSem
+  deriving (Show,Eq)
+
+-- | State for .o files
+data OState
+  = OStart
+  | OAllSem
+  deriving (Show,Eq)
+%%]
+
+The state Core compilation can be in
+
+%%[(8 corein) export(CRState(..))
+data CRState
+  = CRStartText
+  | CRStartBinary
+  | CROnlyImports
+  | CRAllSem
   deriving (Show,Eq)
 %%]
 
@@ -115,15 +133,46 @@ The state any compilation can be in
 
 %%[8 export(EHCompileUnitState(..))
 data EHCompileUnitState
-  = ECUSUnknown
-  | ECUSHaskell !HSState
-  | ECUSEh      !EHState
+  = ECUS_Unknown
+  | ECUS_Haskell !HSState
+  | ECUS_Eh      !EHState
 %%[[(90 codegen)
-  | ECUSC       !CState
+  | ECUS_C       !CState
+  | ECUS_O       !OState
 %%]]
-  | ECUSGrin
-  | ECUSFail
+%%[[(8 corein)
+  | ECUS_Core    !CRState
+%%]]
+  | ECUS_Grin
+  | ECUS_Fail
   deriving (Show,Eq)
+%%]
+
+%%[8 export(ecuStateFinalDestination)
+-- | The final state
+ecuStateFinalDestination :: (EHCompileUnitState -> EHCompileUnitState) -> EHCompileUnitState -> EHCompileUnitState
+ecuStateFinalDestination postModf
+  = postModf . n
+  where n (ECUS_Haskell _) = ECUS_Haskell HSAllSem
+        n (ECUS_Eh      _) = ECUS_Eh      EHAllSem
+%%[[(90 codegen)
+        n (ECUS_C       _) = ECUS_C       CAllSem
+        n (ECUS_O       _) = ECUS_O       OAllSem
+%%]]
+%%[[(50 corein)
+        n (ECUS_Core    _) = ECUS_Core    CRAllSem
+%%]]
+        n _                = ECUS_Fail
+%%]
+
+%%[8 export(ecuStateIsCore)
+-- | Is compilation from Core source
+ecuStateIsCore :: EHCompileUnitState -> Bool
+ecuStateIsCore st = case st of
+%%[[(8 corein)
+  ECUS_Core _ -> True
+%%]]
+  _           -> False
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -144,11 +193,11 @@ data EHCompileUnitKind
 ecuStateToKind :: EHCompileUnitState -> EHCompileUnitKind
 ecuStateToKind s
   = case s of
-      ECUSHaskell _ -> EHCUKind_HS
-%%[[90
-      ECUSC       _ -> EHCUKind_C
+      ECUS_Haskell _ -> EHCUKind_HS
+%%[[(90 codegen)
+      ECUS_C       _ -> EHCUKind_C
 %%]]
-      _             -> EHCUKind_None
+      _              -> EHCUKind_None
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -195,7 +244,11 @@ mkInOrOutputFPathDirFor inoutputfor opts modNm fp suffix
                       | filelocIsPkg l -> f (const Nothing)
                       | otherwise      -> f ehcOptOutputDir
         f g     = case g opts of
-                    Just d -> (fpathPrependDir d' $ mkFPath modNm, Just d')
+                    Just d -> ( fpathPrependDir d'
+                                $ fpathSetBase (fpathBase fp)	-- ensure possibly adapted name in filesys is used
+                                $ mkFPath modNm					-- includes module hierarchy into filename
+                              , Just d'
+                              )
                            where d' = filePathUnPrefix d
                     _      -> (fp,Nothing)
 %%]]
@@ -224,21 +277,21 @@ mkPerModuleOutputFPath opts doSepBy_ modNm fp suffix
 %%[[8
   where fpO m f= mkOutputFPath opts m f suffix
 %%][99
-  where fpO m f= case ehcOptPkg opts of
+  where fpO m f= case ehcOptPkgOpt opts of
                    Just _        -> nm_
                    _ | doSepBy_  -> nm_
                      | otherwise -> mkOutputFPath opts m f suffix
                where nm_ = mkOutputFPath opts (hsnMapQualified (const base) m) (fpathSetBase base f) suffix
-                         where base = hsnShow True "_" "_" m
+                         where base = hsnShow "_" "_" m
 %%]]
 %%]
 
 %%[8 export(mkPerExecOutputFPath)
--- | FPath for final executable
-mkPerExecOutputFPath :: EHCOpts -> HsName -> FPath -> Maybe String -> FPath
+-- | FPath for final executable, with possible suffix (and forcing flag, even on given exec)
+mkPerExecOutputFPath :: EHCOpts -> HsName -> FPath -> Maybe (String, Bool) -> FPath
 mkPerExecOutputFPath opts modNm fp mbSuffix
-  = fpExec
-  where fpExecBasedOnSrc = maybe (mkOutputFPath opts modNm fp "") (\s -> mkOutputFPath opts modNm fp s) mbSuffix
+  = maybe id (\(s,force) -> if force then fpathSetSuff s else id) mbSuffix fpExec
+  where fpExecBasedOnSrc = maybe (mkOutputFPath opts modNm fp "") (\(s,_) -> mkOutputFPath opts modNm fp s) mbSuffix
 %%[[8
         fpExec = fpExecBasedOnSrc
 %%][99

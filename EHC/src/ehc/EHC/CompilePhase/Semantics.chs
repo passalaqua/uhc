@@ -8,6 +8,8 @@ Folding over AST to compute semantics
 %%]
 
 -- general imports
+%%[8 import(Control.Monad.State)
+%%]
 %%[8 import(qualified Data.Map as Map)
 %%]
 %%[50 import(qualified Data.Set as Set)
@@ -19,6 +21,8 @@ Folding over AST to compute semantics
 %%]
 %%[8 import({%{EH}EHC.CompileRun})
 %%]
+%%[(50 codegen) import({%{EH}EHC.CompilePhase.Common})
+%%]
 
 -- EH semantics
 %%[8 import(qualified {%{EH}EH.MainAG} as EHSem)
@@ -27,7 +31,9 @@ Folding over AST to compute semantics
 %%[8 import(qualified {%{EH}HS.MainAG} as HSSem)
 %%]
 -- Core syntax and semantics
-%%[(8 codegen grin) import(qualified {%{EH}Core} as Core, qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%[(8 core) import(qualified {%{EH}Core} as Core, qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%]
+%%[(50 codegen corein) import(qualified {%{EH}Core.Check} as Core2ChkSem)
 %%]
 -- TyCore syntax and semantics
 %%[(8 codegen tycore) import(qualified {%{EH}TyCore} as C)
@@ -40,7 +46,7 @@ Folding over AST to compute semantics
 -- Module
 %%[50 import(qualified UHC.Util.Rel as Rel)
 %%]
-%%[50 import({%{EH}Module})
+%%[50 import({%{EH}Module.ImportExport})
 %%]
 %%[50 import(qualified {%{EH}HS.ModImpExp} as HSSemMod)
 %%]
@@ -53,21 +59,48 @@ Folding over AST to compute semantics
 %%% Compile actions: computing semantics
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) export(cpFoldCore)
-cpFoldCore :: HsName -> EHCompilePhase ()
-cpFoldCore modNm
+%%[(8 codegen) export(cpFoldCore2Grin)
+cpFoldCore2Grin :: HsName -> EHCompilePhase ()
+cpFoldCore2Grin modNm
   =  do  {  cr <- get
          ;  let  (ecu,crsi,opts,_) = crBaseInfo modNm cr
                  mbCore   = ecuMbCore ecu
-                 core     = panicJust "cpFoldCore" mbCore
+                 core     = panicJust "cpFoldCore2Grin" mbCore
                  coreInh  = crsiCoreInh crsi
                  coreSem  = Core2GrSem.wrap_CodeAGItf
                               (Core2GrSem.sem_CodeAGItf (Core.CodeAGItf_AGItf core))
-                              (coreInh { Core2GrSem.gUniq_Inh_CodeAGItf            = crsiHereUID crsi
-                                       , Core2GrSem.opts_Inh_CodeAGItf             = opts
+                              (coreInh { Core2GrSem.gUniq_Inh_CodeAGItf                         = crsiHereUID crsi
+                                       , Core2GrSem.opts_Inh_CodeAGItf                          = opts
+%%[[50
+                                       , Core2GrSem.importUsedModules_Inh_CodeAGItf             = ecuImportUsedModules ecu
+%%]]
                                        })
          ;  when (isJust mbCore)
                  (cpUpdCU modNm ( ecuStoreCoreSem coreSem
+                                ))
+         }
+%%]
+
+%%[(50 codegen corein) export(cpFoldCoreMod)
+cpFoldCoreMod :: HsName -> EHCompilePhase ()
+cpFoldCoreMod modNm
+  =  do  {  cr <- get
+         ;  let  (ecu,crsi,opts,_) = crBaseInfo modNm cr
+                 mbCore   = ecuMbCore ecu
+                 core     = panicJust "cpFoldCoreMod" mbCore
+                 inh      = Core2ChkSem.Inh_CodeAGItf
+                                { Core2ChkSem.opts_Inh_CodeAGItf = opts
+                                , Core2ChkSem.moduleNm_Inh_CodeAGItf = modNm
+                                , Core2ChkSem.dataGam_Inh_CodeAGItf = EHSem.dataGam_Inh_AGItf $ crsiEHInh crsi
+                                }
+                 coreSem  = Core2ChkSem.cmodCheck' inh core
+                 hasMain  = Core2ChkSem.hasMain_Syn_CodeAGItf coreSem
+                 mod      = Core2ChkSem.mod_Syn_CodeAGItf coreSem
+         -- ;  lift $ putStrLn $ "cpFoldCoreMod " ++ show hasMain
+         ;  when (isJust mbCore)
+                 (cpUpdCU modNm ( ecuStoreCoreSemMod coreSem
+                                . ecuSetHasMain hasMain
+                                . ecuStoreMod mod
                                 ))
          }
 %%]
@@ -76,15 +109,22 @@ cpFoldCore modNm
 cpFoldEH :: HsName -> EHCompilePhase ()
 cpFoldEH modNm
   =  do  {  cr <- get
+%%[[(50 codegen)
+         ;  mieimpl <- cpGenModuleImportExportImpl modNm
+%%]]
          ;  let  (ecu,crsi,opts,_) = crBaseInfo modNm cr
                  mbEH   = ecuMbEH ecu
                  ehSem  = EHSem.wrap_AGItf (EHSem.sem_AGItf $ panicJust "cpFoldEH" mbEH)
                                            ((crsiEHInh crsi)
-                                                  { EHSem.moduleNm_Inh_AGItf         = ecuModNm ecu
-                                                  , EHSem.gUniq_Inh_AGItf            = crsiHereUID crsi
-                                                  , EHSem.opts_Inh_AGItf             = opts
+                                                  { EHSem.moduleNm_Inh_AGItf         		= ecuModNm ecu
+                                                  , EHSem.gUniq_Inh_AGItf            		= crsiHereUID crsi
+                                                  , EHSem.opts_Inh_AGItf             		= opts
+%%[[(50 codegen)
+                                                  , EHSem.importUsedModules_Inh_AGItf		= ecuImportUsedModules ecu
+                                                  , EHSem.moduleImportExportImpl_Inh_AGItf	= mieimpl
+%%]]
 %%[[50
-                                                  , EHSem.isMainMod_Inh_AGItf        = ecuIsMainMod ecu
+                                                  , EHSem.isMainMod_Inh_AGItf        		= ecuIsMainMod ecu
 %%]]
                                                   })
          ;  when (isJust mbEH)
@@ -112,9 +152,9 @@ cpFoldHs modNm
                                                 })
 %%[[50
                         where mmi    = panicJust "cpFoldHs.crsiModMp" $ Map.lookup modNm $ crsiModMp crsi
-                              inscps = Rel.toDomMap -- $ (\v -> tr "XX mmiInscps mmi" (pp v ) v)
+                              inscps = Rel.toDomMap --- $ (\v -> tr "XX mmiInscps mmi" (pp v ) v)
                                                     $ mmiInscps 
-                                                    -- $ (\v -> tr "XX mmi" (pp v ) v)
+                                                    --- $ (\v -> tr "XX mmi" (pp v ) v)
                                                     $ mmi
                               exps   = Rel.toRngMap $ Rel.restrictRng (\o -> let mq = hsnQualifier (ioccNm o) in isJust mq && fromJust mq /= modNm)
                                                     $ Rel.mapRng mentIdOcc $ mmiExps mmi
@@ -133,7 +173,7 @@ cpFoldHs modNm
 %%[[50
                      ; when (ehcOptVerbosity opts >= VerboseDebug)
                             (lift $ putStrLn (show modNm ++ " hasMain=" ++ show hasMain))
-                     ; when hasMain (crSetAndCheckMain modNm)
+                     -- ; when hasMain (crSetAndCheckMain modNm)
 %%]]
                      })
          }
@@ -183,7 +223,7 @@ cpFoldHIInfo modNm
                                                 ( -- (\v -> tr "cpFoldHIInfo.hiiExps" (pp v) v) $
                                                  HI.hiiExps hiInfo)
                                                 (HI.hiiHiddenExps hiInfo)
-                     ; when hasMain (crSetAndCheckMain modNm)
+                     -- ; when hasMain (crSetAndCheckMain modNm)
                      ; cpUpdSI (\crsi -> crsi {crsiModMp = Map.insert modNm mmi' mm})
                      ; cpUpdCU modNm ( ecuStorePrevHIInfo hiInfo
                                      . ecuStoreHIDeclImpS (HI.hiiHIDeclImpModS hiInfo)

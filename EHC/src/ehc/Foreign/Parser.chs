@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -24,7 +24,7 @@ foreign import ccall unsafe "string.h" memcpy  :: Ptr a -> Ptr a -> CSize -> IO 
 
 %%]
 
-%%[90 module {%{EH}Foreign.Parser} import(UU.Scanner.GenToken, {%{EH}Base.Builtin},{%{EH}Base.Common}, {%{EH}Scanner.Common}, {%{EH}Foreign})
+%%[90 module {%{EH}Foreign.Parser} import(UU.Scanner.GenToken, {%{EH}Base.HsName.Builtin},{%{EH}Base.Common}, {%{EH}Scanner.Common}, {%{EH}Foreign})
 %%]
 
 %%[90 import(UHC.Util.ParseUtils, UU.Parsing, UHC.Util.Utils)
@@ -108,6 +108,9 @@ pPrimCall dfltNm
   where nm = maybe "" id dfltNm
         pKnownPrim = pMb (pAnyFromMap pKeyTk allKnownPrimMp)
 
+pForeignVar :: ForeignParser String
+pForeignVar = tokGetVal <$> (pVARID <|> pCONID)
+
 %%[[(90 javascript)
 pJavaScriptCall :: Maybe String -> ForeignParser JavaScriptCall
 pJavaScriptCall dfltNm
@@ -122,9 +125,6 @@ pJavaScriptCall dfltNm
         pIncludeJs :: ForeignParser String
         pIncludeJs = pForeignVar <* pDOT <* pJS
         
-pForeignVar :: ForeignParser String
-pForeignVar = tokGetVal <$> (pVARID <|> pCONID)
-
 pForeignExpr :: ForeignParser ForeignExpr
 pForeignExpr
   = pExp

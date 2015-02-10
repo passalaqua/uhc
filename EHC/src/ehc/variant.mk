@@ -6,8 +6,13 @@
 # aspects, EHC_ASPECTS to be configured at top level, for now here
 ###########################################################################################
 
-EHC_ASPECTS								:= $(strip $(if $(ASPECTS),$(ASPECTS) \
-											,base hmtyinfer codegen grin  \
+ifeq ($(EHC_VARIANT),$(EHC_UHCLIGHT_CABAL_VARIANT))
+EHC_ASPECTS_MINIMAL						:= base hmtyinfer codegen core corein coreout corebackend corerun
+else
+EHC_ASPECTS_MINIMAL						:= base hmtyinfer codegen core grin corein coreout machdep
+endif
+EHC_ASPECTS								:= $(strip $(sort $(if $(ASPECTS),$(ASPECTS) \
+											,$(EHC_ASPECTS_MINIMAL) \
 											 $(if $(EHC_CFG_USE_RULER),,noHmTyRuler) \
 											 $(if $(ENABLE_JAVA),java jazy,) \
 											 $(if $(ENABLE_LLVM),llvm,) \
@@ -18,10 +23,21 @@ EHC_ASPECTS								:= $(strip $(if $(ASPECTS),$(ASPECTS) \
 											 $(if $(ENABLE_CLR),clr,) \
 											 $(if $(ENABLE_TYCORE),tycore,) \
 											 $(if $(ENABLE_CORESYSF),coresysf,) \
+											 $(if $(ENABLE_CORE_ASINPOUTP),corebackend corerun,) \
 											 $(if $(ENABLE_TAUPHI),tauphi,) \
-											))
+											)))
 EHC_ASPECTS_SUFFIX						:= $(if $(ASPECTS),-$(subst $(space),-,$(ASPECTS)),)
 EHC_ASPECTS_SUFFIX2						:= $(subst -,,$(EHC_ASPECTS_SUFFIX))
+
+###########################################################################################
+# Additional packages depending on aspects
+###########################################################################################
+
+ifeq ($(filter corerun,$(EHC_ASPECTS)),corerun)
+CABAL_ENABLEDASPECT_LIB_DEPENDS		:= primitive
+else
+CABAL_ENABLEDASPECT_LIB_DEPENDS		:= 
+endif
 
 ###########################################################################################
 # variant, EHC_VARIANT to be configured at top level, by a recursive make invocation
@@ -45,14 +61,22 @@ EHC_VARIANT_RULER_SEL					:= ().().()
 # name of executable
 ###########################################################################################
 
+# ehc
 FUN_EHC_INSTALL_VARIANT_ASPECTS_EXEC		= $(call FUN_INSTALL_VARIANT_BIN_PREFIX,$(1))$(EHC_EXEC_NAME)$(EXEC_SUFFIX)
 FUN_EHC_INSTALLABS_VARIANT_ASPECTS_EXEC		= $(call FUN_INSTALLABS_VARIANT_BIN_PREFIX,$(1))$(EHC_EXEC_NAME)$(EXEC_SUFFIX)
+# ehcr
+FUN_EHCRUN_INSTALL_VARIANT_ASPECTS_EXEC		= $(call FUN_INSTALL_VARIANT_BIN_PREFIX,$(1))$(EHCRUN_EXEC_NAME)$(EXEC_SUFFIX)
 
+#ehc
 #EHC_INSTALL_VARIANT_ASPECTS_EXEC			:= $(EHC_BIN_VARIANT_ASPECTS_PREFIX)$(EHC_EXEC_NAME)$(EXEC_SUFFIX)
-EHC_ALL_PUB_EXECS						:= $(patsubst %,$(call FUN_EHC_INSTALL_VARIANT_ASPECTS_EXEC,%),$(EHC_PUB_VARIANTS))
-EHC_ALL_EXECS							:= $(patsubst %,$(call FUN_EHC_INSTALL_VARIANT_ASPECTS_EXEC,%),$(EHC_VARIANTS))
+EHC_ALL_PUB_EXECS							:= $(patsubst %,$(call FUN_EHC_INSTALL_VARIANT_ASPECTS_EXEC,%),$(EHC_PUB_VARIANTS))
+EHC_ALL_EXECS								:= $(patsubst %,$(call FUN_EHC_INSTALL_VARIANT_ASPECTS_EXEC,%),$(EHC_VARIANTS))
 EHC_INSTALL_VARIANT_ASPECTS_EXEC			:= $(call FUN_EHC_INSTALL_VARIANT_ASPECTS_EXEC,$(EHC_VARIANT_ASPECTS))
 EHC_INSTALLABS_VARIANT_ASPECTS_EXEC			:= $(call FUN_EHC_INSTALLABS_VARIANT_ASPECTS_EXEC,$(EHC_VARIANT_ASPECTS))
+
+# ehcr
+EHCRUN_ALL_EXECS							:= $(patsubst %,$(call FUN_EHCRUN_INSTALL_VARIANT_ASPECTS_EXEC,%),$(EHC_CODE_VARIANTS))
+EHCRUN_INSTALL_VARIANT_ASPECTS_EXEC			:= $(call FUN_EHCRUN_INSTALL_VARIANT_ASPECTS_EXEC,$(EHC_VARIANT_ASPECTS))
 
 ###########################################################################################
 # code generation targets, leading to target dependend locations
@@ -73,8 +97,21 @@ RTS_GCC_CC_OPTS_VARIANT_TARGET			:= -D$(EHC_VARIANT_TARGET_UHC_DEFINE1) -D$(EHC_
 # lib/cabal/module config
 ###########################################################################################
 
+# for enduser installable variants the module qualifiers are different
 LIB_EHC_BASE							:= EH
-LIB_EHC_QUAL							:= $(subst _,x,$(LIB_EHC_BASE)$(EHC_VARIANT))$(EHC_BUILD_SUFFIX)$(EHC_ASPECTS_SUFFIX2)
+ifeq ($(EHC_VARIANT),$(EHC_UHC_INSTALL_VARIANT))
+# uhc compiler
+LIB_EHC_QUAL							:= UHC.Compiler
+else
+ifeq ($(EHC_VARIANT),$(EHC_UHCLIGHT_CABAL_VARIANT))
+# uhc cabal/package installation
+LIB_EHC_QUAL							:= UHC.Light.Compiler
+else
+# default
+LIB_EHC_QUAL							:= $(subst _,x,$(LIB_EHC_BASE)$(EHC_VARIANT))$(EHC_ASPECTS_SUFFIX2)
+endif
+endif
+
 LIB_EHC_QUAL_PREFIX						:= $(LIB_EHC_QUAL).
 LIB_EHC_HS_PREFIX						:= $(subst .,$(PATH_SEP),$(LIB_EHC_QUAL_PREFIX))
 LIB_EHC_PKG_NAMEBASE					:= $(GHC_PKG_NAME_PREFIX)$(subst .,-,$(LIB_EHC_QUAL))

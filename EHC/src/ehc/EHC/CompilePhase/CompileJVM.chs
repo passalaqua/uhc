@@ -9,6 +9,8 @@ JVM compilation
 
 %%[(8 codegen java) import(System.Directory)
 %%]
+%%[(8 codegen java) import(Control.Monad.State)
+%%]
 
 -- general imports
 %%[(8 codegen java) import({%{EH}EHC.Common})
@@ -27,7 +29,7 @@ JVM compilation
 
 %%[(8 codegen jazy) import({%{EH}Core.ToJazy})
 %%]
-%%[(8 codegen java) import({%{EH}Base.Bits},{%{EH}JVMClass.ToBinary})
+%%[(8 codegen java) import({%{EH}CodeGen.Bits},{%{EH}JVMClass.ToBinary})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

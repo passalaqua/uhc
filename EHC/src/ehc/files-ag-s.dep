@@ -34,6 +34,7 @@ JavaScript/Pretty.cag
 Error/Pretty.cag
 Core/BindExtract.cag
 Core/ExtractFFE.cag
+Core/ToCoreRun.cag
 Core/ToGrin.cag
 Core/ToJazy.cag
 Core/ToJavaScript.cag
@@ -42,6 +43,7 @@ Core/Subst.cag
 Core/FvS.cag
 Core/ModAsMap.cag
 Core/UsedModNms.cag
+Core/Check.cag
 Core/Trf/ConstProp.cag
 Core/Trf/EtaRed.cag
 Core/Trf/ANormal.cag
@@ -61,12 +63,16 @@ Core/Trf/AnaRelevance.cag
 Core/Trf/ExplicitStackTrace.cag
 Core/Trf/OptimizeStrictness.cag
 Core/Trf/EraseExtractTysigCore.cag
+Core/Trf/ElimNonCodegenConstructs.cag
+Core/Trf/FixAfterParse.cag
 Core/SysF/Check.cag
+CoreRun/Pretty.cag
 GrinCode/Pretty.cag
 GrinCode/FreeVars.cag
 GrinCode/PointsToAnalysis.cag
 GrinCode/ToGrinByteCode.cag
 GrinCode/ToCil.cag
+GrinCode/ToCmm.cag
 GrinCode/ToSilly.cag
 GrinCode/Trf/AliasElim.cag
 GrinCode/Trf/AliasRename.cag
@@ -124,3 +130,9 @@ TyCore/Trf/RemoveLazyFunctions2of2.cag
 TyCore/Trf/OptimizeStrictness1of2.cag
 TyCore/Trf/OptimizeStrictness2of2.cag
 Cmm/ToC
+Cmm/Pretty
+Cmm/Check
+Cmm/ToJavaScript
+Cmm/Trf/SimplifyLocalNames.cag
+JavaScript/Trf/InlineSingleUseNames.cag
+JavaScript/Trf/CompactAndSimplify.cag

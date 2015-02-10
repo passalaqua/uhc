@@ -1,0 +1,177 @@
+%%[(0 corerun)
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%[doesWhat.CBind doclatex
+AST for CoreRun, a runnable (geared towards efficiency) representation of Core.
+
+It is not the intention to define AG semantics over this AST because non AG supported types (like array) are used.
+
+Global assumptions:
+- everything usually accessed by a key via a map now is done via an array
+- A-normal form, i.e. arguments by name
+- Operational semantics: once a lam is entered is computes to WHNF
+- All is tail recursive except when wrapped in Exp_Ret (no longer)
+- All is non tail recursive except when wrapped in Exp_Tail
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Top level
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 corerun)
+DATA Mod
+  | Mod         ref2nm			: {Ref2Nm}		-- inverse lookup of locally introduced binding RRef's
+                moduleNm        : {HsName}
+                moduleNr        : {Int}			-- sequence nr, index later into global table of modules
+                stkDepth        : {Int}			-- max depth of stack for setting up globals
+                metas           : MetaL
+                binds           : {CRArray Bind}
+                body			: Exp
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Meta info
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 corerun)
+DATA Meta
+  | Data		tyNm			: {HsName}
+  				dataCons		: DataConL
+
+TYPE MetaL		= [Meta]
+
+SET AllMeta		= Meta MetaL
+
+-- Equivalent of data type def holding the minimal pieces of info required for codegen
+DATA DataCon
+  | Con			conNm			: {HsName}
+  				tagNr			: {Int}				-- runtime tag
+  				-- arity			: {Int}				-- nr of fields, excluding tag
+
+TYPE DataConL	= [DataCon]
+
+SET AllDataCon	= DataCon DataConL
+
+SET AllMetaNT 	= AllMeta AllDataCon
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Expression
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 corerun)
+DATA SExp
+  -- base cases
+  | Var         ref             : {RRef}
+  | Int         int             : {Int}
+  | Char        char            : {Char}
+  | String      str             : {String}
+%%[[97
+  | Integer     integer         : {Integer}
+%%]]
+  -- Debug only
+  | Dbg			msg				: {String}
+%%]
+
+%%[(8 corerun)
+DATA Exp
+  -- base cases
+  | SExp        sexpr           : SExp
+
+  -- node constructor, tuple or data constructor, determined by tag
+  | Tup         tag             : {Int}
+                args			: {CRArray SExp}
+
+  -- let bindings, recursiveness allowed, yes/no eval made explicit in rhs of binding
+  | Let         -- lev				: {Int}
+  				firstOff		: {Int}			-- offset of first binding
+  				ref2nm			: {Ref2Nm}		-- inverse lookup of locally introduced binding RRef's
+                binds           : {CRArray Bind}
+                body            : Exp
+
+  -- application, abstraction
+  | App         -- isTailRec		: {Bool}
+  				func            : Exp
+                args            : {CRArray SExp}
+  | Lam         mbNm			: {Maybe HsName}	-- possibly bound to name
+  				-- lev				: {Int}				-- lexical level
+  				nrArgs          : {Int}				-- nr of arguments, 0 means it is a thunk
+                -- nrBinds         : {Int}				-- nr stack frame locations to be allocated (excluding arguments) for locals
+                stkDepth        : {Int}				-- max depth of stack
+                ref2nm			: {Ref2Nm}			-- inverse lookup of locally introduced binding RRef's
+                body            : Exp
+
+  -- thunking, forcing, partial applications
+  | Force		expr			: Exp
+  -- | Thunk		expr			: Exp		-- expressed as parameterless Lam
+
+  -- expr in a context to which must be returned (i.e. no tail rec)
+  -- | Ret			expr			: Exp
+  
+  -- expr in a case alternative result context (with local bindings to be removed)
+  -- | RetCase		nrBinds			: {Int}
+  -- 				expr			: Exp
+  
+  -- Tail context
+  | Tail		expr			: Exp
+
+  -- case
+  | Case        expr            : SExp
+                alts            : {CRArray Alt}
+
+  -- FFI call
+  | FFI         prim        	: {RunPrim}
+                args			: {CRArray SExp}
+{-
+  | FFI         callconv        : {FFIWay}
+%%[[8
+                impEnt          : {String}
+%%][90
+                impEnt          : {ForeignEnt}
+%%]]
+                ty              : {Ty}
+                args			: {CRArray Exp}
+-}
+
+%%[[9090
+  -- FFE binding (not yet implemented for all backends)
+  | FFE         callconv        : {FFIWay}
+                expEnt          : {ForeignEnt}
+                expr            : Exp
+                ty              : {Ty}
+%%]]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Binding: just an Exp in an Array, addressing implicit
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Case alternative + pattern + pattern binding
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 corerun)
+DATA Alt
+  | Alt         ref2nm			: {Ref2Nm}		-- inverse lookup of locally introduced binding RRef's
+                -- pat             : Pat
+                expr            : Exp
+%%]
+
+%%[(8 corerun)
+DATA Pat
+  | Con         tag             : {Int}
+%%[[97
+  | BoolExpr    expr            : Exp
+%%]]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Sets of NT's
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 corerun)
+SET AllNT
+  = Mod SExp Exp Alt Pat
+%%]

@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -195,7 +195,9 @@ SEM Expr
 %%[[5
                         .   extraPP =   empty
 %%][8
-                        .   extraPP =   maybe empty (ppCmt . ppCommas' . Set.toList) @mbCaseIds
+                        .   extraPP =   let pps e s = ppCmt $ e >#< (ppCommas' $ Set.toList s)
+                                        in  maybe empty (\s -> pps "mbCaseIds" s) @mbCaseIds
+                                            >|< (if Set.null @caseFailS then empty else pps "caseFailS" @caseFailS)
 %%]]
 
 SEM PatExpr
@@ -269,13 +271,17 @@ SEM DataFieldPatExpr
 SEM Expr
   | Undefined   loc     .   pp      =   pp "..."
   | CaseAltFail loc     .   pp      =   pp "FAIL" >#< @caseId
+%%]
 
+%%[8
 SEM Decl
   | FFI         loc     .   pp      =   "foreign import" >#< @callconv >#< @safety >#< pp (show @impEnt) >#< @nm >#< "::" >#< @tyExpr.pp
 %%[[90
   | FFE         loc     .   pp      =   "foreign export" >#< @nm >#< @callconv >#< ppForeignEnt @expEnt >#< @expr.pp >#< "::" >#< @tyExpr.pp
 %%]]
+%%]
 
+%%[8
 SEM PatExpr
   | Irrefutable loc     .   pp      =   "~" >|< @patExpr.pp
   | Bang 		loc     .   pp      =   "!" >|< @patExpr.pp
@@ -412,7 +418,7 @@ SEM KiExprAnn
 SEM Decl
   | Data        loc     .   pp      =   (if @isNewtype then "newtype" else "data")
                                         >#< @tyNm >#< ppSpaced @tyVars.ppL
-                                        >#< "=" >#< ppListSepFill "" "" " | " @constrs.ppL
+                                        >#< "=" >#< ppBlockWithStrings "" "" "| " @constrs.ppL
 
 SEM DataConstr
   | Constr      loc     .   pp      =   pp @conNm

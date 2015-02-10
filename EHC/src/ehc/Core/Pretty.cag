@@ -1,31 +1,37 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
 
 %%[doesWhat doclatex
-Note (20120525): bindingMp use removed because of cyclic module import
+Note (20120525): lamMp use removed because of cyclic module import
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Core Pretty Printer
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs module {%{EH}Core.Pretty} import(UHC.Util.Pretty,{%{EH}Base.Builtin},{%{EH}Base.CfgPP},{%{EH}Opts.Base},{%{EH}Base.Common},{%{EH}Ty},{%{EH}Ty.Pretty},{%{EH}Core},{%{EH}Scanner.Common(coreScanOpts)}) export(ppCModule)
+%%[(8 coreout) hs module {%{EH}Core.Pretty} import(UHC.Util.Pretty,{%{EH}Base.HsName.Builtin},{%{EH}Base.CfgPP},{%{EH}Opts.Base},{%{EH}Base.Common},{%{EH}Ty},{%{EH}Core},{%{EH}Scanner.Common(coreScanOpts)})
+%%]
+%%[(8 coreout) hs import({%{EH}Ty.Pretty})
 %%]
 
-%%[(8 codegen) hs import({%{EH}AnaDomain.Pretty})
+%%[(8 coreout) hs import({%{EH}AnaDomain.Pretty})
 %%]
-%%[(8888 codegen) hs import({%{EH}BindingInfo})
-%%]
-
-%%[(8 codegen) hs import(qualified Data.Map as Map,qualified Data.Set as Set,{%{EH}Ty.Pretty})
+%%[(8888 coreout) hs import({%{EH}LamInfo})
 %%]
 
-%%[(90 codegen) hs import({%{EH}Foreign.Pretty})
+%%[(8 coreout) hs import(qualified Data.Map as Map,qualified Data.Set as Set)
 %%]
 
-%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonBindNm},{Core/CommonMetaLev})
+%%[(90 coreout) hs import({%{EH}Foreign.Pretty})
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Haskell itf
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 coreout).WRAPPER ag import({Core/AbsSyn},{Core/CommonBindNm},{Core/CommonMetaLev})
 WRAPPER
   CodeAGItf CExpr CBound
 %%[[(8 coresysf)
@@ -36,12 +42,12 @@ WRAPPER
 %%]]
 %%]
 
-%%[(8 codegen) hs
-ppCModule :: EHCOpts -> {- BindingMp -> -} CModule -> PP_Doc
-ppCModule opts {- bindingMp -} cmod
+%%[(8 coreout) hs export(ppCModule)
+ppCModule :: EHCOpts -> {- LamMp -> -} CModule -> PP_Doc
+ppCModule opts {- lamMp -} cmod
   =  let  t = wrap_CodeAGItf (sem_CodeAGItf (CodeAGItf_AGItf cmod))
                              (Inh_CodeAGItf
-                               { {- bindingMp_Inh_CodeAGItf = bindingMp
+                               { {- lamMp_Inh_CodeAGItf = lamMp
                                , -} opts_Inh_CodeAGItf = opts
                                })
      in   (pp_Syn_CodeAGItf t)
@@ -50,7 +56,9 @@ ppCExpr :: CExpr -> PP_Doc
 ppCExpr ce
   =  let  t = wrap_CExpr (sem_CExpr ce)
                          (Inh_CExpr
-                            { ppHow_Inh_CExpr = howHor
+                            { varPPMp_Inh_CExpr = Map.empty
+                            -- , lamMp_Inh_CExpr = Map.empty
+                            , ppHow_Inh_CExpr = howHor
                             , opts_Inh_CExpr = emptyEHCOpts
                             , mlev_Inh_CExpr = metaLevVal
                             })
@@ -60,7 +68,9 @@ ppCBound :: CBound -> PP_Doc
 ppCBound ce
   =  let  t = wrap_CBound (sem_CBound ce)
                           (Inh_CBound
-                            { ppHow_Inh_CBound = howHor
+                            { varPPMp_Inh_CBound = Map.empty
+                            -- , lamMp_Inh_CBound = Map.empty
+                            , ppHow_Inh_CBound = howHor
                             , opts_Inh_CBound = emptyEHCOpts
                             , nm_Inh_CBound = hsnUnknown
                             , minMetaLev_Inh_CBound = metaLevVal -- gathMinMetaLev_Syn_CBound t
@@ -80,7 +90,9 @@ ppCBind :: CBind -> PP_Doc
 ppCBind ce
   =  let  t = wrap_CBind (sem_CBind ce)
                          (Inh_CBind
-                            { ppHow_Inh_CBind = howHor
+                            { varPPMp_Inh_CBind = Map.empty
+                            -- , lamMp_Inh_CBind = Map.empty
+                            , ppHow_Inh_CBind = howHor
                             , opts_Inh_CBind = emptyEHCOpts
                             , minMetaLev_Inh_CBind = metaLevVal -- gathMinMetaLev_Syn_CBind t
                             , mlev_Inh_CBind = metaLevVal -- gathMinMetaLev_Syn_CBind t
@@ -95,12 +107,18 @@ instance PP CTy where
   pp = cty pp pp
 %%]
 
-%%[(8 codegen) hs
+%%[(8 coreout) hs
+ppCNm :: HsName -> PP_Doc
+ppCNm = ppCoreNm
+%%]
+ppCNm :: EHCOpts -> HsName -> PP_Doc
+ppCNm _ n = fst $ ppHsnEscapeWith '$' (hsnOkChars '$' $ copts) (hsnNotOkStrs copts) n
+  where copts = coreScanOpts emptyEHCOpts
 ppCNm :: EHCOpts -> HsName -> PP_Doc
 ppCNm o n | CoreOpt_PPParseable `elem` ehcOptCoreOpts o = ppHsnNonAlpha coreScanOpts' n
           | otherwise                                   = pp n
           where coreScanOpts' = coreScanOpts emptyEHCOpts
-%%]
+
 ppMbCNm :: EHCOpts -> Maybe HsName -> PP_Doc
 ppMbCNm o = maybe (ppCNm o (hsnFromString "_")) (ppCNm o)
 
@@ -108,7 +126,7 @@ ppManyCNm :: EHCOpts -> [HsName] -> PP_Doc
 ppManyCNm o =  ppListSep "" "" " " . map (ppCNm o)
 
 
-%%[(9 codegen) hs
+%%[(9 coreout) hs
 ppTrack :: Track -> PP_Doc
 ppTrack t = text (show t)
 
@@ -116,12 +134,12 @@ ppHole :: UID -> PP_Doc
 ppHole i = "<" >|< pp i >|< ">"
 %%]
 
-%%[(9 codegen) hs
+%%[(9 coreout) hs
 ppOptCMetas :: CMetas -> PP_Doc
 ppOptCMetas x
   =  let  t = wrap_CMetas (sem_CMetas x)
                           (Inh_CMetas
-                             { {- bindingMp_Inh_CMetas = Map.empty
+                             { {- lamMp_Inh_CMetas = Map.empty
                              , -} opts_Inh_CMetas = emptyEHCOpts
                              , mlev_Inh_CMetas = metaLevVal
                              })
@@ -129,10 +147,29 @@ ppOptCMetas x
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Config
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 coreout) hs
+ehcOptDumpMore :: EHCOpts -> Bool
+ehcOptDumpMore opts = CoreOpt_DumpAlsoNonParseable `elem` ehcOptCoreOpts opts
+
+alsoMore :: EHCOpts -> (PP_Doc -> PP_Doc) -> PP_Doc -> PP_Doc
+alsoMore opts mk
+  | ehcOptDumpMore opts = mk
+  | otherwise           = id
+
+whenMore :: EHCOpts -> PP_Doc -> PP_Doc
+whenMore opts
+  | ehcOptDumpMore opts = id
+  | otherwise           = const empty
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Debugging only
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(9 codegen) hs export(ppCBindL)
+%%[(9 coreout) hs export(ppCBindL)
 ppCBindL :: CBindL -> PP_Doc
 ppCBindL
   = ppAssocL
@@ -146,7 +183,7 @@ ppCBindL
 %%% Utils
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs
+%%[(8 coreout) hs
 
 ppSignedInt :: Int -> PP_Doc
 ppSignedInt n = " " >#< show n
@@ -170,7 +207,9 @@ ppLit :: String -> String -> PP_Doc
 ppLit kind val = "#" >|< kind >|< pp (show val)
 
 ppTag :: CTag -> PP_Doc
-ppTag t = ppCTag' CfgPP_Plain t -- CfgPP_Core t
+ppTag t
+  -- = ppCTag' CfgPP_Plain t
+  = ppCTag' CfgPP_Core t
 
 ppCurlyList :: (a -> PP_Doc) -> [a] -> PP_Doc
 ppCurlyList pL xs = ppListSep "{ " " }" ", " $ map pL xs
@@ -181,7 +220,7 @@ ppCurlyList pL xs = ppListSep "{ " " }" ", " $ map pL xs
 %%% Context: options
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%[(8 coreout)
 ATTR CodeAGItf AllNT [ opts: EHCOpts | | ]
 %%]
 
@@ -189,7 +228,7 @@ ATTR CodeAGItf AllNT [ opts: EHCOpts | | ]
 %%% Context: how to pp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs
+%%[(8 coreout) hs
 type CmbPP = PP_Doc -> PP_Doc -> PP_Doc
 
 data HowPP
@@ -204,8 +243,8 @@ howVert = HowPP  ppDef  (>-<)  vlist     ppBlock
 howHor  = HowPP  (>#<)  (>#<)  ppSpaces  ppListSep
 %%]
 
-%%[(8 codegen)
-ATTR AllExpr CModule - AllMeta [ ppHow: HowPP | | ]
+%%[(8 coreout)
+ATTR AllMetaNT AllExpr CModule - AllMeta [ ppHow: HowPP | | ]
 
 SEM CodeAGItf
   | AGItf       loc         .   ppHow       =   howVert
@@ -242,32 +281,60 @@ SEM ValBind
 %%% Context: Lam info
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8888 codegen)
-ATTR CodeAGItf AllCodeNT [ bindingMp: BindingMp | | ]
+%%[(8888 coreout)
+ATTR CodeAGItf AllCodeNT [ lamMp: LamMp | | ]
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Pretty printed code
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs
+%%[(8 coreout) hs
 -- | pp a CBound, for internal use here
-ppBound :: Bool -> Maybe String -> String -> PP_Doc -> PP_Doc
-ppBound isSingleNoNm mbLev s pv
+ppBound :: EHCOpts -> Bool -> Maybe String -> String -> PP_Doc -> PP_Doc
+ppBound opts isSingleNoNm mbLev s pv
   = lev $ sep (pp s) pv
   where sep | isSingleNoNm = flip const
             | otherwise    = (>#<)
-        lev = maybe id (>#<) mbLev
+        lev | ehcOptDumpMore opts = maybe id (>#<) mbLev
+            | otherwise           = id
+
+-- | pp vertically with semicolon termination
+ppSemiTerminated :: [PP_Doc] -> PP_Doc
+ppSemiTerminated = vlist . map ppSemi
 %%]
 
-%%[(8 codegen)
-ATTR CodeAGItf AllCodeNT [ | | pp USE {>-<} {empty} : PP_Doc ]
-ATTR CPatFldL CBindL CAltL CBoundL [ | | ppL: {[PP_Doc]} ]
+%%[(8 coreout)
+ATTR CodeAGItf AllNT [ | | pp USE {>-<} {empty} : PP_Doc ]
+ATTR CPatFldL CBindL CAltL CBoundL CBindAnnL CDataConL CDeclMetaL CImportL CExportL [ | | ppL: {[PP_Doc]} ]
 ATTR CExpr [ | | lamBodyPP: PP_Doc  lamArgPPL: {[PP_Doc]} ]
 ATTR CExpr [ | | appFunPP : PP_Doc  appArgPPL: {[PP_Doc]} ]
 
 SEM CModule
-  | Mod         lhs         .   pp          =   "module" >#< ppCNm @lhs.opts @moduleNm >#< "=" >-< @expr.pp >-< "-- data type tag map:" >-< ppCTagsMp CfgPP_Core @ctagsMp
+  | Mod         lhs         .   pp          =   ppSemi ("module" >#< ppCNm @moduleNm)
+                                                >-< (ppSemiTerminated @exports.ppL)
+                                                >-< (ppSemiTerminated @imports.ppL)
+                                                >-< (ppSemiTerminated @declMetas.ppL)
+                                                -- >-< (if null @declMetas.ppL then empty else ppCurlysSemisBlock @declMetas.ppL)
+                                                -- >-< "="
+                                                >-< @expr.pp
+                                                -- >-< "-- data type tag map:"
+                                                -- >-< ppCTagsMp CfgPP_Core @ctagsMp
+
+SEM CDeclMeta
+  | Data		lhs			.	pp			=	howDef @lhs.ppHow ("data" >#< ppCNm @tyNm) ("=" >#< ppBlockWithStrings{-H-} "" "" ", " @dataCons.ppL)
+
+SEM CImport
+  | Import		lhs			.	pp			=	"import" >#< ppCNm @nm
+
+SEM CExport
+  | Export		lhs			.	pp			=	"export" >#< ppCNm @nm
+  | ExportData	lhs			.	pp			=	"export data" >#< ppMbPost ppParensCommas @mbConNmL (ppCNm @nm)
+  
+  -- ppMbPost :: (PP x, PP r) => (a -> x) -> Maybe a -> r -> PP_Doc
+
+SEM CDataCon
+  | Con			lhs			.	pp			=	ppCNm @conNm >#< "=" >#< ppCurlysCommas [pp @tagNr, pp @arity]
 
 SEM CExpr
   | Int         loc         .   pp          =   ppLit "Int"    (show @int)
@@ -276,7 +343,10 @@ SEM CExpr
 %%[[97
   | Integer     loc         .   pp          =   ppLit "Integer" (show @integer)
 %%]
-  | Var         loc         .   pp          =   ppACoreBindRef (ppCNm @lhs.opts) @ref
+  | Var         loc         .   pp          =   ppACoreBindRef ppCNm @ref
+%%[[(8888 corerun)
+  | VarRRef		loc         .   pp          =   pp @ref
+%%]]
   | App         loc         .   pp          =   let args = reverse $ map ppParens $ @appArgPPL
                                                     fun  = ppParens @appFunPP
                                                 in  howDef @lhs.ppHow fun (foldr1 (howAside @lhs.ppHow) args)
@@ -288,22 +358,22 @@ SEM CExpr
                                                   CBindCateg_FFE     -> pp " foreignexport"
 %%]]
                                                   _                  -> empty
-                            .   pp          =   howDef @lhs.ppHow ("let" >|< @ppCateg) (ppCurlysSemisBlock @binds.ppL) >#< "in" >-< @body.pp
+                            .   pp          =   howDef @lhs.ppHow ("let" >|< @ppCateg) (ppSemiTerminated @binds.ppL) >#< "in" >-< @body.pp
   | Lam         loc         .   pp          =   howDef @lhs.ppHow ("\\" >|< ppSpaces @lamArgPPL >#< "->") (@lamBodyPP)
   | Case        loc         .   pp          =   "case" >#< @expr.pp >#< "of"
-                                                >-< indent 1 (ppCurlysSemisBlock @alts.ppL >-< ppCurlysSemisBlock [howDef @lhs.ppHow (pp "default") @dflt.pp])
+                                                >-< indent 1 (ppSemiTerminated @alts.ppL >-< ppSemiTerminated [howDef @lhs.ppHow (pp "default") @dflt.pp])
   | Tup         loc         .   pp          =   "#Tag" >#< ppTag @tag
-  | TupDel      loc         .   pp          =   howDef @lhs.ppHow (ppParens @expr.pp) ("-=" >|< ppCurlysCommas' [ppTag @tag,@offset.pp,ppCNm @lhs.opts @nm])
-  | TupIns      loc         .   pp          =   howDef @lhs.ppHow (ppParens @expr.pp) (howDef @lhs.ppHow ("+=" >|< ppCurlysCommas' [ppTag @tag,@offset.pp,ppCNm @lhs.opts @nm]) (ppParens @fldExpr.pp))
-  | TupUpd      loc         .   pp          =   howDef @lhs.ppHow (ppParens @expr.pp) (howDef @lhs.ppHow (":=" >|< ppCurlysCommas' [ppTag @tag,@offset.pp,ppCNm @lhs.opts @nm]) (ppParens @fldExpr.pp))
-  | CaseAltFail loc         .   pp          =   pp "FAIL" >#< @failReason
-  | FFI         loc         .   pp          =   ("foreign" >#< ppCurlysCommasBlock [pp (show @callconv),pp (show @safety),@ppent,ppTy @ty])
+  | TupDel      loc         .   pp          =   howDef @lhs.ppHow (ppParens @expr.pp) ("-=" >|< ppCurlysCommas' [ppTag @tag,@offset.pp,ppCNm @nm])
+  | TupIns      loc         .   pp          =   howDef @lhs.ppHow (ppParens @expr.pp) (howDef @lhs.ppHow ("+=" >|< ppCurlysCommas' [ppTag @tag,@offset.pp,ppCNm @nm]) (ppParens @fldExpr.pp))
+  | TupUpd      loc         .   pp          =   howDef @lhs.ppHow (ppParens @expr.pp) (howDef @lhs.ppHow (":=" >|< ppCurlysCommas' [ppTag @tag,@offset.pp,ppCNm @nm]) (ppParens @fldExpr.pp))
+  | CaseAltFail loc         .   pp          =   pp "FAIL" >#< @failReason >-< whenMore @lhs.opts (indent 2 $ ppCurlys @errorExpr.pp)
+  | FFI         loc         .   pp          =   ("foreign" >#< ppCurlysCommasBlock [pp (show @callconv),pp (show @safety),@ppent,ppTyWithCfg' CfgPP_Core @ty])
 %%[[8
                 loc         .   ppent       =   pp (show @impEnt)
 %%][90
                 loc         .   ppent       =   "\"" >|< @impEnt >|< "\""
 %%]]
-  | Dbg         loc         .   pp          =   ppParens $ "<<DBG:" >#< @info >#< ">>"
+  | Dbg         loc         .   pp          =   {- whenMore @lhs.opts $ -} ppParens $ "<<DBG:" >#< @info >#< ">>"
 %%[[(8 coresysf)
   | Arr         loc         .   pp          =   @bind.pp >#< "->" >#< @body.pp
   | Cast		loc			.	pp			=	howDef @lhs.ppHow (pp "cast") (howAside @lhs.ppHow (ppParens @expr.pp) (ppParens @ty.pp))
@@ -311,7 +381,7 @@ SEM CExpr
 
 SEM CExpr
   | Lam         loc         .   lamBodyPP   =   @body.lamBodyPP
-                            .   lamArgPPL   =   @bind.pp {- (ppCNm @lhs.opts @argNm) -} : @body.lamArgPPL
+                            .   lamArgPPL   =   @bind.pp {- (ppCNm @argNm) -} : @body.lamArgPPL
   | * - Lam     lhs         .   lamBodyPP   =   @pp
                             .   lamArgPPL   =   []
 
@@ -329,12 +399,12 @@ SEM CBind
                                                         | otherwise                                      = id
                                                     isSingleNoNm = hsnIsWild @nm && length @bindAspects.ppBindInfoL == 1
                                                     def | isSingleNoNm = par                                           val
-                                                        | otherwise    = par $ howDef @lhs.ppHow (ppCNm @lhs.opts @nm) val
-                                                        where val = p $ [ ppBound isSingleNoNm Nothing s pv | (s,_,pv) <- @bindAspects.ppBindInfoL ] -- ++ (maybe [] (\x -> [pp x]) $ Map.lookup @nm @lhs.bindingMp)
+                                                        | otherwise    = par $ howDef @lhs.ppHow (ppCNm @nm) val
+                                                        where val = p $ [ ppBound @lhs.opts isSingleNoNm Nothing s pv | (s,_,pv) <- @bindAspects.ppBindInfoL ] -- ++ (maybe [] (\x -> [pp x]) $ Map.lookup @nm @lhs.lamMp)
                                                 in  def
 
 SEM CBound
-  | Bind        loc         .   ppBound     =   @bindMeta.pp >-< @expr.pp
+  | Bind        loc         .   ppBound     =   whenMore @lhs.opts @bindMeta.pp >-< @expr.pp
   | Ty          loc         .   ppBound     =   ppACBaspKeyS @aspectKeyS >#< @tyPP -- pp @relevTy
   | RelevTy     loc         .   ppBound     =   ppACBaspKeyS @aspectKeyS >#< @tyPP -- pp @relevTy
   | Meta        loc         .   ppBound     =   ppACBaspKeyS @aspectKeyS >#< @cmetas.pp
@@ -349,14 +419,14 @@ SEM CBound
                                                     , not $ @mlev == 0 && @lbl == CLbl_None && Set.null @aspectKeyS
                                                     )
 %%[[90
-  | FFE         loc         .   ppBound     =   "foreignexport" >#< ppCurlysCommasBlock [pp (show @callconv),"\"" >|< @expEnt >|< "\"",@expr.pp {- ppCNm @lhs.opts @expNm -},ppTyWithCfg' CfgPP_Plain @ty]
+  | FFE         loc         .   ppBound     =   "foreignexport" >#< ppCurlysCommasBlock [pp (show @callconv),"\"" >|< @expEnt >|< "\"",@expr.pp {- ppCNm @expNm -},ppTyWithCfg' CfgPP_Core @ty]
 %%]]
 
 SEM CBound
-  | Val         loc         .   pp          =   ppBound True (Just @lev) @sep @ppBound
+  | Val         loc         .   pp          =   ppBound @lhs.opts True (Just @lev) @sep @ppBound
   | * - Val     loc         .   pp          =   @ppBound
 
-SEM CBoundL CBindL CPatFldL CAltL
+SEM CBoundL CBindL CPatFldL CAltL CBindAnnL CDataConL CDeclMetaL CImportL CExportL
   | Nil         lhs         .   ppL         =   []
   | Cons        lhs         .   ppL         =   @hd.pp : @tl.ppL
 
@@ -366,15 +436,16 @@ SEM CAlt
 SEM CPat
   | Int         lhs         .   pp          =   ppLit "Int"    (show @int)
   | Char        lhs         .   pp          =   ppLit "Char"   [@char]
-  | Var         lhs         .   pp          =   ppCNm @lhs.opts @pnm
+  | Var         lhs         .   pp          =   ppCNm @pnm
   | Con         lhs         .   pp          =   howDef @lhs.ppHow ("#Tag" >#< ppTag @tag)
-                                                      (ppCurly (@rest.pp >#< "|" >#< ppCommas' @binds.ppL))
+                                                      (ppCurly (ppMbPre (>#< "|") @rest.ppMb $ ppCommas' @binds.ppL))
 
 SEM CPatFld
-  | Fld         lhs         .   pp          =   ppCurlysCommas' [ppCNm @lhs.opts @lbl,@offset.pp {- ,ppCNm @lhs.opts @nm -}] >|< "=" >|< @bind.pp
+  | Fld         lhs         .   pp          =   whenMore @lhs.opts (ppCurlysCommas' [ppCNm @lbl,@offset.pp {- ,ppCNm @nm -}] >|< "=") >|< @bind.pp
+                                                >|< (if null @fldAnns.ppL then empty else ppParensCommas' @fldAnns.ppL)
 
 SEM CPatRest
-  | Var         lhs         .   pp          =   ppCNm @lhs.opts @nm
+  | Var         loc         .   pp          =   ppCNm @nm
 
 %%]
   | Undef       lhs         .   pp          =   pp hsnUnknown
@@ -382,7 +453,7 @@ SEM CPatRest
   | TupSplit    lhs         .   pp          =   (cpatNmEither ((>|< "@") . pp) (const empty) @pnm)
                                                 >|< ppParens (@pat.pp >#< "|">#< pp @tag >|< ":" >|< @offset.pp >|< "=" >|< @fldPat.pp)
 
-%%[(8 codegen)
+%%[(8 coreout)
 ATTR CMetaVal [ | | optPP : PP_Doc ]
 
 SEM CMetas
@@ -409,17 +480,20 @@ SEM CMetaVal
 
 %%]
 
-%%[(8 codegen)
+%%[(8 coreout)
 SEM CExpr
-  | Ann         loc         .   pp          =   ppParens (@expr.pp >#< @ann.pp)
+  | Ann         loc         .   pp          =   alsoMore @lhs.opts (\x -> ppParens (x >#< @ann.pp)) @expr.pp
 
 SEM CExprAnn
-  | Ty          loc         .   pp          =   "::" >#< ppTy @ty
-  | RelTy       loc         .   pp          =   "::" >#< ppParens (ppRelTySch @ty >|< "," >#< ppCurlysCommas @env)
+  | Ty          loc         .   pp          =   "::" >#< ppTyWithCfg' CfgPP_Plain @ty
+  | Coe         loc         .   pp          =   "~" >#< ppRelevCoe @lhs.varPPMp @coe
   | Debug       loc         .   pp          =   ppCmt $ pp @info
+
+SEM CBindAnn
+  | Coe         loc         .   pp          =   "~" >#< ppRelevCoe @lhs.varPPMp @coe
 %%]
 
-%%[(9 codegen)
+%%[(9 coreout)
 SEM CExpr
   | Hole        loc         .   pp          =   ppHole @uid
   | HoleLet     loc         .   pp          =   "let --" >#< ppHole @bindsUid >-< howDef @lhs.ppHow (pp "in") @body.pp
@@ -433,7 +507,7 @@ SEM CExpr
 %%% PP + separator for optional use in CBind
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs
+%%[(8 coreout) hs
 type PPBindInfo
   = ( String                -- separator
     , Bool                  -- outside parenthesization required
@@ -441,7 +515,7 @@ type PPBindInfo
     )
 %%]
 
-%%[(8 codegen)
+%%[(8 coreout)
 ATTR AllBound [ | | ppBindInfoL USE {++} {[]}: {[PPBindInfo]} ]
 
 SEM CBound
@@ -462,13 +536,37 @@ SEM CBound
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% List, Maybe of ...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 coreout)
+ATTR CPatRest [ | | ppMb: {Maybe PP_Doc} ]
+
+SEM CPatRest
+  | Var         lhs         .   ppMb        =   Just @pp
+  | * - Var		lhs			.	ppMb		=	Nothing
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% UID mapping
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%[(8 coreout)
+ATTR AllExprBase [ varPPMp: VarPPMp | | ]
+
+SEM CModule
+  | Mod         expr        .   varPPMp     =   Map.empty
+%%]
+
+%%[(8 coreout)
+ATTR AllBound [ | | gathVarPPMp USE {`Map.union`} {Map.empty}: VarPPMp ]
+
 SEM CBound
-  | RelevTy     loc         .   tyPP        =   ppRelTySch @relevTy
-  | Ty          loc         .   tyPP        =   ppTy @ty
+  | RelevTy     (loc.tyPP,lhs.gathVarPPMp)  =   ppRelevTy Map.empty @relevTy        -- circular when given desired @lhs.varPPMp
+  | Ty          loc         .   tyPP        =   ppTyWithCfg' CfgPP_Core @ty
+
+SEM CBind
+  | Bind        bindAspects .   varPPMp     =   Map.union @bindAspects.gathVarPPMp @lhs.varPPMp
 %%]
 
 %%]
@@ -477,7 +575,7 @@ SEM CBound
 %%% AG type signatures
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%[(8 coreout)
 SEM *
   | *           loc         .   tyPP        :   PP_Doc
 %%]

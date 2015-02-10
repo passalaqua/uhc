@@ -2,10 +2,13 @@
 %%% Class interface around common functionality of Core and TyCore
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) module {%{EH}AbstractCore}
+%%[8 module {%{EH}AbstractCore}
 %%]
 
-%%[(8 codegen) import({%{EH}Base.Builtin},{%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Opts.Base},{%{EH}Ty})
+%%[8 import({%{EH}Base.Common})
+%%]
+
+%%[(8 codegen) import({%{EH}Base.HsName.Builtin},{%{EH}Base.TermLike},{%{EH}Opts.Base},{%{EH}Ty})
 %%]
 
 %%[(8 codegen) import(UHC.Util.Pretty,UHC.Util.Utils)
@@ -14,9 +17,9 @@
 %%[(8 codegen) import(Data.List, Data.Maybe, qualified Data.Map as Map, qualified Data.Set as Set, Control.Applicative((<|>),(<$>)))
 %%]
 
-%%[(50 codegen grin) hs import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
+%%[(50 codegen) hs import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
 %%]
-%%[(50 codegen grin) hs import(Data.Typeable(Typeable), Data.Generics(Data))
+%%[(50 codegen) hs import(Data.Typeable(Typeable), Data.Generics(Data))
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -84,10 +87,13 @@ class AbstractCore  expr metaval bind bound boundmeta bindcateg metabind ty pat 
   acoreCast :: ty -> expr -> expr
   acoreCast _ e = e
   
-  -- | case, with possible default
-  acoreCaseDflt  :: expr -> [alt] -> Maybe expr -> expr
+  -- | A Case expression, possibly with a default value.
+  acoreCaseDflt  :: expr    -- ^ The scrutinee. Required to be in WHNF.
+        -> [alt]            -- ^ The alternatives.
+        -> Maybe expr       -- ^ The default value. (TODO what is the behaviour if it is Nothing?)
+        -> expr
 
-  -- | var
+  -- | Creates a variable expression.
   acoreVar  :: HsName -> expr
 
   -- | string
@@ -134,8 +140,11 @@ class AbstractCore  expr metaval bind bound boundmeta bindcateg metabind ty pat 
   -- | pat var, with type
   acorePatVarTy :: HsName -> ty -> pat
   
-  -- | pat con
-  acorePatCon :: CTag -> patrest -> [patfld] -> pat
+  -- | Matches the case scrutinee with the given constructor tag.
+  acorePatCon :: CTag   -- ^ The constructor to match.
+    -> patrest          -- ^ ???
+    -> [patfld]         -- ^ ???
+    -> pat
 
   -- | pat int
   acorePatIntTy :: ty -> Int -> pat
@@ -151,20 +160,34 @@ class AbstractCore  expr metaval bind bound boundmeta bindcateg metabind ty pat 
   acorePatBoolExpr :: expr -> pat
 %%]]
   ------------------------- constructing: pat field -------------------------
-  -- | pat field
-  acorePatFldBind :: (HsName,expr) -> bind -> patfld
+  -- | TODO ??? pat field
+  acorePatFldBind :: (HsName,expr)  -- ^ lbl, offset ???
+    -> bind     -- ^ ??
+    -> patfld
   -- acorePatFldTy :: ty -> (HsName,expr) -> HsName -> patfld
 
   ------------------------- constructing: patrest -------------------------
-  -- | patrest, empty
+  -- | patrest, empty TODO what does it mean?
   acorePatRestEmpty :: patrest
 
   -- | patrest, var
   acorePatRestVar :: HsName -> patrest
 
   ------------------------- constructing: alt -------------------------
-  -- | 1 arg application, together with meta info about the argument
-  acoreAlt :: pat -> expr -> alt
+  -- | Creates an alternative of a case statement.
+  acoreAlt :: pat   -- ^ The pattern with which to match the case scrutinee.
+        -> expr     -- ^ The value of this alternative.
+        -> alt
+  
+  ------------------------- constructing: top level -------------------------
+  -- | Wraps main expr into a form which can be directly run by evaluating
+  acoreRunMain :: expr     -- ^ main
+        -> expr
+%%[[8
+  acoreRunMain e = e
+%%][99
+  acoreRunMain e = acore1App e (acoreTup [])
+%%]]
   
   ------------------------- type related -------------------------
   -- | construct ty from Ty, usable in Core context
@@ -553,7 +576,11 @@ acore1App :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => e ->
 acore1App f a = acore1AppBound f (acoreBound1Val a)
 {-# INLINE acore1App #-}
 
-acoreApp :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => e -> [e] -> e
+-- | Applies the first expression to all given arguments.
+acoreApp :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a)
+    => e    -- ^ The lambda to apply.
+    -> [e]  -- ^ The arguments (the empty list is allowed).
+    -> e
 acoreApp f as = foldl (\f a -> acore1App f a) f as
 
 acoreAppBound :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => e -> [bound] -> e
@@ -590,6 +617,8 @@ acoreLam as e = foldr (\(n) e -> acoreLam1 n e) e as
 acoreTagTupTy :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => CTag -> t -> [e] -> e
 acoreTagTupTy tg t es = acoreTagTyTupBound tg t $ map acoreBound1Val es
 
+-- | Creates a new tuple/record with the given values.
+-- Has to be fully applied, partial application is not allowed.
 acoreTagTup :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => CTag -> [e] -> e
 acoreTagTup tg es = acoreTagTupTy tg (acoreTyErr "acoreTupTy") es
 
@@ -791,7 +820,11 @@ acoreLet :: (Eq bcat, AbstractCore e m b bound boundmeta bcat mbind t p pr pf a)
 acoreLet c bs e = acoreLetMerge False c bs e
 {-# INLINE acoreLet #-}
 
-acoreLetRec :: (Eq bcat, AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => [b] -> e -> e
+-- | Creates a let binding, where the bindings may be mutually recursive.
+acoreLetRec :: (Eq bcat, AbstractCore e m b bound boundmeta bcat mbind t p pr pf a)
+    => [b]  -- ^ The bindings.
+    -> e    -- ^ The body.
+    -> e
 acoreLetRec bs e = acoreLet (acoreBindcategRec) bs e
 {-# INLINE acoreLetRec #-}
 %%]
@@ -807,7 +840,12 @@ acoreLet1PlainTy nm t e
   = acoreLet cat [acoreBind1CatTy cat nm t e]
   where cat = acoreBindcategPlain
 
-acoreLet1Plain :: (Eq bcat, AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => HsName -> e -> e -> e
+-- | Creates a (non-recursive) let binding.
+acoreLet1Plain :: (Eq bcat, AbstractCore e m b bound boundmeta bcat mbind t p pr pf a)
+    => HsName   -- ^ The identifier.
+    -> e       -- ^ The expression to bind.
+    -> e       -- ^ The body.
+    -> e
 acoreLet1Plain nm e = acoreLet1PlainTy nm (acoreTyErr "acoreLet1Plain") e
 {-# INLINE acoreLet1Plain #-}
 %%]
@@ -818,7 +856,12 @@ acoreLet1StrictTy nm t e
   = acoreLet cat [acoreBind1CatTy cat nm t e]
   where cat = acoreBindcategStrict
 
-acoreLet1Strict :: (Eq bcat, AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => HsName -> e -> e -> e
+-- | Creates a let binding, which is strict in the bound expression.
+acoreLet1Strict :: (Eq bcat, AbstractCore e m b bound boundmeta bcat mbind t p pr pf a)
+    => HsName   -- ^ The identifer.
+    -> e        -- ^ The expression to bind. Will be evaluated to WHNF, before the body is evaluated.
+    -> e        -- ^ The body.
+    -> e
 acoreLet1Strict nm e = acoreLet1StrictTy nm (acoreTyErr "acoreLet1Strict") e
 {-# INLINE acoreLet1Strict #-}
 %%]
@@ -882,6 +925,7 @@ acoreBindcategDflt _ = acoreBindcategPlain
 acoreChar :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => EHCOpts -> Char -> e
 acoreChar opts i = let x = acoreCharTy (acoreTyChar opts) i in x
 
+-- | Creates an `Int` constant.
 acoreInt :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => EHCOpts -> Int -> e
 acoreInt opts i = let x = acoreIntTy (acoreTyInt opts) i in x
 
@@ -919,21 +963,34 @@ acoreBuiltinEqChar opts c e = acoreBuiltinApp opts ehbnPrimEqChar [e,acoreChar o
 %%]
 
 %%[(8 codegen) hs export(acoreBuiltinString)
-acoreBuiltinString :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => EHCOpts -> String -> e
+-- | Creates a string expression.
+-- The expression represents a packed String, which can be passed to Haskell generated Core functions.
+acoreBuiltinString :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a)
+    => EHCOpts
+    -> String   -- ^ The string.
+    -> e
 acoreBuiltinString opts m = let x = acoreBuiltinApp opts ehbnPackedStringToString [acoreStringTy (acoreTyString opts) m] in x
 %%]
 
 %%[(8 codegen) hs export(acoreBuiltinError,acoreBuiltinUndefined)
-acoreBuiltinError :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => EHCOpts -> String -> e
+-- | Generates an error expression, failing with the given string when evaluated. ('error' in haskell)
+acoreBuiltinError :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a)
+    => EHCOpts
+    -> String -- ^ The error message.
+    -> e
 acoreBuiltinError opts m = acoreBuiltinApp opts ehbnError [acoreBuiltinString opts m]
 
+-- | Generates an undefined expression, failing when evaluated. ('undefined' in haskell)
 acoreBuiltinUndefined :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => EHCOpts -> e
 acoreBuiltinUndefined opts = acoreBuiltinApp opts ehbnUndefined []
 %%]
 
 %%[(97 codegen) hs export(acoreBuiltinInteger)
--- | Builtin Integer
-acoreBuiltinInteger :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a) => EHCOpts -> Integer -> e
+-- | Creates a Core 'Integer' constant.
+acoreBuiltinInteger :: (AbstractCore e m b bound boundmeta bcat mbind t p pr pf a)
+    => EHCOpts
+    -> Integer  -- ^ The integer.
+    -> e
 acoreBuiltinInteger opts i = acoreBuiltinApp opts ehbnPackedStringToInteger [acoreStringTy (acoreTyString opts) (show i)]
 %%]
 
@@ -1041,7 +1098,8 @@ Additionally, this can be done in a lazy manner yielding a substitution CSubst
 to be applied at the last possible moment.
 %%]
 
-%%[(8 codegen) hs export(Coe'(..))
+%%[8 hs export(Coe'(..))
+%%[[(8 codegen)
 data Coe' expr metaval bind bindasp ty
   = Coe_Map             !(expr -> expr)                 -- normal, expression as function
   | Coe_C               !expr                           -- constant
@@ -1061,23 +1119,30 @@ data Coe' expr metaval bind bindasp ty
 
 instance Show (Coe' expr metaval bind bindasp ty) where
   show _ = "COE"
+%%][8
+data Coe'
+  = Coe_NONE            -- placeholder dummy
+  deriving Show
+%%]]
+%%]
+
+%%[(8 !codegen) hs export(Coe)
+-- | placeholder def
+type Coe = Coe'
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Coercion context
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[doesWhat.Coe doclatex
-Coercions may either be applied or not on type arguments.
-In particular, due to lack of proper analysis (and generics code like generation),
-it is only known for arrow and product types how to construct a coercion from its type args, as they directly
-correspond to values.
-
-A CoeCtx encodes this yes/no may allow.
-A CoeCtx is isomorphic (for now) to Bool.
-%%]
-
-%%[(8 codegen) hs export(CoeCtx(..))
+%%[8 hs export(CoeCtx(..))
+-- | Coercions may either be applied or not on type arguments.
+--   In particular, due to lack of proper analysis (and generics code like generation),
+--   it is only known for arrow and product types how to construct a coercion from its type args, as they directly
+--   correspond to values.
+--   
+--   A CoeCtx encodes this yes/no may allow.
+--   A CoeCtx is isomorphic (for now) to Bool.
 data CoeCtx
   = CoeCtx_Allow
   | CoeCtx_DontAllow
@@ -1267,12 +1332,7 @@ cSubstAppSubst = Map.union
 infixr `cSubstApp`
 
 class CSubstitutable       e m b ba t a
-                   | e  ->   m b ba t
-                   , m  -> e
-                   , b  -> e
-                   , ba -> e
-                   , t  -> e
-                   , a  -> e m b ba t
+                   | a  -> e m b ba t
   where
   cSubstApp :: CSubst' e m b ba t -> a -> a
 
@@ -1406,8 +1466,8 @@ In the following, note the hardcodedness!!!!!
 
 %%[(8 codegen) hs export(ctagTrue, ctagFalse)
 ctagTrue, ctagFalse :: EHCOpts -> CTag
-ctagTrue  opts = CTag (ehcOptBuiltin opts ehbnDataBool) (ehcOptBuiltin opts ehbnBoolTrue)  1 0 0        -- this makes it hardcoded, ideally dependent on datatype def itself !!
-ctagFalse opts = CTag (ehcOptBuiltin opts ehbnDataBool) (ehcOptBuiltin opts ehbnBoolFalse) 0 0 0        -- this makes it hardcoded, ideally dependent on datatype def itself !!
+ctagTrue  opts = CTag (ehcOptBuiltin opts ehbnDataBool) (ehcOptBuiltin opts ehbnBoolTrue)  tagBoolTrue  0 0        -- this makes it hardcoded, ideally dependent on datatype def itself !!
+ctagFalse opts = CTag (ehcOptBuiltin opts ehbnDataBool) (ehcOptBuiltin opts ehbnBoolFalse) tagBoolFalse 0 0        -- this makes it hardcoded, ideally dependent on datatype def itself !!
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1418,8 +1478,8 @@ In the following, note the hardcodedness!!!!!
 
 %%[(8 codegen) hs export(ctagCons,ctagNil)
 ctagCons, ctagNil :: EHCOpts -> CTag
-ctagCons opts = CTag (ehcOptBuiltin opts ehbnDataList) (ehcOptBuiltin opts ehbnDataListAltCons) 0 2 2       -- this makes it hardcoded, ideally dependent on datatype def itself !!
-ctagNil  opts = CTag (ehcOptBuiltin opts ehbnDataList) (ehcOptBuiltin opts ehbnDataListAltNil ) 1 0 2       -- this makes it hardcoded, ideally dependent on datatype def itself !!
+ctagCons opts = CTag (ehcOptBuiltin opts ehbnDataList) (ehcOptBuiltin opts ehbnDataListAltCons) tagListCons 2 2       -- this makes it hardcoded, ideally dependent on datatype def itself !!
+ctagNil  opts = CTag (ehcOptBuiltin opts ehbnDataList) (ehcOptBuiltin opts ehbnDataListAltNil ) tagListNil  0 2       -- this makes it hardcoded, ideally dependent on datatype def itself !!
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1468,26 +1528,87 @@ data AppFunKind
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen) hs export(WhatExpr(..))
+
+-- | What kind of Expr?
 data WhatExpr
-  = ExprIsLam
-  | ExprIsApp   Int         -- arity
+  = ExprIsLam   Int				-- arity
+                (Maybe HsName)	-- possibly name bound to
+  | ExprIsApp   Int         	-- arity
+  				WhatExpr		-- function
   | ExprIsVar   HsName
   | ExprIsInt   Int
+  | ExprIsTup   CTag
+  | ExprIsFFI
+  | ExprIsOtherWHNF
   | ExprIsOther
-  | ExprIsBind
+  | ExprIsBind 	HsName
   deriving Eq
 %%]
 
-%%[(8 codegen) hs export(whatExprMbApp,whatExprAppArity)
+%%[(8 codegen) hs export(whatExprMbVar, whatExprMbApp,whatExprMbLam, whatExprMbLam', whatExprAppArity, whatExprMbBind)
+-- | is an var?
+whatExprMbVar :: WhatExpr -> Maybe HsName
+whatExprMbVar (ExprIsVar a) = Just a
+whatExprMbVar _             = Nothing
+
 -- | is an app?
-whatExprMbApp :: WhatExpr -> Maybe Int
-whatExprMbApp (ExprIsApp a) = Just a
-whatExprMbApp _             = Nothing
+whatExprMbApp :: WhatExpr -> Maybe (Int,WhatExpr)
+whatExprMbApp (ExprIsApp a w) = Just (a,w)
+whatExprMbApp _               = Nothing
+
+-- | is a lam?
+whatExprMbLam' :: WhatExpr -> Maybe (Int, Maybe HsName)
+whatExprMbLam' (ExprIsLam a n) = Just (a, n)
+whatExprMbLam' _               = Nothing
+
+-- | is a lam?
+whatExprMbLam :: WhatExpr -> Maybe Int
+whatExprMbLam (ExprIsLam a _) = Just a
+whatExprMbLam _               = Nothing
+
+-- | is a bind?
+whatExprMbBind :: WhatExpr -> Maybe HsName
+whatExprMbBind (ExprIsBind n) = Just n
+whatExprMbBind _              = Nothing
 
 -- | app arity
 whatExprAppArity :: WhatExpr -> Int
-whatExprAppArity (ExprIsApp a) = a
-whatExprAppArity _             = 0
+whatExprAppArity (ExprIsApp a _) = a
+whatExprAppArity _               = 0
+%%]
+
+%%[(8 codegen) hs export(whatExprIsWHNF)
+whatExprIsWHNF :: WhatExpr -> Bool
+whatExprIsWHNF (ExprIsLam _ _) 	= True
+whatExprIsWHNF (ExprIsVar _) 	= True
+whatExprIsWHNF (ExprIsInt _) 	= True
+whatExprIsWHNF (ExprIsTup _) 	= True
+whatExprIsWHNF ExprIsOtherWHNF 	= True
+whatExprIsWHNF _ 				= False
+%%]
+
+%%[(8 codegen) hs export(whatExprIsLam, whatExprIsTup, whatExprIsBind)
+whatExprIsBind :: WhatExpr -> Bool
+whatExprIsBind = isJust . whatExprMbBind
+{-# INLINE whatExprIsBind #-}
+
+whatExprIsLam :: WhatExpr -> Bool
+whatExprIsLam = isJust . whatExprMbLam
+{-# INLINE whatExprIsLam #-}
+
+-- | Is Expr a Tup?
+whatExprIsTup :: WhatExpr -> Bool
+whatExprIsTup (ExprIsTup _) = True
+whatExprIsTup _             = False
+
+%%]
+
+%%[(8 codegen) hs export(whatExprIsFFI)
+-- | Is Expr a FFI?
+whatExprIsFFI :: WhatExpr -> Bool
+whatExprIsFFI (ExprIsFFI  ) = True
+whatExprIsFFI _             = False
+
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

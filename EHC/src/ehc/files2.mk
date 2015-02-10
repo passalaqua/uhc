@@ -4,7 +4,7 @@
 
 # for (e.g.) 99/ehc, shorthand notation for ehc binaries
 $(patsubst %,%/ehc,$(EHC_VARIANTS)): %/ehc: $(call FUN_EHC_INSTALL_VARIANT_ASPECTS_EXEC,%)
-#$(patsubst $(BIN_PREFIX)%$(EXEC_SUFFIX),%,$(EHC_ALL_EXECS)): %: $(BIN_PREFIX)%$(EXEC_SUFFIX)
+$(patsubst %,%/ehcr,$(EHC_CODE_VARIANTS)): %/ehcr: $(call FUN_EHCRUN_INSTALL_VARIANT_ASPECTS_EXEC,%)
 
 # for (e.g.) install/99/bin/ehc, ehc binaries
 $(EHC_ALL_EXECS): %: \
@@ -14,6 +14,14 @@ $(EHC_ALL_EXECS): %: \
 		$(RTS_ALL_SRC)
 	@$(EXIT_IF_ABSENT_LIB_OR_TOOL)
 	$(MAKE) INCLUDE_DERIVED_MK=yes EHC_VARIANT=`echo $@ | sed -n -e 's+$(call FUN_EHC_INSTALL_VARIANT_ASPECTS_EXEC,\([0-9_]*\)).*+\1+p'` ehc-variant
+
+# for (e.g.) install/99/bin/ehcr, ehcr binaries
+$(EHCRUN_ALL_EXECS): %: \
+		$(EHC_ALL_SRC_FIND) \
+		$(if $(EHC_CFG_USE_RULER),$(RULER2),) \
+		$(EHC_MKF)
+	@$(EXIT_IF_ABSENT_LIB_OR_TOOL)
+	$(MAKE) INCLUDE_DERIVED_MK=yes EHC_VARIANT=`echo $@ | sed -n -e 's+$(call FUN_EHCRUN_INSTALL_VARIANT_ASPECTS_EXEC,\([0-9_]*\)).*+\1+p'` ehcr-variant
 
 # for haddock
 $(EHC_ALL_HADDOCKS): %: $(EHC_ALL_SRC) $(EHC_MKF)
@@ -70,12 +78,21 @@ ehc-variant-dflt: \
 	  fi \
 	,)
 
-#ehc-variant-dflt: $(EHC_ALL_DPDS) $(LIB_EH_UTIL_INS_FLAG) $(LIB_EHC_INS_FLAG) \
-#			$(if $(EHC_CFG_USE_GRIN) \
-#				,$(if $(EHC_CFG_USE_CODEGEN),$(INSTALLFORBLDABS_LIB_RTS),),)
-#	mkdir -p $(dir $(EHC_INSTALL_VARIANT_ASPECTS_EXEC)) && \
-#	$(GHC) --make $(GHC_OPTS) $(GHC_OPTS_WHEN_EHC) -package $(LIB_EH_UTIL_PKG_NAME) -package $(LIB_EHC_PKG_NAME) \
-#	       -i$(EHC_BLD_VARIANT_ASPECTS_PREFIX) $(EHC_BLD_VARIANT_ASPECTS_PREFIX)$(EHC_MAIN).hs -o $(EHC_INSTALL_VARIANT_ASPECTS_EXEC)
+###########################################################################################
+# rules for ehcr runner
+###########################################################################################
+
+ehcr-variant:
+	$(MAKE) \
+	  $(if $(EHC_CFG_USE_RULER),EHC_VARIANT_RULER_SEL="(($(EHC_VARIANT)=$(EHC_ON_RULES_VIEW_$(EHC_VARIANT)))).($(EHC_BY_RULER_GROUPS_BASE)).($(EHC_BY_RULER_RULES_$(EHC_VARIANT)))",) \
+	  ehcr-variant-dflt
+
+ehcr-variant-dflt: \
+		$(EHC_ALL_DPDS) \
+		$(LIB_EHC_INS_FLAG)
+	mkdir -p $(dir $(EHCRUN_INSTALL_VARIANT_ASPECTS_EXEC)) && \
+	$(GHC) --make $(GHC_OPTS) $(GHC_OPTS_WHEN_EHC) -package $(LIB_EHC_PKG_NAME) \
+	       -i$(EHC_BLD_VARIANT_ASPECTS_PREFIX) $(EHC_BLD_VARIANT_ASPECTS_PREFIX)$(EHCRUN_MAIN).hs -o $(EHCRUN_INSTALL_VARIANT_ASPECTS_EXEC)
 
 ###########################################################################################
 # code generation target specific make targets, for each $(EHC_TARGETS)
@@ -88,6 +105,10 @@ ehc-codegentargetspecific-C:
 ehc-codegentargetspecific-jazy:
 
 ehc-codegentargetspecific-js:
+
+ehc-codegentargetspecific-cr:
+
+ehc-codegentargetspecific-cmmjs:
 
 ehc-codegentargetspecific-core:
 
@@ -174,4 +195,52 @@ ehc-barebones-variant: $(EHC_AG_ALL_MAIN_DRV_AG) $(EHC_AG_ALL_DPDS_DRV_AG) $(EHC
 	  ) \
 	  > Makefile \
 	)
+
+###########################################################################################
+# rules for uhc light cabal distribution
+###########################################################################################
+
+# target assumes files found by wildcards/shell/find are present and already built
+uhc-light-cabal-dist: # $(EHC_HS_ALL_DRV_HS_NO_MAIN) $(EHC_HS_MAIN_DRV_HS)		
+	@rm -rf $(CABALDIST_UHCLIGHT_PREFIX) ; \
+	mkdir -p $(CABALDIST_UHCLIGHT_SRC_ALL_DRV_NO_MAIN_PREFIX) $(CABALDIST_UHCLIGHT_SRC_PREFIX) $(CABALDIST_UHCLIGHT_SRCMAIN_PREFIX) $(CABALDIST_UHCLIGHT_VARIANT_LIB_PREFIX) ; \
+	ehc_ehclib_lib_dir="$(EHCLIB_INS_LIB_DIR)" ; \
+	ehc_ehclib_files="$(filter-out $(EHCLIB_INS_LIB_DIR) %DS_Store,$(subst $(EHCLIB_INS_LIB_PREFIX),,$(shell find $(call FUN_PREFIX2DIR,$(EHCLIB_INS_LIB_PREFIX)) \( -name '*' -type f \) )))" ; \
+	ehc_ehclib_names="`echo $${ehc_ehclib_files} | sed -e 's=\([^ ]*\)=$(call FUN_VARIANT_LIB_PREFIX,$(EHC_VARIANT))\1=g' -e 's/ /,/g'`" ; \
+	ehc_nomain_exposed_hs_files="$(subst $(EHC_BLD_LIBEHC_VARIANT_PREFIX),,$(call FILTER_OUT_EMPTY_FILES,$(filter %Main.hs %Main/Utils.hs %API.hs %API/Internal.hs,$(shell find $(call FUN_PREFIX2DIR,$(EHC_BLD_LIBEHC_VARIANT_PREFIX)) \( -name '*.hs' \)))))" ; \
+	ehc_nomain_exposed_names="`echo $${ehc_nomain_exposed_hs_files} | sed -e 's/\.hs//g' -e 's/ /,/g' -e 's+$(PATH_SEP)+.+g'`" ; \
+	ehc_nomain_nonexposed_hs_files="$(filter-out %Paths_uhc_light.hs dist%, $(subst $(EHC_BLD_LIBEHC_VARIANT_PREFIX),,$(call FILTER_OUT_EMPTY_FILES,$(filter-out %Main.hs %Main/Utils.hs %API.hs %API/Internal.hs,$(shell find $(call FUN_PREFIX2DIR,$(EHC_BLD_LIBEHC_VARIANT_PREFIX)) \( -name '*.hs'  \))))))" ; \
+	ehc_nomain_nonexposed_names="Paths_uhc_light,`echo $${ehc_nomain_nonexposed_hs_files} | sed -e 's/\.hs//g' -e 's/ /,/g' -e 's+$(PATH_SEP)+.+g'`" ; \
+	ehc_main_hs_files="$(subst $(EHC_BLD_VARIANT_ASPECTS_PREFIX),,$(call FILTER_OUT_EMPTY_FILES,$(EHC_HS_MAIN_DRV_HS) $(EHCRUN_HS_MAIN_DRV_HS)))" ; \
+	$(call FUN_COPY_FILES_BY_TAR,$(EHC_BLD_LIBEHC_VARIANT_PREFIX),$(CABALDIST_UHCLIGHT_SRC_PREFIX),$${ehc_nomain_exposed_hs_files} $${ehc_nomain_nonexposed_hs_files}) ; \
+	$(call FUN_COPY_FILES_BY_TAR,$(EHC_BLD_VARIANT_ASPECTS_PREFIX),$(CABALDIST_UHCLIGHT_SRCMAIN_PREFIX),$${ehc_main_hs_files}) ; \
+	$(call FUN_COPY_FILES_BY_TAR,$${ehc_ehclib_lib_dir},$(CABALDIST_UHCLIGHT_VARIANT_LIB_PREFIX),$${ehc_ehclib_files}) ; \
+	$(call FUN_GEN_CABAL_UHC_LIGHT \
+		, uhc-light \
+		, $(EH_VERSION_FULL) \
+		, $(CABAL_EHCLIB_DEPENDS_ON) \
+		, $(CABAL_EHCLIB_EXTENSIONS) \
+		, Part of UHC packaged as cabal/hackage installable library \
+		, A 'light' variant of UHC including only an API and executables for compiling to Core representation ($(UHCLIGHT_EXEC_NAME)) and running CoreRun ($(UHCRUN_EXEC_NAME)). This version is just to test the infrastructure. Later versions will provide a fleshing out of the API and completion of the now rudimentary platform independent (Haskell) interpreted running etc.. \
+		, $${ehc_nomain_exposed_names} \
+		, $${ehc_nomain_nonexposed_names} \
+		, $(EHC_MAIN) \
+		, $(UHCLIGHT_EXEC_NAME) \
+		, $${ehc_ehclib_names} \
+		, Simple \
+		, LICENSE \
+		, changelog.md \
+		, $(EHCRUN_MAIN) \
+		, $(UHCRUN_EXEC_NAME) \
+		, $(call FUN_PREFIX2DIR,$(CABALDIST_SRC_PREFIX)) \
+		, $(call FUN_PREFIX2DIR,$(CABALDIST_SRCMAIN_PREFIX)) \
+	) > $(CABALDIST_UHCLIGHT_PREFIX)uhc-light.cabal ; \
+	(echo "module $(LIB_EHC_QUAL_PREFIX)ConfigCabal" ; \
+	  echo "  (module Paths_uhc_light)" ; \
+	  echo "  where" ; \
+	  echo "import Paths_uhc_light" ; \
+	) > $(CABALDIST_UHCLIGHT_SRC_PREFIX)$(LIB_EHC_HS_PREFIX)ConfigCabal.hs
+	cp changelog.md LICENSE $(CABALDIST_UHCLIGHT_PREFIX) ; \
+	$(call GEN_CABAL_SETUP) > $(CABALDIST_UHCLIGHT_PREFIX)Setup.hs ; \
+	echo done
 

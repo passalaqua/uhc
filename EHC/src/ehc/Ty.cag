@@ -1,10 +1,16 @@
-%%[0
+%%[0 hs
+-- 20141217 AD: fix shuffle to propagate this for .cag files as well...
+{-# LANGUAGE CPP #-}
+%%]
+
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
 
 %%[1 haddock
-The module %%@{%{EH}%%}Ty contains the Haskell interface to the internal representation of types
+The module %%@{%{EH}%%}Ty
+contains the Haskell interface to the internal representation of types
 used by EHC. The AST is described in Ty/AbsSyn.
 %%]
 
@@ -12,7 +18,7 @@ used by EHC. The AST is described in Ty/AbsSyn.
 %%% Haskell importable interface to Ty
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[1 hs module {%{EH}Ty} import(UHC.Util.Utils,{%{EH}Base.Common}, {%{EH}Base.TermLike}, {%{EH}Base.Builtin}, {%{EH}Opts.Base})
+%%[1 hs module {%{EH}Ty} import(UHC.Util.Utils,{%{EH}Base.Common}, {%{EH}Base.TermLike}, {%{EH}Base.HsName.Builtin}, {%{EH}Opts.Base})
 %%]
 
 %%[(1 hmtyinfer || hmtyast) hs export(TyAGItf(..), Ty(..), TyAnn(..), TyL, tyInt, tyChar)
@@ -21,7 +27,7 @@ used by EHC. The AST is described in Ty/AbsSyn.
 %%[(1 hmtyinfer || hmtyast) hs export(tyLHdAndTl, tyProdArgs) 
 %%]
 
-%%[(1 hmtyinfer || hmtyast) hs import(Data.Maybe, qualified Data.Set as Set, qualified Data.Map as Map) 
+%%[1 hs import(Data.Maybe, qualified Data.Set as Set, qualified Data.Map as Map) 
 %%]
 
 %%[(2 hmtyinfer || hmtyast) hs export(TyVarId, mkTyVar, mkNewTyVar, mkNewUIDTyVarL, mkNewTyVarL, mkTyFreshProd, mkTyFreshProdFrom, tyEnsureNonAny) 
@@ -90,7 +96,7 @@ used by EHC. The AST is described in Ty/AbsSyn.
 %%[(13 hmtyinfer || hmtyast) hs export(PredSeq(..))
 %%]
 
-%%[(50 hmtyinfer || hmtyast) hs import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
+%%[50 hs import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
 %%]
 
 %%[(1 hmtyinfer || hmtyast).TyAST ag import({Ty/AbsSyn})
@@ -124,12 +130,12 @@ type TyL        = [Ty]
 %%]
 
 %%[(2 hmtyinfer || hmtyast).TyVarId.Base hs
-type TyVarId    = UID
+type TyVarId    = VarId
 %%]
 
 %%[(2 hmtyinfer || hmtyast).TyVarId.Rest hs export(TyVarIdL,TyVarIdS)
 type TyVarIdL   = [TyVarId]
-type TyVarIdS   = Set.Set TyVarId
+type TyVarIdS   = VarIdS
 %%]
 
 %%[(4_2 hmtyinfer || hmtyast) -1.TyL
@@ -140,26 +146,26 @@ type FldTyL = AssocL (Maybe HsName) Ty
 %%]
 
 %%[(9 hmtyinfer || hmtyast) hs
-type ImplsVarId    = UID
+type ImplsVarId    = VarId
 %%]
 
 %%[(9_1 hmtyinfer || hmtyast) hs
-type TyPlusId      = UID
+type TyPlusId      = VarId
 %%]
 
 %%[(10 hmtyinfer || hmtyast) hs export(LabelVarId)
-type LabelVarId      = UID
+type LabelVarId      = VarId
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Lookup types
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(2 hmtyinfer) hs export(LookupTy)
+%%[(2 hmtyinfer || hmtyast) hs export(LookupTy)
 type LookupTy = TyVarId -> Maybe Ty
 %%]
 
-%%[(9 hmtyinfer) hs export(LookupImpls)
+%%[(9 hmtyinfer || hmtyast) hs export(LookupImpls)
 type LookupImpls = ImplsVarId -> Maybe Impls
 %%]
 
@@ -578,7 +584,11 @@ cpo2PredOcc i o
 %%]
 
 %%[(50 hmtyinfer || hmtyast) hs
+-- #if __GLASGOW_HASKELL__ >= 708
+-- deriving instance Typeable  CHRPredOcc'
+-- #else
 deriving instance Typeable1 CHRPredOcc'
+-- #endif
 deriving instance Data CHRPredOcc
 %%]
 
@@ -591,7 +601,7 @@ mkCHRPredOccRng r p sc = CHRPredOcc p (CHRPredOccCxt_Scope1 sc) r
 %%% Base quantifiers
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(4 hmtyinfer || hmtyast) hs export(tyQu_Forall,tyQu_Exists)
+%%[4 hs export(tyQu_Forall,tyQu_Exists)
 tyQu_Forall = TyQu_Forall metaLevVal
 tyQu_Exists = TyQu_Exists metaLevVal
 %%]
@@ -1204,6 +1214,12 @@ tyAppFunMbConNm = tyMbCon . fst . appUnApp
 tyAppFunConNm :: Ty -> HsName
 tyAppFunConNm = tyConNm . fst . appUnApp
 {-# INLINE tyAppFunConNm #-}
+%%]
+
+%%[(8 hmtyinfer || hmtyast) hs export(tyDataTyNm)
+-- | The name of a data type extracted from a Ty
+tyDataTyNm :: Ty -> HsName
+tyDataTyNm = tyAppFunConNm . appUnArrRes
 %%]
 
 %%[(50 hmtyinfer || hmtyast) hs export(tyAllConS)
@@ -2168,6 +2184,22 @@ instance Serialize LabelOffset where
 
 %%]
 
+%%[50 hs
+instance Binary TyQu where
+  put (TyQu_Forall a) = putWord8 0 >> put a
+  put (TyQu_Exists a) = putWord8 1 >> put a
+  put (TyQu_Plain  a) = putWord8 1 >> put a
+  get = do tag <- getWord8
+           case tag of
+             0 -> liftM  TyQu_Forall   get
+             1 -> liftM  TyQu_Exists   get
+             2 -> liftM  TyQu_Plain    get
+
+instance Serialize TyQu where
+  sput = sputPlain
+  sget = sgetPlain
+%%]
+
 %%[(50 hmtyinfer || hmtyast) hs
 instance Serialize Ty where
   sput (Ty_Con   a      ) = sputWord8 0  >> sput a
@@ -2210,20 +2242,6 @@ instance Binary TyVarCateg where
   get = getEnum8
 
 instance Serialize TyVarCateg where
-  sput = sputPlain
-  sget = sgetPlain
-
-instance Binary TyQu where
-  put (TyQu_Forall a) = putWord8 0 >> put a
-  put (TyQu_Exists a) = putWord8 1 >> put a
-  put (TyQu_Plain  a) = putWord8 1 >> put a
-  get = do tag <- getWord8
-           case tag of
-             0 -> liftM  TyQu_Forall   get
-             1 -> liftM  TyQu_Exists   get
-             2 -> liftM  TyQu_Plain    get
-
-instance Serialize TyQu where
   sput = sputPlain
   sget = sgetPlain
 

@@ -8,9 +8,9 @@
 %%[6 import(UHC.Util.Pretty,UHC.Util.Utils)
 %%]
 
-%%[6 hs import ({%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.Builtin})
+%%[6 hs import ({%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.HsName.Builtin})
 %%]
-%%[6 hs import ({%{EH}Ty},{%{EH}Ty.Pretty})
+%%[(6 hmtyast || hmtyinfer) hs import ({%{EH}Ty},{%{EH}Ty.Pretty})
 %%]
 %%[6 hs import ({%{EH}Gam})
 %%]
@@ -34,6 +34,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(17 hmtyinfer || hmtyast) export(PolGamInfo(..), PolGam, mapPolGam,mkPGI)
+-- If this changes, also change {%{EH}ConfigInternalVersions}
 data PolGamInfo = PolGamInfo { pgiPol :: Polarity } deriving Show
 
 mkPGI :: Ty -> PolGamInfo

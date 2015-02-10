@@ -18,7 +18,7 @@ WRAPPER GrAGItf
 %%]
 
 
-%%[(9 codegen grin wholeprogAnal) hs import({%{EH}Base.Common}, {%{EH}Base.Builtin}, {%{EH}GrinCode.Common}, {%{EH}GrinCode}) export(mergeInstance)
+%%[(9 codegen grin wholeprogAnal) hs import({%{EH}Base.Common}, {%{EH}Base.HsName.Builtin}, {%{EH}GrinCode.Common}, {%{EH}GrinCode}) export(mergeInstance)
 
 mergeInstance :: GrModule -> GrModule
 mergeInstance code
@@ -188,7 +188,7 @@ extraGlobalsDict :: ArityMap -> DictMap2 -> DictMap3 -> (HsName,(HsName,[HsName]
 extraGlobalsDict am dm pm (dictNm,(tagNm,context,ts))
   =  let arity  = length ts
          tagAnn = GrTagAnn arity arity
-         tag    = GrTag_Con tagAnn 0 tagNm
+         tag    = GrTag_Con tagAnn 0 (mkTyIsConTagInfo tagNm)
          value  = GrVal_Node tag fields
          dict   = GrGlobal_Global dictNm value
          pairs  = zipWith (extraGlobalField am dm pm dictNm context) [0..] ts

@@ -41,7 +41,10 @@ Previously, the |x'| did not sit in between, so this transformation removes it f
 %%[(8 codegen grin) hs import(qualified Data.Map as Map,qualified Data.Set as Set,Data.Maybe)
 %%]
 
-%%[(8 codegen grin) hs import({%{EH}Base.Builtin}, {%{EH}Base.Common}, {%{EH}GrinCode.Common}, {%{EH}GrinCode})
+%%[(8 codegen grin) hs import({%{EH}Base.HsName.Builtin}, {%{EH}Base.Common}, {%{EH}GrinCode})
+%%]
+
+%%[(8 codegen grin wholeprogAnal) hs import({%{EH}GrinCode.Common})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -102,6 +105,7 @@ SEM GrExpr
                                                              GrPatLam_EnumNode   _   -> Map.singleton n @pat.trf
                                                              GrPatLam_PtrNode    _   -> Map.singleton n @pat.trf
                                                              GrPatLam_OpaqueNode _   -> Map.singleton n @pat.trf
+                                                             GrPatLam_Box        _ _ -> Map.singleton n @pat.trf
                                                              _ -> Map.empty
                                                       _ -> Map.empty
                 lhs         .   unitUnwrapMp    =   Map.union @newMp @body.unitUnwrapMp

@@ -12,16 +12,30 @@ MK_CONFIG_MKF								:= $(MK_PREFIX)config.mk
 DATE			:= $(shell /bin/date +%Y%m%d)
 
 ###########################################################################################
+# current development team
+###########################################################################################
+
+UHC_TEAM					:= Atze Dijkstra
+
+###########################################################################################
 # the overall version of EH
 ###########################################################################################
 
-EH_VERSION_MAJOR		:= @EH_VERSION_MAJOR@
-EH_VERSION_MINOR		:= @EH_VERSION_MINOR@
-EH_VERSION_MINORMINOR	:= @EH_VERSION_MINORMINOR@
-EH_VERSION_STABILITY	:= @EH_VERSION_STABILITY@
-EH_VERSION_SHORT		:= @EH_VERSION_SHORT@
-EH_VERSION_FULL			:= @EH_VERSION_FULL@
-EH_VERSION_ASNUMBER		:= @EH_VERSION_ASNUMBER@
+EH_VERSION_MAJOR			:= @EH_VERSION_MAJOR@
+EH_VERSION_MINOR			:= @EH_VERSION_MINOR@
+EH_VERSION_MINORMINOR		:= @EH_VERSION_MINORMINOR@
+EH_VERSION_MINORMINORMINOR	:= @EH_VERSION_MINORMINORMINOR@
+EH_VERSION_STABILITY		:= @EH_VERSION_STABILITY@
+EH_VERSION_SHORT			:= @EH_VERSION_SHORT@
+EH_VERSION_MEDIUM			:= @EH_VERSION_MEDIUM@
+EH_VERSION_FULL				:= @EH_VERSION_FULL@
+EH_VERSION_ASNUMBER			:= @EH_VERSION_ASNUMBER@
+
+###########################################################################################
+# Choice of aspects (by default empty, used of defined (if not here) in src/ehc/variant.mk)
+###########################################################################################
+
+ASPECTS					:= @ASPECTS@
 
 ###########################################################################################
 # platform config, currently changed to config by autoconf
@@ -113,6 +127,11 @@ endif
 # include whole program analysis
 ifeq (@ENABLE_WHOLEPROGANAL@,yes)
 ENABLE_WHOLEPROGANAL		:= yes
+endif
+
+# include use of Core as both backend & source
+ifeq (@ENABLE_CORE_ASINPOUTP@,yes)
+ENABLE_CORE_ASINPOUTP		:= yes
 endif
 
 # include System F Ty generation for Core

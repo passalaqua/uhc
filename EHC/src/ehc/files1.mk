@@ -22,7 +22,11 @@ EHC_ALL_HADDOCKS						:= $(patsubst %,$(EHC_HDOC_PREFIX)%/$(EHC_HADDOCK_NAME),$(
 #UHC_BLD_EXEC							:= $(EHC_BIN_PREFIX)$(UHC_EXEC_NAME)$(EXEC_SUFFIX)
 UHC_INSTALL_EXEC						:= $(INSTALL_UHC_BIN_PREFIX)$(UHC_EXEC_NAME)$(EXEC_SUFFIX)
 UHC_INSTALL_SHELL						:= $(INSTALL_UHC_BIN_PREFIX)$(UHC_EXEC_NAME)
+# ehc
 EHC_FOR_UHC_BLD_EXEC					:= $(call FUN_EHC_INSTALL_VARIANT_ASPECTS_EXEC,$(EHC_UHC_INSTALL_VARIANT))
+EHC_FOR_UHCLIGHT_BLD_EXEC				:= $(call FUN_EHC_INSTALL_VARIANT_ASPECTS_EXEC,$(EHC_UHCLIGHT_CABAL_VARIANT))
+# ehcr
+EHC_FOR_UHCRUN_BLD_EXEC					:= $(call FUN_EHCRUN_INSTALL_VARIANT_ASPECTS_EXEC,$(EHC_UHC_INSTALL_VARIANT))
 
 # sources + dpds, for .rul
 EHC_RULES_1_SRC_RUL						:= $(SRC_EHC_PREFIX)rules.rul
@@ -53,8 +57,13 @@ EHC_MAIN								:= EHC
 EHC_HS_MAIN_SRC_CHS						:= $(patsubst %,$(SRC_EHC_PREFIX)%.chs,$(EHC_MAIN))
 EHC_HS_MAIN_DRV_HS						:= $(patsubst $(SRC_EHC_PREFIX)%.chs,$(EHC_BLD_VARIANT_ASPECTS_PREFIX)%.hs,$(EHC_HS_MAIN_SRC_CHS))
 
-EHC_HS_UTIL_SRC_CHS						:= $(patsubst %,$(SRC_EHC_PREFIX)%.chs,\
-													FinalEnv Substitutable Opts Gam VarMp VarLookup Deriving Generics Module Config BuiltinPrims NameAspect DerivationTree CHR Pred HI BindingInfo AbstractCore \
+EHCRUN_MAIN								:= EHCRun
+EHCRUN_HS_MAIN_SRC_CHS					:= $(patsubst %,$(SRC_EHC_PREFIX)%.chs,$(EHCRUN_MAIN))
+EHCRUN_HS_MAIN_DRV_HS					:= $(patsubst $(SRC_EHC_PREFIX)%.chs,$(EHC_BLD_VARIANT_ASPECTS_PREFIX)%.hs,$(EHCRUN_HS_MAIN_SRC_CHS))
+
+EHC_HS_UTIL_SRC_CHS_DFLT				:= $(patsubst %,$(SRC_EHC_PREFIX)%.chs,\
+													FinalEnv Substitutable Opts Gam VarMp VarLookup Deriving Generics NameAspect DerivationTree CHR Pred HI LamInfo AbstractCore \
+													Config ConfigInternalVersions ConfigCabal Paths_uhc_light \
 													$(addprefix CHR/,Key Constraint Solve) \
 													$(addprefix AbstractCore/,Utils) \
 													$(addprefix AnaDomain/,Utils) \
@@ -62,28 +71,45 @@ EHC_HS_UTIL_SRC_CHS						:= $(patsubst %,$(SRC_EHC_PREFIX)%.chs,\
 													$(addprefix Cil/,Common TyTag) \
 													$(addprefix Opts/,Base CommandLine) \
 													$(addprefix Pred/,ToCHR CHR Evidence EvidenceToCore EvidenceToTyCore Heuristics CommonCHR RedGraph) \
-													$(addprefix Base/,TermLike UID Parser Parser2 Pragma Strictness GenC GenJavaLike Target BasicAnnot Common Builtin Builtin2 HsName Debug TreeTrie CfgPP LaTeX HtmlCommon Bits FileSearchLocation PackageDatabase ParseUtils Optimize) \
+													$(addprefix Base/,Range RLList TermLike UID Parser Parser2 Pragma Strictness Target Fld Common HsName Debug TreeTrie CfgPP LaTeX HtmlCommon FileSearchLocation PackageDatabase ParseUtils Optimize) \
+													$(addprefix Base/HsName/,Builtin) \
 													$(addprefix Scanner/,Common Machine Scanner Token TokenParser) \
-													$(addsuffix /Parser,Ty EH HS Foreign Core GrinCode) \
+													$(addsuffix /Parser,Ty EH HS Core CoreRun Foreign GrinCode) \
+													$(addsuffix /Trf,Core TyCore JavaScript Cmm) \
 													$(addprefix Ty/,FIEnv FIEnv2 FitsInCommon FitsInCommon2 FitsIn Utils1 Utils2 AppSpineGam Trf/BetaReduce) \
 													$(addprefix Gam/,Base Utils Instantiate Quantify Full ClGam AppSpineGam FixityGam TyGam KiGam DataGam PolGam TyKiGam ValGam ClassDefaultGam) \
-													$(addprefix Core/,Utils FFI Coercion Trf) \
+													$(addprefix CodeGen/,BuiltinPrims BasicAnnot Bits BuiltinSizeInfo GenC Tag CVar ValAccess Const RefGenerator GenJavaLike ModuleImportExportImpl ImportUsedModules TrfUtils) \
+													$(addprefix Module/,Merge ImportExport) \
+													$(addprefix Foreign/,Boxing) \
+													$(addprefix CoreRun/,Run Prim) \
+													$(addprefix CoreRun/Run/,Val) \
+													$(addprefix CoreRun/Run/Val/,RunImplStk RunExplStk Prim) \
+													$(addprefix Core/,Utils Merge FFI Coercion) \
 													$(addprefix Core/SysF/,AsTy) \
-													$(addprefix TyCore/,Base Utils2 Coercion Full0 Full1 Full2 Subst Trf) \
+													$(addprefix TyCore/,Base Utils2 Coercion Full0 Full1 Full2 Subst) \
 													$(addprefix TyCore/Trf/,Common) \
 													$(addprefix GrinCode/,Common SolveEqs) \
-													$(addprefix EHC/,Common Environment CompileUnit CompileGroup CompileRun GrinCompilerDriver InitialSetup \
-														$(addprefix CompilePhase/,Parsers Output Translations Transformations \
+													$(addprefix EHC/,Main Common Environment CompileUnit CompileGroup CompileRun GrinCompilerDriver InitialSetup \
+														$(addprefix Main/,Utils) \
+														$(addprefix CompilePhase/,Common Run Parsers Output Translations Transformations \
 															FlowBetweenPhase TransformGrin Semantics \
 															CompileLLVM CompileC CompileJVM CompileJavaScript Link \
 															Cleanup Module TopLevelPhases \
 													)	) \
 													Debug/HighWaterMark \
 											)
-# for 7_2, removed 20090803
-#													Annotations/StateMachine Annotations/Constraints Annotations/ConstraintSolver Annotations/BelownessSolver Annotations/VarianceSolver Annotations/UniquenessSolver
 
-EHC_HS_UTIL_DRV_HS						:= $(patsubst $(SRC_EHC_PREFIX)%.chs,$(EHC_BLD_LIB_HS_VARIANT_PREFIX)%.hs,$(EHC_HS_UTIL_SRC_CHS))
+EHC_HS_UTIL_SRC_CHS_ASIS				:= $(patsubst %,$(SRC_EHC_PREFIX)%.chs,\
+													API \
+													$(addsuffix /API,Core CoreRun Base) \
+													$(addsuffix /API/Internal,CoreRun) \
+											)
+
+EHC_HS_UTIL_SRC_CHS						:= $(EHC_HS_UTIL_SRC_CHS_DFLT) $(EHC_HS_UTIL_SRC_CHS_ASIS)
+
+EHC_HS_UTIL_DRV_HS_DFLT					:= $(patsubst $(SRC_EHC_PREFIX)%.chs,$(EHC_BLD_LIB_HS_VARIANT_PREFIX)%.hs,$(EHC_HS_UTIL_SRC_CHS_DFLT))
+EHC_HS_UTIL_DRV_HS_ASIS					:= $(patsubst $(SRC_EHC_PREFIX)%.chs,$(EHC_BLD_LIB_HS_VARIANT_PREFIX)%.hs,$(EHC_HS_UTIL_SRC_CHS_ASIS))
+EHC_HS_UTIL_DRV_HS						:= $(EHC_HS_UTIL_DRV_HS_DFLT) $(EHC_HS_UTIL_DRV_HS_ASIS)
 
 EHC_HS_UTILCPP_SRC_CHS					:= $(patsubst %,$(SRC_EHC_PREFIX)%.chs,\
 													ConfigDefines \
@@ -97,7 +123,7 @@ EHC_HS_UTIL_DRV_C						:= $(patsubst $(SRC_EHC_PREFIX)%.cc,$(EHC_BLD_LIB_HS_VARI
 
 EHC_HS_ALL_SRC_CHS						:= $(EHC_HS_MAIN_SRC_CHS) $(EHC_HS_UTIL_SRC_CHS) $(EHC_HS_UTILCPP_SRC_CHS)
 EHC_HS_ALL_DRV_HS_NO_MAIN				:= $(EHC_HS_UTIL_DRV_HS) $(EHC_HS_UTILCPP_DRV_HS)
-EHC_HS_ALL_DRV_HS						:= $(EHC_HS_MAIN_DRV_HS) $(EHC_HS_ALL_DRV_HS_NO_MAIN)
+EHC_HS_ALL_DRV_HS						:= $(EHCRUN_HS_MAIN_DRV_HS) $(EHC_HS_MAIN_DRV_HS) $(EHC_HS_ALL_DRV_HS_NO_MAIN)
 
 
 # main + sources + dpds, for .cag
@@ -138,6 +164,17 @@ EHC_HS_SIG_DRV_HS						:= $(EHC_BLD_LIB_HS_VARIANT_PREFIX)$(EHC_HS_SIG_MAIN).hs
 # file with info about installation configuration
 EHC_HS_CFGINSTALL_MAIN					:= ConfigInstall
 EHC_HS_CFGINSTALL_DRV_HS				:= $(EHC_BLD_LIB_HS_VARIANT_PREFIX)$(EHC_HS_CFGINSTALL_MAIN).hs
+
+###########################################################################################
+# uhc-light files in cabal buildable distr
+###########################################################################################
+
+CABALDIST_UHCLIGHT_SRC_ALL_DRV_NO_MAIN_PREFIX	:= $(CABALDIST_UHCLIGHT_SRC_PREFIX)$(LIB_EHC_HS_PREFIX)
+
+#EHC_CABALDIST_ALL_DRV_HS_NO_MAIN		:= $(patsubst $(EHC_BLD_LIB_HS_VARIANT_PREFIX)%.hs,$(CABALDIST_SRC_ALL_DRV_NO_MAIN_PREFIX)%.hs,$(EHC_HS_ALL_DRV_HS_NO_MAIN))
+#EHC_CABALDIST_MAIN_DRV_HS				:= $(patsubst $(EHC_BLD_VARIANT_ASPECTS_PREFIX)%.hs,$(CABALDIST_SRC_PREFIX)%.hs,$(EHC_HS_MAIN_DRV_HS))
+
+CABALDIST_UHCLIGHT_VARIANT_LIB_PREFIX			:= $(call FUN_DIR_VARIANT_LIB_PREFIX,$(CABALDIST_UHCLIGHT_PREFIX),$(EHC_VARIANT))
 
 ###########################################################################################
 # (re)generate derived makefiles
@@ -181,13 +218,13 @@ EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_99		:= $(UUAGC_OPTS_WHEN_UHC_AST_DATA)
 EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_100	:= $(EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_99)
 EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_101	:= $(EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_100)
 EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_102	:= $(EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_100)
-EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_103	:= $(EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_99)
+EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_103	:= $(EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_100)
 
 EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_99		:= $(UUAGC_OPTS_WHEN_UHC_AST_SEM)
 EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_100		:= $(EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_99)
 EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_101		:= $(EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_100)
 EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_102		:= $(EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_100)
-EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_103		:= $(EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_99)
+EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_103		:= $(EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_100)
 
 EHC_SHUFFLE_OPTS_WHEN_UHC_99			:= $(SHUFFLE_OPTS_WHEN_UHC)
 EHC_SHUFFLE_OPTS_WHEN_UHC_100			:= $(EHC_SHUFFLE_OPTS_WHEN_UHC_99)
@@ -266,7 +303,7 @@ EHC_BY_RULER_RULES_99					:= $(EHC_BY_RULER_RULES_98)
 EHC_BY_RULER_RULES_100					:= $(EHC_BY_RULER_RULES_99)
 EHC_BY_RULER_RULES_101					:= $(EHC_BY_RULER_RULES_100)
 EHC_BY_RULER_RULES_102					:= $(EHC_BY_RULER_RULES_100)
-EHC_BY_RULER_RULES_103					:= $(EHC_BY_RULER_RULES_99)
+EHC_BY_RULER_RULES_103					:= $(EHC_BY_RULER_RULES_100)
 
 ###########################################################################################
 # derived
@@ -304,6 +341,13 @@ EHC_ALL_DPDS_NOPREPROC					:= $(subst $(EHC_BLD_LIB_HS_VARIANT_PREFIX)ConfigDefi
 
 
 ###########################################################################################
+# cabal library dependencies and extensions
+###########################################################################################
+
+CABAL_EHCLIB_DEPENDS_ON					:= binary syb bytestring uulib>=0.9.12 old-locale
+CABAL_EHCLIB_EXTENSIONS					:= $(CABAL_OPT_ALLOW_UNDECIDABLE_INSTANCES) DeriveDataTypeable OverlappingInstances LiberalTypeSynonyms StandaloneDeriving FlexibleContexts FlexibleInstances TypeSynonymInstances ScopedTypeVariables
+
+###########################################################################################
 # variant dispatch rules
 ###########################################################################################
 
@@ -330,8 +374,8 @@ $(LIB_EHC_CABAL_DRV): $(EHC_ALL_DPDS_NO_MAIN) $(EHC_MKF)
 	$(call FUN_GEN_CABAL_LIB \
 		, $(LIB_EHC_PKG_NAME) \
 		, $(EH_VERSION_SHORT) \
-		, binary syb bytestring uulib>=0.9.12 old-locale \
-		, $(CABAL_OPT_ALLOW_UNDECIDABLE_INSTANCES) DeriveDataTypeable OverlappingInstances LiberalTypeSynonyms \
+		, $(CABAL_EHCLIB_DEPENDS_ON) \
+		, $(CABAL_EHCLIB_EXTENSIONS) \
 		, Part of EH$(EHC_VARIANT_ASPECTS) compiler packaged as library \
 		, $(subst $(PATH_SEP),.,$(patsubst $(EHC_BLD_LIB_HS_VARIANT_PREFIX)%.hs,$(LIB_EHC_QUAL_PREFIX)%,\
 			$(shell echo $(EHC_ALL_LIB_FROMHS_HS) $(EHC_ALL_LIB_FROMAG_HS) \
@@ -382,14 +426,19 @@ $(EHC_AG_S_MAIN_DRV_HS) $(LIB_EHC_AG_S_MAIN_DRV_HS): %.hs: %.ag $(if $(EHC_CFG_U
 $(EHC_AG_DS_MAIN_DRV_HS) $(LIB_EHC_AG_DS_MAIN_DRV_HS): %.hs: %.ag
 	$(AGC) -dcfspr $(UUAGC_OPTS_WHEN_EHC) $(UUAGC_OPTS_WHEN_EHC_AST_SEM) $(EHC_UUAGC_OPTS_WHEN_UHC_AST_SEM_$(EHC_VARIANT)) $(UUAGC_OPTS_WHEN_EHC_AST_DATA) $(EHC_UUAGC_OPTS_WHEN_UHC_AST_DATA_$(EHC_VARIANT)) -P$(EHC_BLD_VARIANT_ASPECTS_PREFIX) -P$(EHC_BLD_LIB_HS_VARIANT_PREFIX) $<
 
-$(EHC_HS_MAIN_DRV_HS): $(EHC_BLD_VARIANT_ASPECTS_PREFIX)%.hs: $(SRC_EHC_PREFIX)%.chs $(SHUFFLE) $(LIB_EHC_INS_FLAG)
+$(EHC_HS_MAIN_DRV_HS) $(EHCRUN_HS_MAIN_DRV_HS): $(EHC_BLD_VARIANT_ASPECTS_PREFIX)%.hs: $(SRC_EHC_PREFIX)%.chs $(SHUFFLE) $(LIB_EHC_INS_FLAG)
 	mkdir -p $(@D)
 	$(SHUFFLE_HS) $(LIB_EHC_SHUFFLE_DEFS) --gen-reqm="($(EHC_VARIANT) $(EHC_ASPECTS))" --base=Main --variant-order="$(EHC_SHUFFLE_ORDER)" $< > $@ && \
 	touch $@
 
-$(EHC_HS_UTIL_DRV_HS): $(EHC_BLD_LIB_HS_VARIANT_PREFIX)%.hs: $(SRC_EHC_PREFIX)%.chs $(SHUFFLE) # $(MK_CONFIG_MKF)
+$(EHC_HS_UTIL_DRV_HS_DFLT): $(EHC_BLD_LIB_HS_VARIANT_PREFIX)%.hs: $(SRC_EHC_PREFIX)%.chs $(SHUFFLE) # $(MK_CONFIG_MKF)
 	mkdir -p $(@D)
-	$(SHUFFLE_HS) $(LIB_EHC_SHUFFLE_DEFS) --gen-reqm="($(EHC_VARIANT) $(EHC_ASPECTS))" --base=$(*F) --variant-order="$(EHC_SHUFFLE_ORDER)" $< > $@ && \
+	$(SHUFFLE_HS_DFLT) $(LIB_EHC_SHUFFLE_DEFS) --gen-reqm="($(EHC_VARIANT) $(EHC_ASPECTS))" --base=$(*F) --variant-order="$(EHC_SHUFFLE_ORDER)" $< > $@ && \
+	touch $@
+
+$(EHC_HS_UTIL_DRV_HS_ASIS): $(EHC_BLD_LIB_HS_VARIANT_PREFIX)%.hs: $(SRC_EHC_PREFIX)%.chs $(SHUFFLE) # $(MK_CONFIG_MKF)
+	mkdir -p $(@D)
+	$(SHUFFLE_HS_ASIS) $(LIB_EHC_SHUFFLE_DEFS) --gen-reqm="($(EHC_VARIANT) $(EHC_ASPECTS))" --variant-order="$(EHC_SHUFFLE_ORDER)" $< > $@ && \
 	touch $@
 
 $(EHC_HS_UTIL_DRV_C): $(EHC_BLD_LIB_HS_VARIANT_PREFIX)%.c: $(SRC_EHC_PREFIX)%.cc $(SHUFFLE)
@@ -408,14 +457,15 @@ $(EHC_HS_UTILCPP_DRV_HS): $(EHC_BLD_LIB_HS_VARIANT_PREFIX)%.hs: $(SRC_EHC_PREFIX
 
 # signature of source code
 $(EHC_HS_SIG_DRV_HS): $(EHC_ALL_CHUNK_SRC) $(EHC_RULES_ALL_SRC) $(EHC_MKF)
-	@(echo "module $(LIB_EHC_PKG_NAMEBASE).$(EHC_HS_SIG_MAIN) where" ; \
+	@(echo "module $(LIB_EHC_QUAL_PREFIX)$(EHC_HS_SIG_MAIN) where" ; \
 	  echo "sig = \"`$(call FUN_MD5,$^)`\"" ; \
 	  echo "timestamp = \"`date '+%G%m%d %z %H%M%S'`\"" \
 	) > $@
 
 # installation configuration
 $(EHC_HS_CFGINSTALL_DRV_HS): $(EHC_MKF) $(MK_SHARED_MKF)
-	@(echo "module $(LIB_EHC_QUAL_PREFIX)$(EHC_HS_CFGINSTALL_MAIN) where" ; \
+	@(echo "-- AUTO GENERATED MODULE - see files1.mk" ; \
+	  echo "module $(LIB_EHC_QUAL_PREFIX)$(EHC_HS_CFGINSTALL_MAIN) where" ; \
 	  echo "import $(LIB_EHC_QUAL_PREFIX)Opts.CommandLine" ; \
 	  echo "import Data.List" ; \
 	  echo "" ; \
@@ -439,7 +489,7 @@ $(EHC_HS_CFGINSTALL_DRV_HS): $(EHC_MKF) $(MK_SHARED_MKF)
 	  echo "" ; \
 	  echo "ehcPkgConfigfileName = \"$(UHC_PKG_CONFIGFILE_NAME)\"" ; \
 	  echo "" ; \
-	  echo "data WhatInstallFile = USER_PKG | INST_BIN | INST_LIB | INST_LIB_SHARED | INST_INCLUDE | INST_INCLUDE_SHARED | INST_LIB_PKG2 {- | INST_LIB_PKG | INST_LIB_PKG_INCLUDE -} " ; \
+	  echo "data WhatInstallFile = USER_PKG | INST_BIN | INST_LIB | INST_LIB_SHARED | INST_INCLUDE | INST_INCLUDE_SHARED | INST_LIB_PKG2 {-- | INST_LIB_PKG | INST_LIB_PKG_INCLUDE -} " ; \
 	  echo "" ; \
 	  echo "mkCLibFilename dirprefix pkg = \"$(call FUN_MK_CLIB_FILENAME,\" ++ dirprefix ++ \",\" ++ pkg ++ \")\"" ; \
 	  echo "" ; \

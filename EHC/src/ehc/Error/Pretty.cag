@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -18,7 +18,9 @@
 %%[8 hs import (UHC.Util.FPath)
 %%]
 
-%%[(9 codegen) hs import({%{EH}Core},{%{EH}Core.Pretty})
+%%[(9 codegen) hs import({%{EH}Core})
+%%]
+%%[(9 codegen coreout) hs import({%{EH}Core.Pretty})
 %%]
 
 %%[1 ag import({Error/AbsSyn})
@@ -43,6 +45,11 @@ ppErr err =  let  r = wrap_Err (sem_Err err) (Inh_Err {nestDepth_Inh_Err=0})
              in   pp_Syn_Err r
 %%]
 
+%%[8 hs
+instance PP Err where
+  pp = ppErr
+%%]
+
 %%[8.mkPPErr hs
 mkPPErr :: PP a => a -> Err
 mkPPErr = Err_PP . pp
@@ -57,15 +64,36 @@ mkPPErr r = Err_PP r . pp
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[1.ppMsgErr hs
+%%[[1
+ppMsgErr' :: PP msg => Maybe msg -> PP_Doc -> PP_Doc
+ppMsgErr' msg err = mke msg err
+%%][99
+ppMsgErr' :: PP msg => Maybe msg -> PP_Doc -> Range -> PP_Doc
+ppMsgErr' msg err r
+  = mkre (mke msg err)
+%%]]
+  where mke Nothing  err = err
+        mke (Just m) err = m >|< ":" >-< indent 2 err
+%%[[99
+        mkre x | isEmptyRange r = x
+               | otherwise      = r  >|< ":" >-< indent 2 x
+%%]]
+
+%%[[1
 ppMsgErr :: PP msg => msg -> PP_Doc -> PP_Doc
-ppMsgErr msg err = msg  >|< ":" >-< indent 2 err
-%%]
-%%[99 -1.ppMsgErr hs
+ppMsgErr msg err = ppMsgErr' (Just msg) err
+%%][99
 ppMsgErr :: PP msg => msg -> PP_Doc -> Range -> PP_Doc
-ppMsgErr msg err r
-  = mke (msg >|< ":" >-< indent 2 err)
-  where mke x | isEmptyRange r = x
-              | otherwise      = r  >|< ":" >-< indent 2 x
+ppMsgErr msg err r = ppMsgErr' (Just msg) err r
+%%]]
+
+%%[[1
+ppNoMsgErr :: PP_Doc -> PP_Doc
+ppNoMsgErr err = ppMsgErr' (Nothing :: Maybe PP_Doc) err
+%%][99
+ppNoMsgErr :: PP_Doc -> Range -> PP_Doc
+ppNoMsgErr err r = ppMsgErr' (Nothing :: Maybe PP_Doc) err r
+%%]]
 %%]
 
 %%[(4 hmtyinfer || hmtyast) hs
@@ -80,8 +108,8 @@ ppFitPair fim t1 t2
 %%[(1 hmtyinfer || hmtyast).ppUnifyErr hs
 ppUnifyErr :: PP msg => msg -> Ty -> Ty -> Ty -> Ty -> PP_Doc
 ppUnifyErr msg t1 t2 t1d t2d
-  =  ppMsgErr msg    (    "failed to fit:"  >#< ppListSepFill "" "" " <= " [ppTy t1,ppTy t2]
-                     >-<  "problem with :"  >#< ppListSepFill "" "" " <= " [ppTy t1d,ppTy t2d]
+  =  ppMsgErr msg    (    "failed to fit:"  >#< ppBlockWithStrings "" "" "<= " [ppTy t1,ppTy t2]
+                     >-<  "problem with :"  >#< ppBlockWithStrings "" "" "<= " [ppTy t1d,ppTy t2d]
                      )
 %%]
 
@@ -150,6 +178,18 @@ ATTR Err [ | | pp: PP_Doc ]
 ATTR ErrL [ | | ppL: {[PP_Doc]} ]
 %%]
 
+%%[1
+SEM Err
+  | PP          		lhs     .  pp   =   ppNoMsgErr  @pp
+%%[[99
+                                                        @range
+%%]]
+  | Str          		lhs     .  pp   =   ppNoMsgErr  (pp @str)
+%%[[99
+                                                        @range
+%%]]
+%%]
+
 %%[(1 hmtyinfer || hmtyast)
 SEM Err
   | UnifyClash          lhs     .  pp   =   ppUnifyErr  "Type clash"
@@ -162,6 +202,10 @@ SEM Err
 %%[[99
                                                         @range
 %%]]
+%%]
+
+%%[1
+SEM Err
   | PatArity2           lhs     .  pp   =   ppMsgErr    (strCapHeading @kind "has wrong arity for pattern")
                                                         (@kind >#< ":" >#< @what >-< "arity:" >#< @arity)
 %%[[99
@@ -330,7 +374,6 @@ SEM Err
 %%[[99
                                                         @range
 %%]]
-  | PP                  lhs     .  pp   =   @pp
 %%]
 
 %%[(8 codegen)
@@ -338,6 +381,7 @@ SEM Err
   | IllegalFFIWay       lhs     .  pp   =   ppMsgErr    "Illegal foreign interface"
                                                         (    "to:" >#< @ffiWay
                                                         )
+%%[[(8 codegen)
 %%[[99
                                                         @range
 %%]]
@@ -347,6 +391,7 @@ SEM Err
                                                          >-< maybe empty (\d -> "in detail between:" >#< d) @ty1detail
                                                          >-< maybe empty (\d -> "and              :" >#< d) @ty2detail
                                                         )
+%%]]
 %%[[99
                                                         @range
 %%]]

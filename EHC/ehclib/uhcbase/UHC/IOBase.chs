@@ -18,15 +18,21 @@ module UHC.IOBase
     -- MVar(..),
 
         -- Buffers
-    Buffer(..), RawBuffer, BufferState(..), BufferList(..), BufferMode(..),
+    BufferMode(..),
+#ifndef __UHC_TARGET_CR__
+    Buffer(..), RawBuffer, BufferState(..), BufferList(..),
     bufferIsWritable, bufferEmpty, bufferFull, 
     -- extra:
     -- rawBufferContents,
+#endif
 
         -- Handles, file descriptors,
     FilePath,  
-    Handle(..), Handle__(..), HandleType(..), IOMode(..), FD,
+    IOMode(..), 
+#ifndef __UHC_TARGET_CR__
+    Handle(..), Handle__(..), HandleType(..), FD,
     isReadableHandleType, isWritableHandleType, isReadWriteHandleType, {- showHandle, -}
+#endif
     
     Handle,
     
@@ -49,7 +55,7 @@ module UHC.IOBase
     try,
 
         -- Exception related: catch, throw
-#if defined (__UHC_TARGET_C__) || defined (__UHC_TARGET_LLVM__) || defined (__UHC_TARGET_JS__)
+#if defined (__UHC_TARGET_C__) || defined (__UHC_TARGET_LLVM__) || defined (__UHC_TARGET_JS__) || defined (__UHC_TARGET_CR__)
 #else
     catchTracedException,
 #endif
@@ -68,7 +74,9 @@ import UHC.ST
 import UHC.STRef
 import UHC.Types
 import UHC.MutVar
+#ifndef __UHC_TARGET_CR__
 import UHC.ByteArray
+#endif
 import UHC.StackTrace
 
 %%]
@@ -193,6 +201,7 @@ unsafePerformIO (IO m)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[99
+#ifndef __UHC_TARGET_CR__
 -- ---------------------------------------------------------------------------
 -- Buffers
 
@@ -297,6 +306,8 @@ isReadWriteHandleType ReadWriteHandle{} = True
 isReadWriteHandleType _                 = False
 
 
+#endif
+
 -- ---------------------------------------------------------------------------
 -- Buffering modes
 
@@ -357,6 +368,12 @@ data BufferMode
 
 %%[99
 data IOMode             -- alphabetical order of constructors required, assumed Int encoding in comment
+#if defined( __UHC_TARGET_CR__ )
+  = AppendMode          
+  | ReadMode            
+  | ReadWriteMode       
+  | WriteMode           
+#else
   = AppendBinaryMode    -- 0
   | AppendMode          -- 1
   | ReadBinaryMode      -- 2
@@ -365,6 +382,7 @@ data IOMode             -- alphabetical order of constructors required, assumed 
   | ReadWriteMode       -- 5
   | WriteBinaryMode     -- 6
   | WriteMode           -- 7
+#endif
     deriving (Eq, Ord, Bounded, Enum, Show)
 
 %%]
@@ -374,11 +392,16 @@ data IOMode             -- alphabetical order of constructors required, assumed 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[99
+#ifndef __UHC_TARGET_CR__
+
 #if defined( __UHC_TARGET_C__ ) || defined (__UHC_TARGET_LLVM__)
 
 data FHandle    -- opaque, contains FILE*
 #elif defined( __UHC_TARGET_JS__ )
 data JSHandle = JSHandle String
+#elif defined( __UHC_TARGET_CR__ )
+-- delegated to GHC
+data HSHandle
 #else
 data GBHandle   -- opaque, contains GB_Chan
 #endif
@@ -416,9 +439,20 @@ instance Show GBHandle where
       -- where n = primGBHandleEqFileno h
 
 #endif
+
+#endif /* __UHC_TARGET_CR__ */
 %%]
 
 %%[99
+#ifdef __UHC_TARGET_CR__
+data Handle
+
+foreign import prim primEqHandle :: Handle -> Handle -> Bool
+
+instance Eq Handle where
+  (==) = primEqHandle
+
+#else
 data Handle 
   = FileHandle                          -- A normal handle to a file
         FilePath                        -- the file (invariant)
@@ -460,6 +494,9 @@ data Handle__
       haOtherSide   :: Maybe (MVar Handle__) -- ptr to the write side of a 
                                              -- duplex handle.
     }
+
+#endif /* __UHC_TARGET_CR__ */
+
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -467,6 +504,12 @@ data Handle__
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[99
+#ifdef __UHC_TARGET_CR__
+foreign import prim primShowHandle :: Handle -> String
+
+instance Show Handle where
+  show = primShowHandle
+#else
 -- ---------------------------------------------------------------------------
 -- Show instance for Handles
 
@@ -491,6 +534,8 @@ instance Show Handle where
 
 showHandle :: FilePath -> String -> String
 showHandle file = showString "{handle: " . showString file . showString "}"
+
+#endif
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -656,7 +701,7 @@ catchException m k = m
 
 #else
 
-#if defined (__UHC_TARGET_JS__)
+#if defined (__UHC_TARGET_JS__) || defined (__UHC_TARGET_CR__)
 foreign import prim primCatchException :: forall a . a -> (SomeException -> a) -> a
 
 catchException :: IO a -> (SomeException -> IO a) -> IO a

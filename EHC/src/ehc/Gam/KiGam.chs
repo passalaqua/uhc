@@ -8,9 +8,9 @@
 %%[6 import(UHC.Util.Pretty,UHC.Util.Utils)
 %%]
 
-%%[6 hs import ({%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.Builtin})
+%%[6 hs import ({%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.HsName.Builtin})
 %%]
-%%[6 hs import ({%{EH}Ty},{%{EH}Ty.Pretty})
+%%[(6 hmtyast || hmtyinfer) hs import ({%{EH}Ty},{%{EH}Ty.Pretty})
 %%]
 %%[6 hs import ({%{EH}Gam})
 %%]
@@ -34,6 +34,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[6 export(KiGam, KiGamInfo(..))
+-- If this changes, also change {%{EH}ConfigInternalVersions}
 data KiGamInfo
   = KiGamInfo
 %%[[(6 hmtyinfer || hmtyast)

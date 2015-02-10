@@ -23,7 +23,7 @@ Examples:
   (A/_ g b1 b2)     ==>  (A/app2_2 g b1 b2)
 
 
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -38,7 +38,7 @@ WRAPPER GrAGItf
 %%[(8 codegen grin wholeprogAnal) hs module {%{EH}GrinCode.Trf.BuildAppBindings} import(qualified Data.Map as Map, qualified Data.Set as Set)
 %%]
 
-%%[(8 codegen grin wholeprogAnal) hs import({%{EH}Base.Common}, {%{EH}Base.Builtin},{%{EH}GrinCode.Common}, {%{EH}GrinCode}) export(buildAppBindings)
+%%[(8 codegen grin wholeprogAnal) hs import({%{EH}Base.Common}, {%{EH}Base.HsName.Builtin},{%{EH}GrinCode.Common}, {%{EH}GrinCode}) export(buildAppBindings)
 
 specialize = True
 

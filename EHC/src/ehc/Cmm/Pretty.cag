@@ -1,0 +1,357 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Prettyprint Cmm
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 cmm) hs module {%{EH}Cmm.Pretty}
+%%]
+
+%%[(8 cmm) hs import({%{EH}Base.HsName.Builtin},{%{EH}Cmm} hiding (cmt, cvar),{%{EH}Base.Common} hiding (Range),{%{EH}Opts})
+%%]
+
+%%[(8 cmm) hs import({%{EH}CodeGen.CVar})
+%%]
+
+%%[(8 cmm) hs import(UHC.Util.Pretty, UHC.Util.Utils)
+%%]
+
+%%[(8 cmm) ag import({Cmm/AbsSyn})
+%%]
+
+%%[(8 cmm) hs export(ppCmmModule)
+ppCmmModule :: Module -> PP_Doc
+ppCmmModule  m
+  = pp_Syn_AGItf t
+  where t = wrap_AGItf (sem_AGItf (AGItf_AGItf m))
+                       (Inh_AGItf 
+                       )
+%%]
+
+%%[(8 cmm)
+WRAPPER AGItf
+%%]
+PRAGMA nocycle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Utils
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 cmm) hs
+semic = (>|< ";")
+
+cmt x = "/*" >#< x >#< "*/"
+cvar cvi = cvi >#< cmt (cvarShowKind cvi)
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% PP
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 cmm)
+ATTR AGItf AllNT [ | | pp USE {>-<} {empty}: PP_Doc ]
+%%]
+
+%%[(8 cmm)
+SEM Module
+  | Mod			lhs		.	pp		=	"module" >#< @moduleNm >-< vlist @decls.ppL >-< ppMb (fmap cvar @mbMainEntryCVar)
+%%]
+
+%%[(8 cmm)
+SEM TopLevel
+  | Section		lhs		.	pp		=	"section" >#< show @snm	>-< ppCurlysBlock @sections.ppL
+%%]
+
+%%[(8888 cmm)
+SEM Section
+  -- | Span				expr1			: Expr
+  -- 					expr2			: Expr
+  -- 					sections		: SectionL
+%%]
+
+%%[(8 cmm)
+SEM Decl
+  | Import      lhs     .   pp      =   semic $ "import" >#< 
+                                            (let ns = ppCommas' @imported.ppL
+                                             in  case @mbFromNm of
+                                                    Nothing -> ns
+                                                    Just fr -> "module" >#< fr >|< ppParens ns
+                                            )
+  | Export      lhs     .   pp      =   semic $ "export" >#< ppCommas' @exports.ppL
+  | Const       lhs     .   pp      =   semic $ show @ckind >#< @mbTy.pp >#< cvar @cvar >#< "=" >#< @expr.pp
+  | ConstArray  lhs     .   pp      =   semic $ "const" >#< @mbTy.pp >#< @nm >|< "[]" >#< "=" >#< ppCurlysCommasBlock @exprs.ppL
+  | Typedef     lhs		.	pp		=	semic $ "typedef" >#< @ty.pp >#< ppCommas' @nms
+  | Regs		lhs		.	pp		=	semic $ (if @isInvariant then "invariant " else "")	>|< @regs.pp
+  -- | Pragma			nm				: Nm
+  -- 					pragma			: PragmaL
+  | Target		lhs		.	pp		=	semic $ "target" >#< ppSpaces @targets.ppL
+  -- | Comment			str				: String
+%%]
+
+%%[(8 cmm)
+SEM Target
+  | Memsize		lhs		.	pp		=	"memsize" >#< show @size
+  | Byteorder	lhs		.	pp		=	"byteorder" >#< (if @isLittle then "little" else "big")
+  | Pointersize	lhs		.	pp		=	"pointersize" >#< show @size
+  | Wordsize	lhs		.	pp		=	"wordsize" >#< show @size
+%%]
+
+%%[(8 cmm)
+SEM Import
+  | Imp			lhs		.	pp		=	ppMbPre id @mbTy.ppMb $ ppMbPre (\s -> s >#< "as") @mbOrigNm @nm
+%%]
+
+Export
+
+%%[(8 cmm)
+SEM Datum
+  | Nm			lhs		.	pp		=	@nm >|< ":"
+  | Align		lhs		.	pp		=	semic $ "align" >#< show @align
+  | Ty			lhs		.	pp		=	semic $ ppMbPost id @mbInit.ppMb $ ppMbPost ppBrackets @mbSize.ppMb @ty.pp
+%%]
+
+%%[(8 cmm)
+SEM Init
+  | Seq			lhs		.	pp		=	ppCurlysCommasBlock @exprs.ppL
+  | Str			lhs		.	pp		=	pp (show @str)
+  -- | Str16			str				: String16
+%%]
+
+String16
+
+%%[(8 cmm)
+SEM Regs
+  | Regs		lhs		.	pp		=	ppMbPre show @mbKind $ @ty.pp >#< ppCommas' @nmInits.ppL
+%%]
+
+%%[(8 cmm)
+SEM RegNmInit
+  | NmInit		lhs		.	pp		=	ppMbPost show @mbIs $ cvar @cvar
+%%]
+
+%%[(8 cmm)
+SEM BodyDecl
+  -- | Decl			decl			: Decl
+  | StackDecl	lhs		.	pp		=	"stackdata"	>#< ppCurlysBlock @datums.ppL
+  -- | Stmt			stmt			: Stmt
+%%]
+
+%%[(8 cmm)
+SEM Body
+  | Body		lhs		.	pp		=	ppCurlysBlock @decls.ppL
+%%]
+
+%%[(8 cmm)
+SEM Proc
+  | Proc		lhs		.	pp		=	(ppMbPre id @mbConv.ppMb $ cvar @cvar >#< ppParensCommas' @formals.ppL) >-#-< @body.pp
+%%]
+
+%%[(8 cmm)
+SEM Conv
+  | Foreign		lhs		.	pp		=	"ffi" >#< @conv
+  | Platform	lhs		.	pp		=	pp "prim"
+%%]
+
+%%[(8 cmm)
+SEM Formal
+  | Formal		lhs		.	pp		=	ppMbPre show @mbKind $ (if @isInvariant then "invariant " else "") >|< @ty.pp >#< cvar @cvar
+%%]
+
+%%[(8 cmm)
+SEM Actual
+  | Actual		lhs		.	pp		=	ppMbPre show @mbKind $ @expr.pp
+%%]
+
+%%[(8 cmm)
+SEM Stmt
+  -- | If				condExpr		: Expr
+  -- 					thenBody		: Body
+  -- 					elseMbBody		: MbBody
+  | Switch		lhs		.	pp		=	"switch" >#< @expr.pp >-|-< indent 1 (ppCurlysBlock @arms.ppL)
+  -- | Span				expr1			: Expr
+  -- 					expr2			: Expr
+  -- 					body			: Body
+  | Assign		lhs		.	pp		=	semic $ ppCommas' @lval.ppL >#< "=" >-|-< indent 1 (ppCommas' @rhs.ppL)
+  -- | %%Assign
+  | Call        lhs     .   pp      =   semic 
+                                        $ ppListPre (\l -> ppCommas' l >#< "=") @knames.ppL
+                                        $ ppMbPre id @mbConv.ppMb
+                                        $ @callexpr.pp >|< ppParensCommas' @actuals.ppL >|< (@targets.ppMk $ ppSpaces @aliasflows.ppL)
+  -- | Jump			mbConv			: MbConv
+  -- 					expr			: Expr
+  -- 					actuals			: ActualL
+  -- 					targets			: Targets
+  | Ret			lhs		.	pp		=	semic $ (ppMbPre id @mbConv.ppMb $ pp "return") >#< (ppMbPre id @mbCont.ppMb $ ppCommas' @actuals.ppL)
+  -- | Label			nm				: Nm
+  -- | Cont			nm				: Nm
+  -- 					knames			: KindNameL
+  -- | Goto			expr			: Expr
+  -- 					targets			: Targets
+  -- | Cut				expr			: Expr
+  -- 					actuals			: ActualL
+  -- 					flows			: FlowL
+  | Alloc		lhs		.	pp		=	semic $ cvar @cvar >#< "=" >-|-< indent 1 ("alloc" >|< @tag.pp >|< ppParensCommas' @elts.ppL)
+  | Box			lhs		.	pp		=	semic $ cvar @cvar >#< "=" >-|-< indent 1 ("box" >|< @boxing >#< @expr.pp)
+  | UnBox		lhs		.	pp		=	semic $ cvar @cvar >#< "=" >-|-< indent 1 ("unbox" >|< @boxing >#< @expr.pp)
+%%]
+
+RetCont
+
+%%[(8 cmm)
+SEM KindName
+  | KindName	lhs		.	pp		=	ppMbPre pp @mbKind @nm
+%%]
+
+%%[(8 cmm)
+SEM Arm
+  | Case		lhs		.	pp		=	"case" >#< ppCommas @ranges.ppL >#< ":" >-|-< indent 1 @body.pp
+%%]
+
+%%[(8 cmm)
+SEM Range
+  | RangeI		lhs		.	pp		=	pp @int
+  | Range1		lhs		.	pp		=	@expr1.pp
+  | Range2		lhs		.	pp		=	@expr1.pp >|< ".." >|< @expr2.pp
+%%]
+
+%%[(8 cmm)
+SEM LValue
+  | Nm			lhs		.	pp		=	cvar @cvar
+  -- | Typed			ty				: Ty
+  -- 					expr			: Expr
+  -- 					mbAssert		: MbAssert
+%%]
+
+Flow
+
+Also
+
+Alias
+
+FlowAlias
+
+%%[(8 cmm)
+SEM CallExpr
+  | Eval		lhs		.	pp		=	pp "eval"
+  | Apply		lhs		.	pp		=	pp "apply"
+  -- | Alloc		lhs		.	pp		=	"alloc" >|< @tag.pp
+%%]
+
+%%[(8 cmm)
+SEM Expr
+  -- Regular constants
+  | Int	Char Str
+  				lhs		.	pp		=	ppMbPost ("::" >#<) @mbTy.ppMb $ show @val
+  -- | Rat				val				: Rational
+  -- 					mbTy			: MbTy
+  -- | Float			val				: Rational
+  -- 					mbTy			: MbTy
+
+  -- Special constants
+  -- | Lit				val				: Lit
+
+  -- Variable
+  | CVar		lhs		.	pp		=	cvar @cvar
+  | Nm			lhs		.	pp		=	pp @nm
+  | NmForeign	lhs		.	pp		=	pp @nm
+
+  -- Operations
+  -- | Op				op				: Op
+  -- 					exprs			: ExprL
+  
+  -- Memory node
+  -- | Nd				elts			: FldExprL
+  | NdDataTagGet
+  				lhs		.	pp		=	@nm >|< ".#tag"
+  | NdDataFldGet NdTupFldGet
+  				lhs		.	pp		=	@nm >|< "." >|< @fld
+
+  -- Support for lazy representation
+  -- | Eval		lhs		.	pp		=	"eval" >|< ppParens @nm
+
+
+  -- Misc
+  -- | Round			val				: Round
+  -- | Typed			ty				: Ty
+  -- 					expr			: Expr
+  -- 					mbAssert		: MbAssert
+  
+  | Err			lhs		.	pp		=	pp $ show $ "Err: " ++ @msg
+%%]
+
+FldExpr
+
+Assert
+
+Lit
+
+%%[(8 cmm)
+SEM Tag
+  | Con			lhs		.	pp		=	   "#" >|< @tag >|< "#" >|< @dataInfo
+  | Tup			lhs		.	pp		=	pp "#"
+  | Ind			lhs		.	pp		=	pp "#I"
+  | Fun			lhs		.	pp		=	   "#F#" >|< cvar @cvar
+  | App			lhs		.	pp		=	pp "#A"
+  | PApp		lhs		.	pp		=	   "#P#" >|< @needs >|< "#" >|< cvar @cvar
+%%]
+
+Round
+
+Op
+
+OpCode
+
+%%[(8 cmm)
+SEM Ty
+  -- C-- types
+  | Bits		lhs		.	pp		=	"bits" >|< @bits.pp
+  | Nm			lhs		.	pp		=	pp @nm
+
+  -- C types
+  -- | Struct			flds			: StructFldL
+  -- | Ptr				ty				: Ty
+  
+  -- unknown
+  | None		lhs		.	pp		=	pp "?ty?"
+%%]
+
+StructFld
+
+%%[(8 cmm)
+SEM Bits
+  | Size		lhs		.	pp		=	pp @sz
+  | Ptr			lhs		.	pp		=	"p" >|< @mbGc.pp
+  | Word		lhs		.	pp		=	pp "w"
+  -- | WordOrPtr
+%%]
+
+%%[(8 cmm)
+SEM GC
+  | GCOwned		lhs		.	pp		=	pp "+gc"
+  | NoGC		lhs		.	pp		=	pp "-gc"
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% List, Maybe variants of pp
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 cmm)
+SEM
+  TopLevelL SectionL ImportL ExportL ExprL TargetL DeclL RegNmInitL BodyDeclL FormalL ActualL LValueL KindNameL FlowAliasL FldExprL StructFldL DatumL ArmL RangeL
+    [ | | ppL: {[PP_Doc]} ]
+  | Cons		lhs		.	ppL		=	@hd.pp : @tl.ppL
+  | Nil			lhs		.	ppL		=	[]
+%%]
+
+%%[(8 cmm)
+SEM
+  MbTy MbExpr MbConv MbRetCont MbInit MbGC
+    [ | | ppMb: {Maybe PP_Doc} ]
+  | Just		lhs		.	ppMb	=	Just @just.pp
+  | Nothing		lhs		.	ppMb	=	Nothing
+%%]
+
+%%[(8 cmm)
+ATTR Targets [ | | ppMk: {PP_Doc -> PP_Doc} ]
+
+SEM Targets
+  | Targets		lhs		.	ppMk	=	ppListPre ppCommas' @nms
+%%]

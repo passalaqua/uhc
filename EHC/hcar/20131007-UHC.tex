@@ -1,0 +1,51 @@
+% UHCUtrechtHaskellCompiler-AU.tex
+\begin{hcarentry}[section]{UHC, Utrecht Haskell Compiler}
+\label{uhc}
+\label{ehc}
+\report{Atze Dijkstra}%05/12
+\status{active development}
+\participants{many others%Jeroen Fokker,
+% Doaitse Swierstra,
+% Arie Middelkoop,
+% Luc\'ilia Camar\~{a}o de Figueiredo,
+% Carlos Camar\~{a}o de Figueiredo,
+% Andres L\"oh, Jos\'e~Pedro Magalh\~{a}es,
+% Vincent van Oostrum, Clemens Grabmayer, Jan Rochel,
+% Tom Lokhorst, Jeroen Leeuwestein, Atze van der Ploeg, Paul van der Ende, Calin Juravle, Levin Fritz
+}
+\makeheader
+
+UHC is the Utrecht Haskell Compiler, supporting almost all Haskell98 features and most of Haskell2010, plus
+experimental extensions.
+
+\paragraph{Status}
+
+Current work is on a strictness analyser (Augusto Pasalaqua) and
+incrementality of analysis via the Attribute Grammar system used to construct UHC (Jeroen Bransen).
+
+\paragraph{Background.}
+
+UHC actually is a series of compilers of which the last is UHC, plus
+infrastructure for facilitating experimentation and extension.
+The distinguishing features for dealing with the complexity of the compiler and for experimentation are
+(1) its stepwise organisation as a series of increasingly more complex standalone compilers,
+the use of DSL and tools for its (2) aspectwise organisation (called Shuffle) and
+(3) tree-oriented programming (Attribute Grammars, by way of the
+Utrecht University Attribute Grammar (UUAG) system~\cref{uuag}.
+
+\FurtherReading
+\begin{compactitem}
+\item UHC Homepage:
+\url{http://www.cs.uu.nl/wiki/UHC/WebHome}
+
+\item UHC Github repository:
+\url{https://github.com/UU-ComputerScience/uhc}
+
+\item UHC Javascript backend:
+\url{http://uu-computerscience.github.com/uhc-js/}
+
+\item Attribute grammar system:
+\url{http://www.cs.uu.nl/wiki/HUT/AttributeGrammarSystem}
+
+\end{compactitem}
+\end{hcarentry}

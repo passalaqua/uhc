@@ -38,7 +38,7 @@ WRAPPER GrAGItf
 %%]
 %%[(8 codegen grin wholeprogAnal) hs import(Data.List, Data.Maybe, qualified Data.Set as Set, qualified Data.Map as Map, Data.Monoid)
 %%]
-%%[(8 codegen grin wholeprogAnal) hs import({%{EH}Base.Common}, {%{EH}Base.Builtin}, {%{EH}GrinCode})
+%%[(8 codegen grin wholeprogAnal) hs import({%{EH}Base.Common}, {%{EH}Base.HsName.Builtin}, {%{EH}GrinCode})
 %%]
 %%[(8 codegen grin wholeprogAnal) hs import({%{EH}GrinCode.Common(HptMap, Variable, getBaseEnvList, getNr, absFetch, getEnvVar, getNodes, addEnvElems, getEnvSize, throwTag, AbstractValue(..), AbstractNodes(..), evaluateNr, evaluateArgNr)})
 %%]
@@ -103,7 +103,7 @@ vsetLookup hptMap vset
 
 newName :: Int -> AbstractValue -> (Int,HptItems,HsName)
 newName unique av
-  =  let name = HNmNr unique OrigNone
+  =  let name = hsnMkNr unique OrigNone
          unique2 = unique+1
          entries = [(unique,av)]
      in (unique2, entries, name)
@@ -118,7 +118,7 @@ newName2 hptMap unique v
 newNames :: Int -> [AbstractValue] -> (Int,HptItems,[HsName])
 newNames unique avs
   =  let entries = zip [unique..] avs
-         names   = map (\e -> HNmNr (fst e) OrigNone) entries
+         names   = map (\e -> hsnMkNr (fst e) OrigNone) entries
          unique2 = unique + length avs
      in (unique2, entries, names)
 
@@ -262,7 +262,7 @@ buildEvalAlt locatName locatNeedsUpdate nodeName unique hptMap (tag,args)
                         else -- handling exceptions below (currently not used)
                              let -- create some more new names
                                  (unique4, newItems4, [throwVar,catchVar]) = newNames unique3 [exceptAbsVal, resultAbsVal]
-                                 noVar      = HNmNr 0 OrigNone
+                                 noVar      = hsnMkNr 0 OrigNone
                                  noPat      = GrPatLam_Var noVar
                                  -- and wrap them for use in Grin
                                  throwVal   = GrVal_Var throwVar
@@ -331,7 +331,7 @@ notHole :: (GrTag,[Set.Set Variable]) -> Bool
 notHole (GrTag_Hole,_) = False
 notHole _              = True
 
-isBasicTag (GrTag_Con _ _ nm) = True  -- nm==hsnInt || nm==hsnChar || nm==hsnPackedString
+isBasicTag (GrTag_Con _ _ _ ) = True  -- nm==hsnInt || nm==hsnChar || nm==hsnPackedString
 isBasicTag _                  = False
 
 hasExpectedResultTag :: GrPatLam -> HptMap -> (GrTag,[Set.Set Variable]) -> Bool

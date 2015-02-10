@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -7,7 +7,7 @@
 %%% Core utilities
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen tycore) module {%{EH}TyCore.Utils2} import(qualified Data.Map as Map,Data.Maybe,{%{EH}Base.Builtin},{%{EH}Opts},{%{EH}Base.Common}) 
+%%[(8 codegen tycore) module {%{EH}TyCore.Utils2} import(qualified Data.Map as Map,Data.Maybe,{%{EH}Base.HsName.Builtin},{%{EH}Opts},{%{EH}Base.Common}) 
 %%]
 %%[(8 codegen tycore) import({%{EH}TyCore.Base})
 %%]
@@ -17,7 +17,7 @@
 %%[(8 codegen tycore) hs import({%{EH}AbstractCore.Utils} hiding (rceMatch)) export(module {%{EH}AbstractCore.Utils})
 %%]
 
-%%[(8 codegen tycore) import({%{EH}Gam},{%{EH}VarMp},{%{EH}Substitutable},{%{EH}Gam.ValGam},{%{EH}Gam.DataGam})
+%%[(8 codegen tycore hmtyinfer) import({%{EH}Gam},{%{EH}VarMp},{%{EH}Substitutable},{%{EH}Gam.ValGam},{%{EH}Gam.DataGam})
 %%]
 
 %%[(8 codegen tycore) import(Data.List,qualified Data.Set as Set,Data.List,qualified Data.Map as Map,UHC.Util.Utils)

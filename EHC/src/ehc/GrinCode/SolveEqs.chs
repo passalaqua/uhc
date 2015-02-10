@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -405,7 +405,7 @@ limit env ts (AbsNodes (Nodes ns))
  = do { let kvs = Map.toList ns
             validTag (t@(GrTag_Con _ _ _) , _)
               = return (t `elem` ts)
-            validTag (t@(GrTag_Fun (HNmNr f _)) , _)
+            validTag (t@(GrTag_Fun (HsName_Nr{-use: hsnMbNr-} f _)) , _)
               = do { ans <- readAV env f
                    ; ls  <- limit env ts ans
                    ; let ns2 = case ls of

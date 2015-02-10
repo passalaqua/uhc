@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -10,7 +10,7 @@
 %%[1 module {%{EH}HS.Parser} import(UU.Parsing, UU.Parsing.Offside, UHC.Util.ParseUtils, UU.Scanner.GenToken, UHC.Util.ScanUtils)
 %%]
 
-%%[1 import({%{EH}Base.Common}, {%{EH}Base.Builtin}, {%{EH}Scanner.Common}, {%{EH}Base.TermLike}, {%{EH}Opts}, {%{EH}HS})
+%%[1 import({%{EH}Base.Common}, {%{EH}Base.HsName.Builtin}, {%{EH}Scanner.Common}, {%{EH}Base.TermLike}, {%{EH}Opts}, {%{EH}HS})
 %%]
 
 %%[1 import(System.IO)
@@ -32,14 +32,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Scanner related
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%[1
-tokConcat :: Token -> Token -> Token
-tokConcat t1 t2 = Reserved (tokenVal t1 ++ tokenVal t2) (position t1)
-
-tokEmpty :: Token
-tokEmpty = Reserved "" noPos
-%%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Abstractions
@@ -512,7 +504,7 @@ pBody' opts addDecl
               <**> (   (\ts c -> mkRngNm Constructor_Constructor c ts) <$> pList pTB
 %%]
 %%[7
-                   <|> pCurlys' ((\fs r c -> mkRngNm Constructor_Record c fs) <$> pList1Sep pCOMMA pFieldDeclaration)
+                   <|> pCurlys' ((\fs r c -> mkRngNm Constructor_Record c fs) <$> pListSep pCOMMA pFieldDeclaration)
 %%]
 %%[5
                    )
@@ -545,7 +537,7 @@ pBody' opts addDecl
 %%% Foreign
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%[8
         pDeclarationForeign :: HSParser Declaration
         pDeclarationForeign
           = pFOREIGN

@@ -13,6 +13,9 @@ Interface/wrapper to various transformations for Core, TyCore, etc.
 %%[8 import(qualified Data.Map as Map, qualified Data.Set as Set)
 %%]
 
+%%[8 import(Control.Monad.State)
+%%]
+
 %%[8 import({%{EH}EHC.Common})
 %%]
 %%[(8 codegen) import({%{EH}Base.Optimize})
@@ -23,6 +26,12 @@ Interface/wrapper to various transformations for Core, TyCore, etc.
 %%]
 %%[99 import({%{EH}EHC.CompilePhase.Module(cpUpdHiddenExports)})
 %%]
+%%[8 import(qualified {%{EH}Config} as Cfg)
+%%]
+
+-- Transformation utils
+%%[(8 codegen) import({%{EH}CodeGen.TrfUtils})
+%%]
 
 -- Core transformations
 %%[(8 codegen) import({%{EH}Core.Trf})
@@ -32,10 +41,16 @@ Interface/wrapper to various transformations for Core, TyCore, etc.
 %%[(8 codegen tycore) import({%{EH}TyCore.Trf})
 %%]
 
--- Output
-%%[8 import({%{EH}EHC.CompilePhase.Output(cpOutputCoreModule)})
+-- JavaScript transformations
+%%[(8 javascript) import({%{EH}JavaScript.Trf})
 %%]
-%%[(8 tycore) import({%{EH}EHC.CompilePhase.Output(cpOutputTyCoreModule)})
+
+-- Cmm transformations
+%%[(8 codegen cmm) import({%{EH}Cmm.Trf})
+%%]
+
+-- Output
+%%[8 import({%{EH}EHC.CompilePhase.Output})
 %%]
 
 -- HI syntax and semantics
@@ -43,7 +58,9 @@ Interface/wrapper to various transformations for Core, TyCore, etc.
 %%]
 
 -- Core semantics
-%%[(8 codegen grin) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%[(8 core) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%]
+%%[(50 codegen corein) import(qualified {%{EH}Core.Check} as Core2ChkSem)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -61,42 +78,55 @@ cpTransformCore optimScope modNm
        ; let  mbCore     = ecuMbCore ecu
               coreInh    = crsiCoreInh crsi
               trfcoreIn  = emptyTrfCore
-                             { trfcoreCore          = panicJust "cpTransformCore" mbCore
-                             , trfcoreUniq          = crsiNextUID crsi
-%%[[50
-                             , trfcoreExpNmOffMp    = crsiExpNmOffMp modNm crsi
-                             , trfcoreInhBindingMp  = Core2GrSem.bindingMp_Inh_CodeAGItf $ crsiCoreInh crsi
+                             { trfstMod             	= panicJust "cpTransformCore" mbCore
+                             , trfstUniq            	= crsiNextUID crsi
+                             , trfstExtra = emptyTrfCoreExtra
+                                 { trfcoreECUState		= ecuState ecu
+%%[[8
+                                 -- , trfcoreIsLamLifted	= False
+%%][(50 corein)
+                                 -- , trfcoreIsLamLifted	= maybe False Core2ChkSem.isLamLifted_Syn_CodeAGItf $ ecuMbCoreSemMod ecu
 %%]]
+%%[[(50 corein)
+                                 , trfcoreNotYetTransformed
+                                 						= maybe (trfcoreNotYetTransformed emptyTrfCoreExtra) Core2ChkSem.notYetTransformed_Syn_CodeAGItf $ ecuMbCoreSemMod ecu
+%%]]
+%%[[50
+                                 , trfcoreExpNmOffMp    = crsiExpNmOffMpDbg "cpTransformCore" modNm crsi
+								 , trfcoreInhLamMp      = Core2GrSem.lamMp_Inh_CodeAGItf $ crsiCoreInh crsi
+%%]]
+                                 }
                              }
               trfcoreOut = trfCore opts optimScope (Core2GrSem.dataGam_Inh_CodeAGItf $ crsiCoreInh crsi) modNm trfcoreIn
        
+%%[[(50 corein)
+       -- ; lift $ putStrLn $ "cpTransformCore trfcoreNotYetTransformed: " ++ show (trfcoreNotYetTransformed $ trfstExtra trfcoreIn)
+%%]]
          -- put back result: Core
-       ; cpUpdCU modNm $! ecuStoreCore (trfcoreCore trfcoreOut)
+       ; cpUpdCU modNm $! ecuStoreCore (trfstMod trfcoreOut)
 
          -- put back result: unique counter
-       ; cpSetUID (trfcoreUniq trfcoreOut)
+       ; cpSetUID (trfstUniq trfcoreOut)
 
 %%[[50
          -- put back result: call info map (lambda arity, ...)
        ; let hii   = ecuHIInfo ecu
-             bindingMp = HI.hiiBindingMp hii
+             lamMp = HI.hiiLamMp hii
        ; cpUpdCU modNm
            ( ecuStoreHIInfo
-               (hii { HI.hiiBindingMp = trfcoreGathBindingMp trfcoreOut `Map.union` bindingMp
+               (hii { HI.hiiLamMp = (trfcoreGathLamMp $ trfstExtra trfcoreOut) `Map.union` lamMp
                     })
            )
 %%]]   
 %%[[99
          -- put back result: additional hidden exports, it should be in a cpFlowXX variant
-       ; cpUpdHiddenExports modNm $ zip (Set.toList $ trfcoreExtraExports trfcoreOut) (repeat IdOcc_Val)
+       ; cpUpdHiddenExports modNm $ zip (Set.toList $ trfcoreExtraExports $ trfstExtra trfcoreOut) (repeat IdOcc_Val)
 %%]]
 
          -- dump intermediate stages, print errors, if any
-       ; cpSeq [ do { when (isJust mc) (cpOutputCoreModule False ("-" ++ show optimScope ++ "-" ++ show n ++ "-" ++ nm) "core" modNm (fromJust mc))
-                    ; cpSetLimitErrsWhen 5 ("Core errors: " ++ nm) err
-                    }
-               | (n,(nm,mc,err)) <- zip [1..] (trfcoreCoreStages trfcoreOut)
-               ]
+       ; let (nms,mcs,errs) = unzip3 $ trfstModStages trfcoreOut
+       ; cpOutputCoreModules CPOutputCoreHow_Text [{- CoreOpt_DumpAlsoNonParseable -}] (\n nm -> "-" ++ show optimScope ++ "-" ++ show n ++ "-" ++ nm) Cfg.suffixDotlessOutputTextualCore modNm [ (n,nm) | (n, Just nm) <- zip nms mcs ]
+       ; cpSeq $ zipWith (\nm err -> cpSetLimitErrsWhen 5 ("Core errors: " ++ nm) err) nms errs
        }
 %%]
 
@@ -117,7 +147,7 @@ cpTransformTyCore modNm
                               , trftycoreExpNmOffMp    = crsiExpNmOffMp modNm crsi
 %%]]
 %%[[99
-                              , trftycoreInhBindingMp  = Core2GrSem.bindingMp_Inh_CodeAGItf $ crsiCoreInh crsi
+                              , trftycoreInhLamMp      = Core2GrSem.lamMp_Inh_CodeAGItf $ crsiCoreInh crsi
 %%]]
                               }
               trftycoreOut = trfTyCore opts modNm trftycoreIn
@@ -136,10 +166,10 @@ cpTransformTyCore modNm
 %%[[99
          -- put back result: call info map (lambda arity, ...)
        ; let hii   = ecuHIInfo ecu
-             bindingMp = HI.hiiBindingMp hii
+             lamMp = HI.hiiLamMp hii
        ; cpUpdCU modNm
            ( ecuStoreHIInfo
-               (hii { HI.hiiBindingMp = trftycoreGathBindingMp trftycoreOut `Map.union` bindingMp
+               (hii { HI.hiiLamMp = trftycoreGathLamMp trftycoreOut `Map.union` lamMp
                     })
            )
        
@@ -149,4 +179,61 @@ cpTransformTyCore modNm
        }
 %%]
 
+
+%%[(8 javascript) export(cpTransformJavaScript)
+cpTransformJavaScript :: OptimizationScope -> HsName -> EHCompilePhase ()
+cpTransformJavaScript optimScope modNm
+  = do { cr <- get
+       ; let  (ecu,crsi,opts,fp) = crBaseInfo modNm cr
+       ; cpMsg' modNm VerboseALot "Transforming JavaScript ..." Nothing fp
+       
+         -- transform
+       ; let  mbJavaScript     = ecuMbJavaScript ecu
+              trfjsIn  = emptyTrfJavaScript
+                             { trfstMod           = panicJust "cpTransformJavaScript" mbJavaScript
+                             , trfstUniq          = crsiNextUID crsi
+                             }
+              trfjsOut = trfJavaScript opts optimScope modNm trfjsIn
+       
+         -- put back result: JavaScript
+       ; cpUpdCU modNm $! ecuStoreJavaScript (trfstMod trfjsOut)
+
+         -- put back result: unique counter
+       ; cpSetUID (trfstUniq trfjsOut)
+
+         -- dump intermediate stages, print errors, if any
+       ; let (nms,mcs,errs) = unzip3 $ trfstModStages trfjsOut
+       ; cpOutputJavaScriptModules False (\n nm -> "-" ++ show n ++ "-" ++ nm) Cfg.suffixJavaScriptLib modNm [ (n,nm) | (n, Just nm) <- zip nms mcs ]
+       ; cpSeq $ zipWith (\nm err -> cpSetLimitErrsWhen 5 ("JavaScript errors: " ++ nm) err) nms errs
+       }
+%%]
+
+
+%%[(8 codegen cmm) export(cpTransformCmm)
+cpTransformCmm :: OptimizationScope -> HsName -> EHCompilePhase ()
+cpTransformCmm optimScope modNm
+  = do { cr <- get
+       ; let  (ecu,crsi,opts,fp) = crBaseInfo modNm cr
+       ; cpMsg' modNm VerboseALot "Transforming Cmm ..." Nothing fp
+       
+         -- transform
+       ; let  mbCmm     = ecuMbCmm ecu
+              trfcmmIn  = emptyTrfCmm
+                             { trfstMod           = panicJust "cpTransformCmm" mbCmm
+                             , trfstUniq          = crsiNextUID crsi
+                             }
+              trfcmmOut = trfCmm opts optimScope modNm trfcmmIn
+       
+         -- put back result: Cmm
+       ; cpUpdCU modNm $! ecuStoreCmm (trfstMod trfcmmOut)
+
+         -- put back result: unique counter
+       ; cpSetUID (trfstUniq trfcmmOut)
+
+         -- dump intermediate stages, print errors, if any
+       ; let (nms,mcs,errs) = unzip3 $ trfstModStages trfcmmOut
+       ; cpOutputCmmModules False (\n nm -> "-" ++ show n ++ "-" ++ nm) Cfg.suffixCmmLib modNm [ (n,nm) | (n, Just nm) <- zip nms mcs ]
+       ; cpSeq $ zipWith (\nm err -> cpSetLimitErrsWhen 5 ("Cmm errors: " ++ nm) err) nms errs
+       }
+%%]
 

@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -7,7 +7,7 @@
 %%% Module itf
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(3 hmtyinfer || hmtyast) hs module {%{EH}Ty.Trf.Quantify} import(UHC.Util.Utils,{%{EH}Base.Builtin},{%{EH}Base.Common},{%{EH}Ty},{%{EH}VarMp},{%{EH}Substitutable}) export(tyQuantify, tyQuantifyClosed)
+%%[(3 hmtyinfer || hmtyast) hs module {%{EH}Ty.Trf.Quantify} import(UHC.Util.Utils,{%{EH}Base.HsName.Builtin},{%{EH}Base.Common},{%{EH}Ty},{%{EH}VarMp},{%{EH}Substitutable}) export(tyQuantify)
 %%]
 
 %%[(4 hmtyinfer || hmtyast) hs import({%{EH}Base.Debug},UHC.Util.Pretty)
@@ -44,12 +44,12 @@ valTyQuantify :: TvIsBound -> Ty -> Ty
 valTyQuantify = tyQuantify
 %%]
 
-%%[(3 hmtyinfer || hmtyast).tyQuantifyClosed hs
+%%[(3 hmtyinfer || hmtyast).tyQuantifyClosed hs export(tyQuantifyClosed)
 tyQuantifyClosed :: Ty -> Ty
 tyQuantifyClosed = tyQuantify (const False)
 %%]
 
-%%[(9 hmtyinfer || hmtyast).tyQuantifyClosed -3.tyQuantifyClosed hs export(tyQuantifyRank,tyQuantifyRank')
+%%[(9 hmtyinfer || hmtyast).tyQuantifyClosed -3.tyQuantifyClosed hs export(tyQuantifyClosed,tyQuantifyRank,tyQuantifyRank')
 tyQuantifyClosed :: Ty -> Ty
 tyQuantifyClosed = tyQuantifyRank [1..]
 
@@ -379,11 +379,11 @@ tvarsToQuant
      -> (TyVarId -> Bool)
      -> TvLevIsBound			-- ^ 'is already bound?'
      -> TyVarIdS
-     -> ( TyVarIdsToBind		-- ^ to bind universal, on this level
-        , TyVarIdsToBind		-- ^ to bind existential
-        , TyVarIdsToBind		-- ^ to bind universal, 1 level higher
-        , TvLevIsBound			-- ^ updated 'is already bound?'
-        , VarMp					-- ^ the tvars which are defaulted
+     -> ( TyVarIdsToBind		-- to bind universal, on this level
+        , TyVarIdsToBind		-- to bind existential
+        , TyVarIdsToBind		-- to bind universal, 1 level higher
+        , TvLevIsBound			-- updated 'is already bound?'
+        , VarMp					-- the tvars which are defaulted
         )
 tvarsToQuant opts isQuLoc _ mayQuFx tvIsBound tvS
   =  if isQuLoc

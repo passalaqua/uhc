@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -7,28 +7,31 @@
 %%% Haskell importable interface to HI/AbsSyn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[50 hs module {%{EH}HI} import({%{EH}Base.Common},{%{EH}Opts},{%{EH}Base.Builtin},{%{EH}NameAspect})
+%%[50 hs module {%{EH}HI} import({%{EH}Base.Common},{%{EH}Opts},{%{EH}Base.HsName.Builtin},{%{EH}NameAspect})
 %%]
 
-%%[(50 hmtyinfer || hmtyast) hs import ({%{EH}Gam.Full},{%{EH}Gam.ClassDefaultGam})
+%%[50 hs import ({%{EH}Gam.Full})
+%%]
+
+%%[(50 hmtyinfer) hs import ({%{EH}Gam.ClassDefaultGam})
 %%]
 
 %%[(50 hmtyinfer || hmtyast) hs import({%{EH}Ty})
 %%]
 
-%%[(50 codegen) hs import({%{EH}Base.Target})
+%%[50 hs import({%{EH}Base.Target})
 %%]
 %%[(50 codegen) hs import({%{EH}Core}, {%{EH}BindingInfo})
 %%]
 %%[(50 codegen tycore) hs import(qualified {%{EH}TyCore} as C)
 %%]
 
-%%[(50 codegen grin) hs import({%{EH}GrinCode})
+%%[(50 grin) hs import({%{EH}GrinCode})
 %%]
-%%[(50 codegen grin) hs import({%{EH}GrinByteCode})
+%%[(50 grin) hs import({%{EH}GrinByteCode})
 %%]
 
-%%[50 hs import({%{EH}Config},{%{EH}Module})
+%%[50 hs import({%{EH}Config},{%{EH}Module.ImportExport})
 %%]
 
 %%[(50 hmtyinfer) hs import({%{EH}Pred.ToCHR},{%{EH}CHR.Solve},qualified {%{EH}Gam.ClGam} as Pr)
@@ -49,6 +52,10 @@
 %%]
 
 %%[50 hs import(qualified {%{EH}Config} as Cfg)
+%%]
+%%[50 hs import(qualified {%{EH}ConfigInternalVersions} as Cfg)
+%%]
+%%[50 import(qualified {%{EH}SourceCodeSig} as Sig)
 %%]
 
 %%[(9999 codegen grin) hs import({%{EH}GrinCode.Trf.ForceEval})
@@ -80,9 +87,13 @@ instance Show Visible where
 %%[50 hs export(HIInfoUsedModMp,HIInfo(..))
 type HIInfoUsedModMp = (Map.Map HsName (Set.Set HsName))
 
+-- | Encoding of info in .hi file, when changed also change {%{EH}ConfigInternalVersions}
 data HIInfo
   = HIInfo
       { hiiValidity             :: !HIValidity                              -- a valid HI info?
+      , hiiInternalVersions		:: !( Cfg.InternalVersionHI					-- internal version
+      								, Cfg.InternalVersionCore
+      								) 
       , hiiOrigin               :: !HIOrigin                                -- where did the HI come from
       , hiiSrcSig               :: !String                                  -- compiler source signature (md5)
       , hiiTarget               :: !Target                                  -- for which backend the hi is generated
@@ -104,7 +115,9 @@ data HIInfo
       , hiiHIUsedImpModS        :: !(Set.Set HsName)                        -- used imports, usually indirectly via renaming
       , hiiTransClosedUsedModMp :: !HIInfoUsedModMp       					-- used modules with their imports, required to be linked together, transitively closed/cached over imported modules
       , hiiTransClosedOrphanModS:: !(Set.Set HsName)                        -- orphan modules, required to read its .hi file, transitively closed/cached over imported modules
+%%[[(50 codegen hmtyinfer)
       , hiiMbOrphan             :: !(Maybe (Set.Set HsName))                -- is orphan module, carrying the module names required
+%%]]
 %%[[(50 hmtyinfer)
       , hiiValGam               :: !ValGam                                  -- value identifier environment
       , hiiTyGam                :: !TyGam                                   -- type identifier env
@@ -133,11 +146,16 @@ data HIInfo
 %%[50 hs export(emptyHIInfo)
 emptyHIInfo :: HIInfo
 emptyHIInfo 
-  = HIInfo HIValidity_Absent HIOrigin_FromFile
+  = HIInfo HIValidity_Absent
+           (Cfg.internalVersionHI, Cfg.internalVersionCore)
+           HIOrigin_FromFile
            "" defaultTarget defaultTargetFlavor "" "" False hsnUnknown "" "" "" "" ""
            Rel.empty Rel.empty emptyGam
            Set.empty Set.empty
-           Map.empty Set.empty Nothing
+           Map.empty Set.empty
+%%[[(50 codegen hmtyinfer)
+           Nothing
+%%]]
 %%[[(50 hmtyinfer)
            emptyGam emptyGam emptyGam emptyGam emptyGam emptyGam emptyGam emptyCHRStore
 %%]]
@@ -178,7 +196,9 @@ instance PP HIInfo where
                       >-< "UsedImp=" >#< ppCommas   (Set.toList $ hiiHIUsedImpModS         i)
                       >-< "AllUsed=" >#< ppAssocLV  (assocLMapElt (ppCommas . Set.toList) $ Map.toList $ hiiTransClosedUsedModMp i)
                       >-< "AllOrph=" >#< ppCommas   (Set.toList $ hiiTransClosedOrphanModS i)
+%%[[(50 codegen hmtyinfer)
                       >-< "MbOrph =" >#< ppCommas   (maybe [] Set.toList $ hiiMbOrphan     i)
+%%]]
                       -- >-< "Exps="    >#< pp         (hiiExps          i)
                       -- >-< "Exps(H)=" >#< pp         (hiiHiddenExps    i)
                       -- >-< "ValGam =" >#< pp         (hiiValGam        i)
@@ -264,7 +284,9 @@ hiiRestrictToFilterMp mfm hii
   where exp k  = (`Set.member` Map.findWithDefault Set.empty k mfm)
         expV   = exp IdOcc_Val
         expT   = exp IdOcc_Type
+%%[[(99 hmtyinfer)
         expT'  = maybe False (exp IdOcc_Type) . tyKiKeyMbName
+%%]]
         expVT x= expV x || expT x
         expC   = expT -- exp IdOcc_Class
         fg p   = fst . gamPartition (\k _ -> p k)
@@ -296,7 +318,9 @@ hiiIncludeCacheOfImport imp mfm hii
                         , hiiHiddenExps             = Rel.empty
                         , hiiHIDeclImpModS          = Set.empty
                         , hiiHIUsedImpModS          = Set.empty
+%%[[(99 hmtyinfer)
                         , hiiCHRStore               = emptyCHRStore     -- this cannot be, but no solution for filtering this...
+%%]]
                         , hiiSrcSig                 = ""
                         , hiiCompiler               = ""
                         , hiiSrcTimeStamp           = ""
@@ -383,14 +407,17 @@ sgetHIInfo opts = do
   ; if hi_magic == Cfg.magicNumberHI
     then do { hi_sig   <- sget
             ; hi_ts    <- sget
+            ; hi_iv    <- sget
             ; hi_t     <- sget
             ; hi_tv    <- sget
             ; hi_fl    <- sget
             ; hi_comp  <- sget
-            ; if (    hi_sig == verSig version
-                   && hi_ts  == verTimestamp version
-                   && hi_t   == ehcOptTarget       opts
-                   && hi_tv  == ehcOptTargetFlavor opts
+            ; if ( {-   hi_sig == Sig.sig
+                   && hi_ts  == Sig.timestamp
+                   && -}
+                      hi_iv  == hiiInternalVersions emptyHIInfo
+                   && hi_t   == ehcOptTarget        opts
+                   && hi_tv  == ehcOptTargetFlavor  opts
                  )
 %%[[99
                  || not (ehcOptHiValidityCheck opts)
@@ -408,7 +435,9 @@ sgetHIInfo opts = do
                       ; impu      <- sget
                       ; tclused   <- sget
                       ; tclorph   <- sget
+%%[[(50 codegen hmtyinfer)
                       ; isorph    <- sget
+%%]]
 %%[[(50 hmtyinfer)
                       ; vg        <- sget
                       ; tg        <- sget
@@ -438,6 +467,7 @@ sgetHIInfo opts = do
                             , hiiTargetFlavor         = hi_tv
                             , hiiHasMain              = hi_hm
                             , hiiSrcTimeStamp         = hi_ts
+                            , hiiInternalVersions	  = hi_iv
                             , hiiModuleNm             = hi_nm
                             , hiiSrcVersionMajor      = hi_m
                             , hiiSrcVersionMinor      = hi_mm
@@ -450,7 +480,9 @@ sgetHIInfo opts = do
                             , hiiHIUsedImpModS        = impu
                             , hiiTransClosedUsedModMp = tclused
                             , hiiTransClosedOrphanModS= tclorph
+%%[[(50 codegen hmtyinfer)
                             , hiiMbOrphan             = isorph
+%%]]
 %%[[(50 hmtyinfer)
                             , hiiValGam               = vg
                             , hiiTyGam                = tg
@@ -477,6 +509,7 @@ sgetHIInfo opts = do
                        { hiiValidity             = HIValidity_Inconsistent
                        , hiiSrcSig               = hi_sig
                        , hiiSrcTimeStamp         = hi_ts
+                       , hiiInternalVersions	 = hi_iv
                        , hiiCompileFlags         = hi_fl
                        , hiiCompiler             = hi_comp
                        , hiiTarget               = hi_t
@@ -501,6 +534,7 @@ instance Serialize HIInfo where
                   , hiiModuleNm             = hi_nm
                   , hiiHasMain              = hi_hm
                   , hiiSrcTimeStamp         = hi_ts
+                  , hiiInternalVersions		= hi_iv
                   , hiiSrcVersionMajor      = hi_m
                   , hiiSrcVersionMinor      = hi_mm
                   , hiiSrcVersionMinorMinor = hi_mmm
@@ -512,7 +546,9 @@ instance Serialize HIInfo where
                   , hiiHIUsedImpModS        = impu
                   , hiiTransClosedUsedModMp = tclused
                   , hiiTransClosedOrphanModS= tclorph
+%%[[(50 codegen hmtyinfer)
                   , hiiMbOrphan             = isorph
+%%]]
 %%[[(50 hmtyinfer)
                   , hiiValGam               = vg
                   , hiiTyGam                = tg
@@ -536,6 +572,7 @@ instance Serialize HIInfo where
               =    mapM sputWord8 Cfg.magicNumberHI
                 >> sput hi_sig
                 >> sput hi_ts
+                >> sput hi_iv
                 >> sput hi_t
                 >> sput hi_tv
                 >> sput hi_fl
@@ -553,7 +590,9 @@ instance Serialize HIInfo where
                 >> sput impu
                 >> sput tclused
                 >> sput tclorph
+%%[[(50 codegen hmtyinfer)
                 >> sput isorph
+%%]]
 %%[[(50 hmtyinfer)
                 >> sput (gamFlatten vg)
                 >> sput (gamFlatten tg)

@@ -1,5 +1,5 @@
 ### Process this file with autoconf to produce a configure script.
-AC_INIT([UHC],[1.1.5],[uhc-developers@lists.science.uu.nl, http://www.cs.uu.nl/wiki/UHC/WebHome])
+AC_INIT([UHC],[1.1.7],[uhc-developers@lists.science.uu.nl, http://www.cs.uu.nl/wiki/UHC/WebHome])
 
 ### version of autoconf used (and required)
 #AC_PREREQ(2.64)
@@ -34,6 +34,8 @@ EH_VERSION_MAJOR=`awk -F . '{print $1}' VERSION`
 EH_VERSION_MINOR=`awk -F . '{print $2}' VERSION`
 # small change, still usable with previous
 EH_VERSION_MINORMINOR=`awk -F . '{print $3}' VERSION`
+# very small (kinda per commit, daily) change
+EH_VERSION_MINORMINORMINOR=`awk -F . '{print $4}' VERSION`
 
 # 20090415: this amount of detail will not be used, will be obsolete
 EH_VERSION_STABILITY=alpha
@@ -41,10 +43,12 @@ EH_VERSION_STABILITY=alpha
 AC_SUBST(EH_VERSION_MAJOR)
 AC_SUBST(EH_VERSION_MINOR)
 AC_SUBST(EH_VERSION_MINORMINOR)
+AC_SUBST(EH_VERSION_MINORMINORMINOR)
 AC_SUBST(EH_VERSION_STABILITY)
 AC_SUBST(EH_VERSION_SHORT,$EH_VERSION_MAJOR.$EH_VERSION_MINOR)
-AC_SUBST(EH_VERSION_FULL,$EH_VERSION_MAJOR.$EH_VERSION_MINOR.$EH_VERSION_MINORMINOR)
-AC_SUBST(EH_VERSION_ASNUMBER,$EH_VERSION_MAJOR$EH_VERSION_MINOR$EH_VERSION_MINORMINOR)
+AC_SUBST(EH_VERSION_MEDIUM,$EH_VERSION_MAJOR.$EH_VERSION_MINOR.$EH_VERSION_MINORMINOR)
+AC_SUBST(EH_VERSION_FULL,$EH_VERSION_MAJOR.$EH_VERSION_MINOR.$EH_VERSION_MINORMINOR.$EH_VERSION_MINORMINORMINOR)
+AC_SUBST(EH_VERSION_ASNUMBER,$EH_VERSION_MAJOR$EH_VERSION_MINOR$EH_VERSION_MINORMINOR$EH_VERSION_MINORMINORMINOR)
 
 dnl macro for missing program
 AC_DEFUN(MISSING_FOR_EH,
@@ -154,7 +158,7 @@ AC_ARG_ENABLE(wholeprogC, AS_HELP_STRING([--enable-wholeprogC],[include C whole 
 AC_SUBST(ENABLE_WHOLEPROGC,$enableWholeprogC)
 
 ### enable options: wholeprogAnal, whole program analysis, default is no, temporary until development restarts
-AC_ARG_ENABLE(wholeprogAnal, AS_HELP_STRING([--enable-wholeprogAnal],[include C whole program code generation]), [enableWholeprogAnal=yes], [enableWholeprogAnal=no])
+AC_ARG_ENABLE(wholeprogAnal, AS_HELP_STRING([--enable-wholeprogAnal],[include C whole program code analysis]), [enableWholeprogAnal=yes], [enableWholeprogAnal=no])
 AC_SUBST(ENABLE_WHOLEPROGANAL,$enableWholeprogAnal)
 
 ### enable options: llvm, default is no
@@ -168,6 +172,10 @@ AC_SUBST(ENABLE_CLR,$enableClr)
 ### enable options: tycore (Typed Core), default is no
 AC_ARG_ENABLE(tycore, AS_HELP_STRING([--enable-tycore],[include TyCore typed intermediate language]), [enableTyCore=yes], [enableTyCore=no])
 AC_SUBST(ENABLE_TYCORE,$enableTyCore)
+
+### enable options: core-asinpoutp (Untyped Core), default is no
+AC_ARG_ENABLE(core-asinpoutp, AS_HELP_STRING([--enable-core-asinpoutp],[allow use of Core untyped intermediate language as a backend and source language]), [enableCoreAsInpOutp=yes], [enableCoreAsInpOutp=no])
+AC_SUBST(ENABLE_CORE_ASINPOUTP,$enableCoreAsInpOutp)
 
 ### enable options: core + system F (Core variation of Typed Core, picking from Typed Core), default is no
 AC_ARG_ENABLE(coresysf, AS_HELP_STRING([--enable-coresysf],[include System F type generation for Core]), [enableCoreSysF=yes], [enableCoreSysF=no])
@@ -255,15 +263,21 @@ AC_SUBST(CAT_CMD,$catCmd)
 ### libtool
 REQUIRED_OPTIONAL_PROG_FOR_EH(libtoolStaticCmd,libtool)
 
-### 'with' option for build suffix
+### 'with' option hardbaked choice of aspects
+AC_ARG_WITH(aspects,
+[AS_HELP_STRING([--with-aspects=<choice of aspects>],[Choice of aspects, can be overridden when 'make'ing.])],
+[ aspects="$withval" ],)
+AC_SUBST(ASPECTS, "$aspects")
+
+### 'with' option for build suffix, which by default is derived from hardbaked aspects
 AC_ARG_WITH(build-suffix,
 [AC_HELP_STRING([--with-build-suffix=<suffix for build locations>],
                 [Suffix for build locations and library names of globally visible cabal managed libraries.])],
 [ ehcBuildSuffix="$withval" ],)
-#if test "x$ehcBuildSuffix" != "x"
-#then
-#  ehcBuildSuffix="-$ehcBuildSuffix"
-#fi
+if test "x$ehcBuildSuffix" = "x"
+then
+  ehcBuildSuffix="`echo ${ASPECTS} | sed -e 's/ /-/g'`"
+fi
 AC_SUBST(EHC_BUILD_SUFFIX, "$ehcBuildSuffix")
 
 ### 'with' option for gcc options
@@ -362,6 +376,28 @@ esac
 
 AC_SUBST(TOPLEVEL_SYSTEM_ABSPATH_PREFIX, "$toplevelSystemAbsolutePathPrefix")
 
+### 'with' option for haddock
+AC_ARG_WITH(haddock,
+[AS_HELP_STRING([--with-haddock=<haddock>],[Use a command different from 'haddock' to generate doc.])],
+[ haddockCmd="$withval" ],
+[
+  if test "$HADDOCK" = ""; then
+    AC_PATH_PROG(haddockCmd,haddock)
+  else
+    haddockCmd=$HADDOCK
+  fi
+]
+)
+if test "$haddockCmd" != "no" -a -x "$haddockCmd"; then
+  haddockExists="yes"
+  haddockVersion=`$haddockCmd --version | head -n 1`
+else
+  haddockCmd=""
+  haddockExists="no"
+fi
+AC_SUBST(HADDOCK_CMD,$haddockCmd)
+AC_SUBST(HADDOCK_VERSION, $haddockVersion)
+
 ### 'with' option for Haskell compiler, by default ghc
 AC_ARG_WITH(hc,
 [AS_HELP_STRING([--with-hc=<haskell compiler>],[Use a command different from 'ghc' to compile with GHC.])],
@@ -421,48 +457,61 @@ AC_PATH_PROG(hsc2hsCmd,hsc2hs)
 AC_SUBST(HSC2HS_CMD,$hsc2hsCmd)
 
 ### now we know we have ghc, check for some libraries using ghc-pkg
-ghcLibsRequired="fgl syb uulib network binary hashable uhc-util"
+ghcLibsRequired="fgl vector syb uulib network binary hashable uhc-util base mtl directory containers array process filepath"
+#if test x$enableClr = "xyes"
+#then
+#  ghcLibsRequired="${ghcLibsRequired} primitive"
+#fi
+
+# gather for some libraries version info
+ghcLibsRequiredWithVersion=""
+ghcLibsRequiredWithoutVersion=""
 if test x$ghcExists = xyes
 then
   if test -x "$ghcCmd" -a -x "$ghcPkgCmd"
   then
-    for l in ${ghcLibsRequired}
+    for pkgBase in ${ghcLibsRequired}
     do
-      pkg=`$ghcPkgCmd list --simple-output ${l}`
+      pkg=`$ghcPkgCmd list --simple-output ${pkgBase} | sed -e 'y/ /\n/' | tail -1`
       if test "x${pkg}" != "x" ; then
         ghcLibsRequiredAndPresent="${pkg} ${ghcLibsRequiredAndPresent}"
+        pkgVersion=`echo ${pkg} | sed -E -e 's/^(([[^-]]+-)+)([[^.]]+(\.[[^.]]+)*)$/\3/'`
+        pkgVersionNoDot=`echo ${pkgVersion} | sed -E -e 's/\.//'g`
+        ### here do special treatment of packages, now we have name&version of packages available
+        case ${pkgBase} in
+          uhc-util)
+            ghcLibsRequiredWithVersion="${ghcLibsRequiredWithVersion} uhc-util>=0.1.3.7"
+            ;;
+          base)
+            ghcLibsRequiredWithVersion="${ghcLibsRequiredWithVersion} base>=4&&<5"
+            ;;
+          hashable)
+            ghcLibsRequiredWithVersion="${ghcLibsRequiredWithVersion} hashable>=1.1&&<1.3"
+            ;;
+          fgl)
+            # with uhc-util >= 0.1.3.7 no longer necessary
+            if test ${pkgVersionNoDot} -ge 5500
+            then
+              #ghcLibsRequiredWithVersion="${ghcLibsRequiredWithVersion} fgl>=5.5 graphviz"
+              ghcLibsRequiredWithVersion="${ghcLibsRequiredWithVersion} fgl"
+            else
+              #ghcLibsRequiredWithVersion="${ghcLibsRequiredWithVersion} fgl<5.5"
+              ghcLibsRequiredWithVersion="${ghcLibsRequiredWithVersion} fgl"
+            fi
+            ;;
+          *)
+            ghcLibsRequiredWithoutVersion="${ghcLibsRequiredWithoutVersion} ${pkgBase}"
+            ;;
+        esac
       else
-        ghcLibsRequiredButAbsent="${l} ${ghcLibsRequiredButAbsent}"
+        ghcLibsRequiredButAbsent="${pkgBase} ${ghcLibsRequiredButAbsent}"
       fi
     done
-    
   fi
 fi
-
-### 'with' option for haddock
-AC_ARG_WITH(haddock,
-[AS_HELP_STRING([--with-haddock=<haddock>],[Use a command different from 'haddock' to generate doc.])],
-[ haddockCmd="$withval" ],
-[
-  if test "$HADDOCK" = ""; then
-    AC_PATH_PROG(haddockCmd,haddock)
-  else
-    haddockCmd=$HADDOCK
-  fi
-]
-)
-if test "$haddockCmd" != "no" -a -x "$haddockCmd"; then
-  haddockExists="yes"
-  haddockVersion=`$haddockCmd --version | head -n 1`
-else
-  haddockCmd=""
-  haddockExists="no"
-fi
-AC_SUBST(HADDOCK_CMD,$haddockCmd)
-AC_SUBST(HADDOCK_VERSION, $haddockVersion)
 
 # GHC version dependencies: packages passed as option, cabal packages
-cabal_base_lib_depends="base mtl fgl directory hashable>=1.1&&<1.3 uhc-util>=0.1.1&&<0.1.3"
+cabal_base_lib_depends="${ghcLibsRequiredWithVersion} ${ghcLibsRequiredWithoutVersion}"
 if test x$enableClr = "xyes"
 then
   cabal_base_lib_depends="$cabal_base_lib_depends language-cil"
@@ -479,15 +528,6 @@ case $ghcVersion in
     ;;
   6.4.2)
     optStandardGHCPackages="-package util -package lang -package data"
-    ;;
-  6.8*)
-    cabal_base_lib_depends="$cabal_base_lib_depends containers array process"
-    ;;
-  6.10*)
-    cabal_base_lib_depends="$cabal_base_lib_depends containers array process"
-    ;;
-  *)
-    cabal_base_lib_depends="$cabal_base_lib_depends containers array process"
     ;;
 esac
 
@@ -511,6 +551,7 @@ AC_ARG_WITH(uuagc,
 if test "$uuagcCmd" != "no" -a -x "$uuagcCmd" ; then
   uuagcExists="yes"
   uuagcVersion=`$uuagcCmd --version`
+  buildToolDependenciesUnchecked="uuagc>=0.9.50.2 ${buildToolDependenciesUnchecked}"
 else
   uuagcCmd=""
   uuagcExists="no"
@@ -531,11 +572,35 @@ AC_ARG_WITH(shuffle,
 )
 if test "$shuffleCmd" != "no" -a -x "$shuffleCmd" ; then
   shuffleExists="yes"
+  shuffleVersion=`$shuffleCmd --version`
+  buildToolDependenciesUnchecked="shuffle>=0.1.3.1 ${buildToolDependenciesUnchecked}"
 else
   shuffleCmd=""
   shuffleExists="no"
 fi
 AC_SUBST(SHUFFLE_CMD,$shuffleCmd)
+
+# ruler
+AC_ARG_WITH(ruler,
+[AS_HELP_STRING([--with-ruler=<ruler compiler>],[Use a command different from 'ruler' to compile with ruler.])],
+[ rulerCmd="$withval" ],
+[
+  if test "$RULER" = ""; then
+    AC_PATH_PROG(rulerCmd,ruler)
+  else
+    rulerCmd=$RULER
+  fi
+]
+)
+if test "$rulerCmd" != "no" -a -x "$rulerCmd" ; then
+  rulerExists="yes"
+  rulerVersion=`$rulerCmd --version`
+  buildOptionalToolDependenciesUnchecked="ruler>=0.4.0.1 ${buildOptionalToolDependenciesUnchecked}"
+else
+  rulerCmd=""
+  rulerExists="no"
+fi
+AC_SUBST(RULER_CMD,$rulerCmd)
 
 # gcc
 AC_ARG_WITH(gcc,
@@ -614,17 +679,17 @@ AC_SUBST(CC_STD_FLAG,$cc_std_flag)
 # For other tools like gcc we have to this too.
 case $HostPlatform in
   i*86-*-mingw* | i*86-*-cygwin* )
-        if test ! -x "$toplevelSystemAbsolutePathPrefix/$cppCmd"
-        then
-          cppCmd="`echo $cppCmd | sed -e 's+/usr++'`"
-          if test -L "$toplevelSystemAbsolutePathPrefix/$cppCmd"
-          then
-            cppCmd="$cppCmd-3"
-          fi
-        fi
-        ;;
+    if test ! -x "$toplevelSystemAbsolutePathPrefix/$cppCmd"
+    then
+      cppCmd="`echo $cppCmd | sed -e 's+/usr++'`"
+      if test -L "$toplevelSystemAbsolutePathPrefix/$cppCmd"
+      then
+        cppCmd="$cppCmd-3"
+      fi
+    fi
+    ;;
   *)
-        ;;
+    ;;
 esac
 
 AC_SUBST(CPP_CMD,$cppCmd)
@@ -1126,6 +1191,15 @@ case $HostPlatform in
         hardtop_plat2=${hardtop}
         shellrun="/bin/bash "
         ;;
+  *-*-msys)
+        # convert the root POSIX path to Windows paths so cabal can find the paths.
+        # internally these will be converted back to posix paths by the msys shell
+        # to prevent issues with escaping just transform the root e.g /c/ to c:/
+        # Windows natively supports both \ and / for paths so this is not an issue
+        hardtop_plat=`echo ${hardtop} | sed -e 's%^/%%' -e 's%^.%\0:%' `
+        hardtop_plat2=`echo ${hardtop} | sed -e 's%^/%%' -e 's%^.%\0:%' `
+        shellrun=""
+        ;;
   *)
         hardtop_plat=${hardtop}
         hardtop_plat2=${hardtop}
@@ -1190,6 +1264,7 @@ echo "Installation/build summary."
 echo "  host                          : $host"
 echo "  prefix                        : $prefix"
 echo "  build suffix                  : $ehcBuildSuffix"
+echo "  hardbaked aspects             : ${ASPECTS}"
 
 echo "Required:"
 echo "  uuagc is available?           : $uuagcExists"
@@ -1202,6 +1277,7 @@ fi
 
 echo "  shuffle is available?         : $shuffleExists"
 if test "x$shuffleExists" = "xyes" ;then
+echo "    version                     : $shuffleVersion"
 echo "    command for shuffle         : $shuffleCmd"
 else
 echo "    **** ERROR **** : shuffle must be installed, use (1) cabal+hackage, or (2) http://www.cs.uu.nl/wiki/HUT"
@@ -1280,7 +1356,13 @@ if test "$mplib" = "gmp" ; then
   fi
 fi
 
-echo "Optional:"
+echo "Required (or optional) but not (yet) or during build enforced:"
+echo "  cabal base dependencies       : $cabal_base_lib_depends"
+echo "  cabal extra dependencies      : $cabal_extra_lib_depends"
+echo "  build tool dependencies       : $buildToolDependenciesUnchecked"
+echo "  (optional) build tool dpdcies : $buildOptionalToolDependenciesUnchecked"
+
+echo "Other:"
 echo "  haddock is available?         : $haddockExists"
 if test "x$haddockExists" = "xyes" ;then
 echo "    version                     : $haddockVersion"

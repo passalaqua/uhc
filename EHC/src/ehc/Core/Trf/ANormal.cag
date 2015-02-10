@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -13,7 +13,7 @@ The purpose is to end up with bindings which (later) directly correspond to a CA
 For that to work, all arguments of an application closure must themselves be bound to names, i.e. be closures themselves.
 %%]
 
-%%[(8 codegen) hs module {%{EH}Core.Trf.ANormal} import({%{EH}Base.Common},{%{EH}Ty},{%{EH}Base.Builtin}) export(cmodTrfANormal)
+%%[(8 codegen) hs module {%{EH}Core.Trf.ANormal} import({%{EH}Base.Common},{%{EH}Ty},{%{EH}Base.HsName.Builtin}) export(cmodTrfANormal)
 %%]
 
 %%[(8 codegen) hs import(Data.Maybe,qualified Data.Set as Set, Data.List as List, qualified Data.Map as Map)
@@ -27,7 +27,7 @@ For that to work, all arguments of an application closure must themselves be bou
 %%[(8 codegen) hs import({%{EH}Base.Debug})
 %%]
 
-%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/Trf/CommonFv},{Core/Trf/CommonLev})
+%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonLevAlt},{Core/CommonLevLamPer1Lam},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/Trf/CommonFv},{Core/Trf/CommonLev})
 WRAPPER CodeAGItf
 %%]
 
@@ -102,6 +102,7 @@ ATTR AllCodeNT [ | gUniq: UID | ]
 ATTR CodeAGItf [ gUniq: UID | | ]
 
 SEM CExpr
+  | Tup         (lhs.gUniq,loc.lUniq)       =   mkNewUID @lhs.gUniq
   | App         (func.gUniq,loc.lUniq)      =   mkNewUID @lhs.gUniq
   | Lam         (body.gUniq,loc.lUniq,loc.lUniq2)
                                             =   mkNewLevUID2 @lhs.gUniq
@@ -268,7 +269,7 @@ SEM CBoundL
 
 %%[(8 codegen)
 SEM CExpr
-  | App Lam Case TupDel TupIns TupUpd Let
+  | App Lam Case TupDel TupIns TupUpd Let Tup
                 loc         .   trNm        =   
 %%[[50
                                                 hsnQualUniqify @lhs.modNm $
@@ -305,7 +306,7 @@ mkLetTrf bs ce = snd (mkLetTrf' bs ce)
 %%]
 
 %%[(8 codegen)
-ATTR AllCodeNT [ | | cTrf: SELF ]
+ATTR AllNT [ | | cTrf: SELF ]
 ATTR CodeAGItf [ | | cTrf: CModule ]
 
 SEM CAlt
@@ -314,7 +315,8 @@ SEM CAlt
 SEM CExpr
   | TupIns TupUpd TupDel
                 loc         .   trfIsOk     =   @lhs.appTrfIsOk == AppYesLet && @lhs.isTopTup
-  | App Case    loc         .   trfIsOk     =   @lhs.appTrfIsOk == AppYesLet && @lhs.isTopApp
+  | Tup App Case 
+  				loc         .   trfIsOk     =   @lhs.appTrfIsOk == AppYesLet && @lhs.isTopApp
   | Lam         loc         .   trfIsOk     =   @lhs.lamTrfIsOk == LamYesLet
   | Let         loc         .   trfIsOk     =   @lhs.letTrfIsOk
 %%]
@@ -323,7 +325,8 @@ SEM CExpr
 SEM CExpr
   | TupIns TupUpd TupDel
                 (lhs.cTrf,loc.levBindSq)    =   mkTrf @trfIsOk @lhs.lev @levOf @trNm @cTrf
-  | App Case    (lhs.cTrf,loc.levBindSq)    =   mkTrf @trfIsOk @lhs.lev @levOf @trNm @cTrf
+  | Tup App Case
+                (lhs.cTrf,loc.levBindSq)    =   mkTrf @trfIsOk @lhs.lev @levOf @trNm @cTrf
   | Lam         (lhs.cTrf,loc.levBindSq)    =   let mkTLB = mkTrf @trfIsOk @lhs.lev @levOf @trNm
                                                           . acoreLam1 @argNm
                                                           . mkLetTrf @hereBindSq

@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -12,7 +12,7 @@ Note: everything is exported.
 %%[1 module {%{EH}Scanner.Common}
 %%]
 
-%%[1 import(System.IO, UU.Parsing, UU.Parsing.Offside, UU.Scanner.Position, UU.Scanner.GenToken, UU.Scanner.GenTokenParser, UHC.Util.ScanUtils(), {%{EH}Base.Builtin}, {%{EH}Base.Common})
+%%[1 import(System.IO, UU.Parsing, UU.Parsing.Offside, UU.Scanner.Position, UU.Scanner.GenToken, UU.Scanner.GenTokenParser, UHC.Util.ScanUtils(), {%{EH}Base.HsName.Builtin}, {%{EH}Base.Common})
 %%]
 
 %%[1 import({%{EH}Opts.Base})
@@ -33,9 +33,9 @@ Note: everything is exported.
 %%[5.Scanner -1.Scanner import({%{EH}Scanner.Scanner}) export(module {%{EH}Scanner.Scanner})
 %%]
 
-%%[(8 codegen) import (UHC.Util.ParseUtils)
+%%[8 import (UHC.Util.ParseUtils)
 %%]
-%%[(8 codegen) import ({%{EH}Base.Target})
+%%[8 import ({%{EH}Base.Target})
 %%]
 
 %%[97 import (Data.Ratio)
@@ -261,6 +261,7 @@ hsScanOpts opts
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[8
+-- | 'ScanOpts' for 'Core' tokenization before parsing
 coreScanOpts :: EHCOpts -> ScanOpts
 coreScanOpts opts
   =  grinScanOpts
@@ -268,12 +269,14 @@ coreScanOpts opts
                                         [ "let", "in", "case", "of", "rec", "foreign", "uniq"
                                         , "Int", "Char", "String", "Tag", "Rec"
                                         , "module", "default"
+                                        , "import", "export"
                                         , "BINDPLAIN", "BINDFUNCTION0", "BINDFUNCTION1", "BINDAPPLY0"
                                         , "VAL"
+                                        , "FAIL"
 %%[[9
-                                        , "DICT", "DICTCLASS", "DICTINSTANCE", "DICTOVERLOADED"
+                                        , "DICT", "DICTCLASS", "DICTINSTANCE", "DICTOVERLOADED", "TRACK"
 %%]]
-%%[[50
+%%[[97
                                         , "Integer"
 %%]]
 %%[[90
@@ -282,13 +285,34 @@ coreScanOpts opts
                                         ])
                                     `Set.union` scoKeywordsTxt tyScanOpts
                                     `Set.union` scoKeywordsTxt hsScanOpts'
+        ,	scoKeywExtraChars	=	Set.fromList "."
         ,   scoKeywordsOps      =   scoKeywordsOps grinScanOpts `Set.union` scoKeywordsOps hsScanOpts'
         ,   scoDollarIdent      =   True
-        ,   scoOpChars          =   scoOpChars grinScanOpts `Set.union` scoOpChars hsScanOpts'
-        ,   scoSpecChars        =   Set.fromList "!=" `Set.union` scoSpecChars grinScanOpts `Set.union` scoSpecChars hsScanOpts'
-        ,   scoSpecPairs        =   scoSpecPairs hsScanOpts'
+        ,   scoOpChars          =   Set.fromList "<->:=+*"
+        ,   scoSpecChars        =   Set.fromList "!=();{}#\\|,`"
+        ,   scoSpecPairs        =   Set.fromList [] `Set.union` scoSpecPairs ehScanOpts'
         }
   where hsScanOpts' = hsScanOpts opts
+        ehScanOpts' = ehScanOpts opts
+%%]
+
+%%[8
+-- | 'ScanOpts' for 'CoreRun' tokenization before parsing
+corerunScanOpts :: {- EHCOpts -> -} ScanOpts
+corerunScanOpts -- opts
+  =  defaultScanOpts
+        {   scoKeywordsTxt      =   Set.fromList $
+                                        [ "alloc", "module", "tail", "eval", "case", "of", "let", "in", "app", "ffi", "dbg", "tag"
+                                        , "g", "d", "l"
+                                        , "data"
+                                        ]
+        -- ,	scoKeywExtraChars	=	Set.fromList "."
+        ,   scoKeywordsOps      =   Set.fromList [ "->", "." ]
+        ,   scoSpecChars        =   Set.fromList "();,=\\"
+        ,   scoOpChars          =   Set.fromList "->."
+        ,   scoAllowFloat       =   False
+        ,   scoDollarIdent      =   True
+        }
 %%]
 
 Todo:
@@ -357,62 +381,60 @@ grinScanOpts
 %%]
 
 %%[8
-hiScanOpts :: EHCOpts -> ScanOpts
-hiScanOpts opts
-  =  hsScanOpts'
-        {   scoKeywordsTxt      =   (Set.fromList $
-                                        [ "value", "fixity", "stamp", "uid", "rule", "var", "ctxt", "sup", "iddef", "arity", "grInline"
-                                        , "Value", "Pat", "Type", "Kind", "Class", "Instance", "Default", "Any", "Data"
-                                        , "True", "False"
-                                        , "tykind", "tykinm", "tykivar"
-                                        , "settings"
-%%[[9
-                                        , "chr", "chrstore"
-                                        , "Assume", "Prove", "Reduction"
-                                        , "scope"
-                                        , "HasStrictCommonScope", "IsStrictParentScope", "IsVisibleInScope", "EqualScope", "NotEqualScope"
-                                        , "redhowinst", "redhowsuper", "redhowprove", "redhowassume", "redhowscope", "redhoweqsym", "redhoweqtrans", "redhoweqcongr"
-                                        , "varuidnmname", "varuidnmuid", "varuidnmvar"
-                                        , "cxtscope1"
-%%]]
-%%[[10
-                                        , "label", "offset"
-                                        , "NonEmptyRowLacksLabel"
-                                        , "redhowlabel"
-%%]]
-%%[[17
-                                        , "typolarity"
-%%]]
-%%[[13
-                                        , "redhowlambda"
-%%]]
-%%[[50
-                                        , "visibleno", "visibleyes"
-                                        , "importmodules"
-%%]]
-                                        ]
-%%[[50
-                                        ++ tokKeywStrsHI6
-%%]]
-                                    )
-                                    `Set.union` scoKeywordsTxt hsScanOpts'
-                                    `Set.union` scoKeywordsTxt tyScanOpts
-                                    `Set.union` scoKeywordsTxt grinScanOpts
-        ,   scoOpChars          =   scoOpChars coreScanOpts'
-        ,   scoDollarIdent      =   True
-        ,   scoSpecChars        =   scoSpecChars coreScanOpts'
-        ,   scoKeywordsOps      =   Set.fromList [ "??" ] `Set.union` scoKeywordsOps coreScanOpts'
-        }
-  where hsScanOpts' = hsScanOpts opts
-        coreScanOpts' = coreScanOpts opts
-%%]
-
-%%[8
 tyScanOpts :: ScanOpts
 tyScanOpts
   =  defaultScanOpts
         {   scoKeywordsTxt      =   Set.fromList [ "uid" ]
         }
+%%]
+
+%%[8
+hsnScanOpts :: ScanOpts
+hsnScanOpts
+  =  defaultScanOpts
+        {   scoKeywordsTxt      =   Set.fromList
+        								[ "NEW"
+                                        , "ERR"
+                                        , "UNQ"
+                                        , "EVL"
+                                        , "FLD"
+                                        , "CLS"
+                                        , "DCT"
+                                        , "SDC"
+                                        , "RDC"
+                                        , "SUP"
+                                        , "DFL"
+                                        , "INL"
+                                        , "UND"
+                                        , "OFF"
+                                        , "CCN"
+                                        , "UPD"
+                                        , "FFI"
+                                        , "LBL"
+                                        , "ASP"
+                                        , "STR"
+%%[[91 
+                                        , "GEN"
+%%]] 
+%%[[(8 javascript) 
+                                        , "JSW"
+%%]] 
+%%[[(8 grin) 
+                                        , "GRN"
+%%]] 
+%%[[(8 cmm) 
+                                        , "CMM"
+%%]] 
+%%[[90
+                                        , "FFE"
+                                        , "FFC"
+%%]]
+        							 	]
+        ,	scoSpecChars        =   Set.fromList ".{},`"
+        ,   scoOpChars          =   Set.fromList "[]:" `Set.union` scoOpChars hsScanOpts'
+        ,   scoAllowQualified   =   False
+        }
+  where hsScanOpts' = hsScanOpts emptyEHCOpts
 %%]
 
 %%[90
@@ -465,6 +487,7 @@ splitTokensOnModuleTrigger scanOpts ts
 %%]
 
 %%[1.offsideScanHandle
+offsideScanHandle :: ScanOpts -> FilePath -> Handle -> IO (OffsideInput [Token] Token (Maybe Token))
 offsideScanHandle scanOpts fn fh
   = do  {  tokens <- scanHandle scanOpts fn fh
         -- ;  putStrLn (" tokens: " ++ show tokens)
@@ -521,6 +544,12 @@ pKeyTk' key             =   pCostReserved' 8 key
 
 pKeyw                   ::  (IsParser p Token,Show k) => k -> p Token
 pKeyw k                 =   pKeyTk (show k)
+%%]
+
+%%[1
+pKeywHsNname            ::  (IsParser p Token,Show k) => k -> p HsName
+pKeywHsNname k          =   tokMkQName <$> pKeyw k
+
 %%]
 
 %%[1
@@ -626,6 +655,18 @@ pHNm p = (hsnFromString . tokGetVal) <$> p
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Token utils
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[1
+tokConcat :: Token -> Token -> Token
+tokConcat t1 t2 = Reserved (tokenVal t1 ++ tokenVal t2) (position t1)
+
+tokEmpty :: Token
+tokEmpty = Reserved "" noPos
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Scanner related parsers
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -658,6 +699,7 @@ pMODULE        ,
     pBACKQUOTE ,
     pLET       ,
     pLAM       ,
+    pSLASH     ,
     pUNDERSCORE,
     pIN
   :: IsParser p Token => p Token
@@ -688,10 +730,11 @@ pMINUS           = pKeyTk "-"
 pSTAR            = pKeyTk "*"
 pBANG            = pKeyTk "!"
 pEQUAL           = pKeyTk "="
-pRARROW          = pKeyTk (show hsnArrow)
+pRARROW          = pKeyw hsnArrow
 pBACKQUOTE       = pKeyTk "`"
 pLET             = pKeyTk "let"
 pLAM             = pKeyTk "\\"
+pSLASH           = pKeyTk "/"
 pUNDERSCORE      = pKeyTk "_"
 pIN              = pKeyTk "in"
 
@@ -820,6 +863,7 @@ pLABEL          ,
     pLETSTRICT  ,
     pSAFE       ,
     pFOREIGN    ,
+    pDEFAULT    ,
     pIMPORT     ,
     pEXPORT
   :: IsParser p Token => p Token
@@ -830,6 +874,7 @@ pLABEL           = pKeyTk "label"
 pLETSTRICT       = pKeyTk "letstrict"
 pSAFE            = pKeyTk "safe"
 pFOREIGN         = pKeyTk "foreign"
+pDEFAULT         = pKeyTk "default"
 pIMPORT          = pKeyTk "import"
 pEXPORT          = pKeyTk "export"
 
@@ -838,14 +883,17 @@ tokKeywStrsEH8
 %%[[(8 codegen)
   ++ map show allFFIWays
 %%]]
-tokKeywStrsHS8 = [ "export", "label", "safe" ]
+tokKeywStrsHS8 = [ "default", "export", "label", "safe" ]
 %%]
 
-%%[(8 codegen)
+%%[8
 pFFIWay :: IsParser p Token => p (FFIWay,Token)
 pFFIWay
   =   pAnyKey (\way -> (,) way <$> pKeyTk (show way)) allFFIWays
   <?> "pFFIWay"
+%%]
+
+%%[9
 %%]
 
 %%[9
@@ -855,7 +903,6 @@ pDARROW         ,
     pCIMPL      ,
     pCLASS      ,
     pINSTANCE   ,
-    pDEFAULT    ,
     pDO
   :: IsParser p Token => p Token
 %%]
@@ -867,11 +914,10 @@ pOIMPL           = pKeyTk (show hsnOImpl)
 pCIMPL           = pKeyTk (show hsnCImpl)
 pCLASS           = pKeyTk "class"
 pINSTANCE        = pKeyTk "instance"
-pDEFAULT         = pKeyTk "default"
 pDO              = pKeyTk "do"
 
 tokKeywStrsEH9 = [ "class", "instance" ]
-tokKeywStrsHS9 = [ "default", "do" ]
+tokKeywStrsHS9 = [ "do" ]
 tokOpStrsEH9   = [ show hsnPrArrow, "<:" ]
 tokOpStrsHS9   = [  ]
 %%]
@@ -904,8 +950,7 @@ tokOpStrsHS11   = [  ]
 pQUALIFIED      ,
     pQUESTQUEST ,
     pAS         ,
-    pHIDING     ,
-    pNUMBER
+    pHIDING
   :: IsParser p Token => p Token
 %%]
 
@@ -913,7 +958,6 @@ pQUALIFIED      ,
 pQUALIFIED       = pKeyTk "qualified"
 pAS              = pKeyTk "as"
 pHIDING          = pKeyTk "hiding"
-pNUMBER          = pKeyTk "#"
 pQUESTQUEST      = pKeyTk "??"
 
 tokKeywStrsEH12 = [  ]

@@ -2,29 +2,29 @@
 %%% Gam specialization
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[7 module {%{EH}Gam.DataGam}
+%%[(7 hmtyinfer) module {%{EH}Gam.DataGam}
 %%]
 
-%%[7 import(UHC.Util.Pretty,UHC.Util.Utils)
+%%[(7 hmtyinfer) import(UHC.Util.Pretty,UHC.Util.Utils)
 %%]
 
-%%[7 hs import ({%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.Builtin})
+%%[(7 hmtyinfer) hs import ({%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.HsName.Builtin})
 %%]
-%%[7 hs import ({%{EH}Ty},{%{EH}Ty.Pretty})
+%%[(7 hmtyinfer) hs import ({%{EH}Ty},{%{EH}Ty.Pretty})
 %%]
-%%[7 hs import ({%{EH}Gam})
+%%[(7 hmtyinfer) hs import ({%{EH}Gam})
 %%]
-%%[7 hs import({%{EH}Error}) 
-%%]
-
-%%[(7 hmtyinfer || hmtyast) import(qualified Data.Map as Map)
-%%]
-%%[(7 hmtyinfer || hmtyast) import(qualified Data.Set as Set)
-%%]
-%%[(90 hmtyinfer || hmtyast) import(Data.Maybe)
+%%[(7 hmtyinfer) hs import({%{EH}Error}) 
 %%]
 
-%%[(7 hmtyinfer || hmtyast) import({%{EH}VarMp},{%{EH}Substitutable})
+%%[(7 hmtyinfer) import(qualified Data.Map as Map)
+%%]
+%%[(7 hmtyinfer) import(qualified Data.Set as Set)
+%%]
+%%[(90 hmtyinfer) import(Data.Maybe)
+%%]
+
+%%[(7 hmtyinfer) import({%{EH}VarMp},{%{EH}Substitutable})
 %%]
 
 %%[(7 hmtyinfer) import({%{EH}Ty.Trf.Quantify})
@@ -46,10 +46,11 @@
 
 %%[(7 hmtyinfer) export(DataFldMp,DataFldInfo(..),emptyDataFldInfo)
 -- | per named field info
+-- If this changes, also change {%{EH}ConfigInternalVersions}
 data DataFldInfo
   = DataFldInfo
-%%[[8
-      { dfiOffset 	:: !Int
+%%[[(8 codegen || hmtyinfer)
+      { dfiOffset 	:: !Fld
       }
 %%]]
       deriving Show
@@ -58,16 +59,17 @@ type DataFldMp = Map.Map HsName DataFldInfo
 
 emptyDataFldInfo
   = DataFldInfo
-%%[[8
-      (-1)
+%%[[(8 codegen || hmtyinfer)
+      noFld
 %%]]
 %%]
 
 %%[(7 hmtyinfer) export(DataConFldAnnInfo(..),emptyDataConFldAnnInfo)
 -- | per positional constructor field annotation like info
+-- If this changes, also change {%{EH}ConfigInternalVersions}
 data DataConFldAnnInfo
   = DataConFldAnnInfo
-%%[[(8 codegen)
+%%[[(8 codegen || hmtyinfer)
       { dcfaiStrictness		:: !Strictness
       }
 %%]]
@@ -76,12 +78,13 @@ data DataConFldAnnInfo
 emptyDataConFldAnnInfo :: DataConFldAnnInfo
 emptyDataConFldAnnInfo
   = DataConFldAnnInfo
-%%[[(8 codegen)
+%%[[(8 codegen || hmtyinfer)
       Strictness_NonStrict
 %%]]
 %%]
 
 %%[(7 hmtyinfer) export(DataTagInfo(..),emptyDataTagInfo,DataConstrTagMp)
+-- If this changes, also change {%{EH}ConfigInternalVersions}
 data DataTagInfo
   = DataTagInfo
       { dtiFldMp    		:: !DataFldMp				-- map of field names to offset
@@ -91,6 +94,7 @@ data DataTagInfo
       , dtiConTy			:: !Ty						-- type of constructor, without final tyVarMp applied
 %%[[8
       , dtiCTag 			:: !CTag					-- tag of constructor
+      , dtiFldRefL			:: ![Fld]					-- list of offset/references positionally consistent with (e.g.) dtiFldTyL
 %%]]
 %%[[91
       , dtiMbFixityPrio 	:: !(Maybe (Int,Fixity))	-- if defined as infix, with priority
@@ -103,7 +107,7 @@ emptyDataTagInfo
   = DataTagInfo
       Map.empty [] [] hsnUnknown (appDbg "emptyDataTagInfo")
 %%[[8
-      emptyCTag
+      emptyCTag []
 %%]]
 %%[[91
       Nothing
@@ -111,14 +115,15 @@ emptyDataTagInfo
 %%]
 
 %%[(8 hmtyinfer) export(dtiOffsetOfFld)
-dtiOffsetOfFld :: HsName -> DataTagInfo -> Int
+dtiOffsetOfFld :: HsName -> DataTagInfo -> Fld
 dtiOffsetOfFld fldNm dti = dfiOffset $ panicJust "dtiOffsetOfFld" $ Map.lookup fldNm $ dtiFldMp dti
 %%]
 
 %%[(8 hmtyinfer) export(DataFldInConstr(..),DataFldInConstrMp)
+-- If this changes, also change {%{EH}ConfigInternalVersions}
 data DataFldInConstr
   = DataFldInConstr
-      { dficInTagMp	:: !(Map.Map CTag Int)
+      { dficInTagMp	:: !(Map.Map CTag Fld)
       }
 
 type DataFldInConstrMp = Map.Map HsName DataFldInConstr
@@ -126,6 +131,7 @@ type DataFldInConstrMp = Map.Map HsName DataFldInConstr
 
 %%[(90 hmtyinfer) export(DataGamInfoVariant(..))
 -- | specific info about what a DataGamInfo encodes
+-- If this changes, also change {%{EH}ConfigInternalVersions}
 data DataGamInfoVariant
   = DataGamInfoVariant_Plain		-- plain data type
   | DataGamInfoVariant_Newtype		-- newtype variation
@@ -138,6 +144,7 @@ data DataGamInfoVariant
 
 %%[(7 hmtyinfer) export(DataGamInfo(..))
 
+-- If this changes, also change {%{EH}ConfigInternalVersions}
 data DataGamInfo
   = DataGamInfo
       { dgiTyNm      		:: !HsName				-- type name (duplicate of key of gamma leading to this info)
@@ -206,7 +213,7 @@ mkDGI tyNm dty ki cNmL m nt
 %%[[50
       cNmL
 %%]]
-      m
+      m'
 %%[[8
       fm nt mx
 %%]]
@@ -215,12 +222,16 @@ mkDGI tyNm dty ki cNmL m nt
 %%]]
 %%[[8
   where fm = Map.map DataFldInConstr $ Map.unionsWith Map.union
-             $ [ Map.singleton f (Map.singleton (dtiCTag ci) (dfiOffset fi)) | ci <- Map.elems m, (f,fi) <- Map.toList $ dtiFldMp ci ]
-        mx = if Map.null m then (-1) else (ctagMaxArity $ dtiCTag $ head $ Map.elems m)
+             $ [ Map.singleton f (Map.singleton (dtiCTag ci) (dfiOffset fi)) | ci <- Map.elems m', (f,fi) <- Map.toList $ dtiFldMp ci ]
+        mx = maximum
+               ( (if Map.null m then (-1) else (ctagMaxArity $ dtiCTag $ head $ Map.elems m))
+               : [ ctagArity $ dtiCTag dti | dti <- Map.elems m ]
+               )
+        m' = Map.map (\dti -> dti {dtiCTag = patchTyInfoCTag tyNm mx $ dtiCTag dti}) m
 %%]]
 %%]
 
-%%[7 export(mkDGIPlain)
+%%[(7 hmtyinfer) export(mkDGIPlain)
 mkDGIPlain :: HsName -> Ty -> Ty -> [HsName] -> DataConstrTagMp -> DataGamInfo
 mkDGIPlain tyNm dty dki cNmL m
   = mkDGI tyNm dty dki cNmL m
@@ -233,6 +244,13 @@ mkDGIPlain tyNm dty dki cNmL m
           Nothing
 %%]]
 
+%%]
+
+%%[(8 codegen) export(mkDGIForCodegenOnly)
+-- | Construct a datatype info as extracted from (e.g.) Core intended only for codegen (i.e. no type system stuff).
+mkDGIForCodegenOnly :: HsName -> DataConstrTagMp -> DataGamInfo
+mkDGIForCodegenOnly tyNm m
+  = mkDGIPlain tyNm Ty_Any Ty_Any (Map.keys m) m
 %%]
 
 %%[(7 hmtyinfer) export(emptyDataGamInfo,emptyDGI)
@@ -273,24 +291,33 @@ dataGamDgiOfTy :: Ty -> DataGam -> Maybe DataGamInfo
 dataGamDgiOfTy conTy dg = dataGamLookup (tyAppFunConNm conTy) dg
 %%]
 
-%%[(8 hmtyinfer) export(dataGamDTIsOfTy)
-dataGamDTIsOfTy :: Ty -> DataGam -> Maybe [DataTagInfo]
-dataGamDTIsOfTy t g
-  = -- tr "dataGamDTIsOfTy" (t >#< tyAppFunConNm (appUnArrRes t)) $
-    fmap
+%%[(8 hmtyinfer) export(dataGamDTIsOfTyNm, dataGamDTIsOfTy)
+dataGamDTIsOfTyNm :: HsName -> DataGam -> Maybe [DataTagInfo]
+dataGamDTIsOfTyNm tn g
+  = fmap
 %%[[8
       (Map.elems . dgiConstrTagMp)
 %%][91
       (assocLElts . dgiConstrTagAssocL)
 %%]]
-    $ gamLookup (tyAppFunConNm $ appUnArrRes t)
+    $ gamLookup tn
     $ g
+
+dataGamDTIsOfTy :: Ty -> DataGam -> Maybe [DataTagInfo]
+dataGamDTIsOfTy = dataGamDTIsOfTyNm . tyDataTyNm
+{-# INLINE dataGamDTIsOfTy #-}
 %%]
 
-%%[(8 hmtyinfer) export(dataGamTagsOfTy)
+%%[(8 hmtyinfer) export(dataGamTagsOfTy, dataGamTagsOfTyNm)
+dataGamTagsOf :: (t -> DataGam -> Maybe [DataTagInfo]) -> t -> DataGam -> Maybe [CTag]
+dataGamTagsOf lkup t g = fmap (map dtiCTag) (lkup t g)
+{-# INLINE dataGamTagsOf #-}
+
 dataGamTagsOfTy :: Ty -> DataGam -> Maybe [CTag]
-dataGamTagsOfTy t g
-  = fmap (map dtiCTag) (dataGamDTIsOfTy t g)
+dataGamTagsOfTy = dataGamTagsOf dataGamDTIsOfTy
+
+dataGamTagsOfTyNm :: HsName -> DataGam -> Maybe [CTag]
+dataGamTagsOfTyNm = dataGamTagsOf dataGamDTIsOfTyNm
 %%]
 
 %%[(8 hmtyinfer) export(dataGamLookupTag)
@@ -302,13 +329,14 @@ dataGamLookupTag t c g
 %%]
 
 %%[(8 hmtyinfer) export(dataGamTagLookup)
-dataGamTagLookup :: CTag -> DataGam -> Maybe (DataGamInfo,DataTagInfo)
-dataGamTagLookup CTagRec g
-  = Nothing
-dataGamTagLookup ct g
-  = do dgi <- dataGamLookup (ctagTyNm ct) g
-       dti <- Map.lookup (ctagNm ct) $ dgiConstrTagMp dgi
-       return (dgi,dti)
+dataGamTagLookup :: TagLike t => t -> DataGam -> Maybe (DataGamInfo,DataTagInfo)
+dataGamTagLookup tag g
+  | tagIsData tag
+      = do dgi <- dataGamLookup (tagDataTypeNm tag) g
+           dti <- Map.lookup (tagDataConstrNm tag) $ dgiConstrTagMp dgi
+           return (dgi,dti)
+  | otherwise
+      = Nothing
 %%]
 
 Is datatype an enum? I.e. has no field for any constructor.
@@ -372,11 +400,11 @@ instance Serialize DataConFldAnnInfo where
 
 instance Serialize DataTagInfo where
 %%[[50
-  sput (DataTagInfo a b c d e f) = sput a >> sput b >> sput c >> sput d >> sput e >> sput f
-  sget = liftM6 DataTagInfo sget sget sget sget sget sget
-%%][91
   sput (DataTagInfo a b c d e f g) = sput a >> sput b >> sput c >> sput d >> sput e >> sput f >> sput g
   sget = liftM7 DataTagInfo sget sget sget sget sget sget sget
+%%][91
+  sput (DataTagInfo a b c d e f g h) = sput a >> sput b >> sput c >> sput d >> sput e >> sput f >> sput g >> sput h
+  sget = liftM8 DataTagInfo sget sget sget sget sget sget sget sget
 %%]]
 
 instance Serialize DataFldInConstr where

@@ -8,9 +8,9 @@
 %%[1 import(UHC.Util.Pretty,UHC.Util.Utils)
 %%]
 
-%%[1 hs import ({%{EH}Base.Common},{%{EH}Base.Builtin})
+%%[1 hs import ({%{EH}Base.Common},{%{EH}Base.HsName.Builtin})
 %%]
-%%[1 hs import ({%{EH}Ty},{%{EH}Ty.Pretty})
+%%[(1 hmtyast) hs import ({%{EH}Ty},{%{EH}Ty.Pretty})
 %%]
 %%[1 hs import ({%{EH}Gam})
 %%]
@@ -37,6 +37,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[1 export(FixityGam, FixityGamInfo(..), defaultFixityGamInfo)
+-- If this changes, also change {%{EH}ConfigInternalVersions}
 data FixityGamInfo = FixityGamInfo { fgiPrio :: !Int, fgiFixity :: !Fixity } deriving Show
 
 defaultFixityGamInfo = FixityGamInfo fixityMaxPrio Fixity_Infixl

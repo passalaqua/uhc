@@ -10,17 +10,22 @@ An EHC compile run maintains info for one compilation invocation
 -- general imports
 %%[8 import(qualified Data.Map as Map,qualified Data.Set as Set)
 %%]
-%%[8 import(System.IO, System.Exit, System.Environment, System.Process, System.Cmd(rawSystem))
+%%[8 import(System.IO, System.Exit, System.Environment, System.Process)
 %%]
 %%[99 import(UHC.Util.Time, System.CPUTime, System.Locale, Data.IORef, System.IO.Unsafe)
 %%]
 %%[99 import(System.Directory)
+%%]
+%%[8 import(Control.Monad.State)
 %%]
 %%[99 import(Control.Exception as CE)
 %%]
 %%[99 import(UHC.Util.FPath)
 %%]
 %%[99 import({%{EH}Base.PackageDatabase})
+%%]
+
+%%[(8 codegen) hs import({%{EH}CodeGen.ValAccess} as VA)
 %%]
 
 %%[8 import({%{EH}EHC.Common})
@@ -39,16 +44,16 @@ An EHC compile run maintains info for one compilation invocation
 %%[8 import(qualified {%{EH}EH.MainAG} as EHSem, qualified {%{EH}HS.MainAG} as HSSem)
 %%]
 -- Language semantics: Core
-%%[(8 codegen grin) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%[(8 core) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
 %%]
 
 -- HI Syntax and semantics, HS module semantics
-%%[50 import(qualified {%{EH}HI} as HI)
+%%[5050 import(qualified {%{EH}HI} as HI)
 %%]
 %%[50 import(qualified {%{EH}HS.ModImpExp} as HSSemMod)
 %%]
 -- module admin
-%%[50 import({%{EH}Module})
+%%[50 import({%{EH}Module.ImportExport})
 %%]
 
 -- Misc
@@ -126,14 +131,13 @@ data EHCompileRunStateInfo
 %%]]
 %%[[50
       , crsiMbMainNm    :: !(Maybe HsName)                      -- name of main module, if any
-      -- , crsiHIInh       :: !HISem.Inh_AGItf                     -- current inh attrs for HI sem
       , crsiHSModInh    :: !HSSemMod.Inh_AGItf                  -- current inh attrs for HS module analysis sem
       , crsiModMp       :: !ModMp                               -- import/export info for modules
       , crsiGrpMp       :: (Map.Map HsName EHCompileGroup)      -- not yet used, for mut rec modules
       , crsiOptim       :: !Optim                               -- inter module optimisation info
 %%]]
 %%[[(50 codegen)
-      , crsiModOffMp    :: !Core.HsName2OffsetMpMp              -- mapping of all modules + exp entries to offsets in module + exp tables
+      , crsiModOffMp    :: !VA.HsName2FldMpMp              		-- mapping of all modules + exp entries to offsets in module + exp tables
 %%]]
 %%[[99
       , crsiEHCIOInfo	:: !(IORef EHCIOInfo)					-- unsafe info
@@ -156,7 +160,6 @@ emptyEHCompileRunStateInfo
 %%]]
 %%[[50
       , crsiMbMainNm    =   Nothing
-      -- , crsiHIInh       =   panic "emptyEHCompileRunStateInfo.crsiHIInh"
       , crsiHSModInh    =   panic "emptyEHCompileRunStateInfo.crsiHSModInh"
       , crsiModMp       =   Map.empty
       , crsiGrpMp       =   Map.empty
@@ -172,8 +175,12 @@ emptyEHCompileRunStateInfo
       }
 %%]
 
-%%[(50 codegen) export(crsiExpNmOffMp)
-crsiExpNmOffMp :: HsName -> EHCompileRunStateInfo -> Core.HsName2OffsetMp
+%%[(50 codegen) export(crsiExpNmOffMpDbg, crsiExpNmOffMp)
+crsiExpNmOffMpDbg :: String -> HsName -> EHCompileRunStateInfo -> VA.HsName2FldMp
+crsiExpNmOffMpDbg ctxt modNm crsi = mmiNmOffMp $ panicJust ("crsiExpNmOffMp." ++ ctxt ++ show ks ++ ": " ++ show modNm) $ Map.lookup modNm $ crsiModMp crsi
+  where ks = Map.keys $ crsiModMp crsi
+
+crsiExpNmOffMp :: HsName -> EHCompileRunStateInfo -> VA.HsName2FldMp
 crsiExpNmOffMp modNm crsi = mmiNmOffMp $ panicJust ("crsiExpNmOffMp: " ++ show modNm) $ Map.lookup modNm $ crsiModMp crsi
 %%]
 
@@ -199,27 +206,35 @@ type EHCompilePhase a = CompilePhase HsName EHCompileUnit EHCompileRunStateInfo 
 %%% Compile Run base info
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[8 export(crBaseInfo,crBaseInfo')
+%%[8 export(crBaseInfo,crMbBaseInfo,crBaseInfo')
 crBaseInfo' :: EHCompileRun -> (EHCompileRunStateInfo,EHCOpts)
 crBaseInfo' cr
   = (crsi,opts)
   where crsi   = crStateInfo cr
         opts   = crsiOpts  crsi
 
-crBaseInfo :: HsName -> EHCompileRun -> (EHCompileUnit,EHCompileRunStateInfo,EHCOpts,FPath)
-crBaseInfo modNm cr
-  = ( ecu ,crsi
+crMbBaseInfo :: HsName -> EHCompileRun -> (Maybe EHCompileUnit, EHCompileRunStateInfo, EHCOpts, Maybe FPath)
+crMbBaseInfo modNm cr
+  = ( mbEcu ,crsi
 %%[[8
     , opts
 %%][99
     -- if any per module opts are available, use those
-    , maybe opts id $ ecuMbOpts ecu
+    , maybe opts id $ mbEcu >>= ecuMbOpts
 %%]]
-    , fp
+    , fmap ecuFilePath mbEcu
     )
-  where ecu         = crCU modNm cr
+  where mbEcu       = crMbCU modNm cr
         (crsi,opts) = crBaseInfo' cr
-        fp          = ecuFilePath ecu
+
+crBaseInfo :: HsName -> EHCompileRun -> (EHCompileUnit,EHCompileRunStateInfo,EHCOpts,FPath)
+crBaseInfo modNm cr
+  = ( maybe (panic "crBaseInfo.mbEcu") id mbEcu 
+    , crsi
+    , opts
+    , maybe (panic "crBaseInfo.mbFp") id mbFp
+    )
+  where (mbEcu, crsi, opts, mbFp) = crMbBaseInfo modNm cr
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -286,14 +301,14 @@ cpRmFilesToRm
 cpMsg :: HsName -> Verbosity -> String -> EHCompilePhase ()
 cpMsg modNm v m
   = do { cr <- get
-       ; let (_,_,_,fp) = crBaseInfo modNm cr
-       ; cpMsg' modNm v m Nothing fp
+       ; let (_,_,_,mbFp) = crMbBaseInfo modNm cr
+       ; cpMsg' modNm v m Nothing (maybe emptyFPath id mbFp)
        }
 
 cpMsg' :: HsName -> Verbosity -> String -> Maybe String -> FPath -> EHCompilePhase ()
 cpMsg' modNm v m mbInfo fp
   = do { cr <- get
-       ; let (ecu,crsi,opts,_) = crBaseInfo modNm cr
+       ; let (mbEcu,crsi,opts,_) = crMbBaseInfo modNm cr
 %%[[99
        ; ehcioinfo <- lift $ readIORef (crsiEHCIOInfo crsi)
        ; clockTime <- lift getEHCTime
@@ -307,7 +322,7 @@ cpMsg' modNm v m mbInfo fp
              m'             = m
 %%][99
              t				= if v >= VerboseALot then "<" ++ strBlankPad 35 (ehcTimeDiffFmt clockStartTimeDiff ++ "/" ++ ehcTimeDiffFmt clockTimeDiff) ++ ">" else ""
-             m'             = show (ecuSeqNr ecu) ++ t ++ " " ++ m
+             m'             = maybe "" (\ecu -> show (ecuSeqNr ecu) ++ t ++ " ") mbEcu ++ m
 %%]]
        ; lift $ putCompileMsg v (ehcOptVerbosity opts) m' mbInfo modNm fp
 %%[[99
@@ -411,6 +426,16 @@ crPartitionNewerOlderImports modNm cr
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Partition imports into main and non main module names
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[50 export(crPartitionMainAndImported)
+-- | Partition modules into main and non main (i.e. imported) module names
+crPartitionMainAndImported :: EHCompileRun -> [HsName] -> ([HsName], [HsName])
+crPartitionMainAndImported cr modNmL = partition (\n -> ecuHasMain $ crCU n cr) modNmL
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Module needs recompilation?
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -438,7 +463,7 @@ crModNeedsCompile modNm cr
 %%[50 export(crModCanCompile)
 crModCanCompile :: HsName -> EHCompileRun -> Bool
 crModCanCompile modNm cr
-  = isJust (ecuMbHSTime ecu) && ecuDirIsWritable ecu
+  = isJust (ecuMbSrcTime ecu) && ecuDirIsWritable ecu
   where ecu = crCU modNm cr
 %%]
 
@@ -452,13 +477,13 @@ crPartitionIntoPkgAndOthers :: EHCompileRun -> [HsName] -> ([PkgModulePartition]
 crPartitionIntoPkgAndOthers cr modNmL
   = ( [ (p,d,m)
       | ((p,d),m) <- Map.toList $ Map.unionsWith (++) $ map Map.fromList ps
-      ] -- nub $ concat ps
+      ]
     , concat ms
     )
   where (ps,ms) = unzip $ map loc modNmL
         loc m = case filelocKind $ ecuFileLocation ecu of
-                  FileLocKind_Dir	  -> ([]         ,[m])
-                  FileLocKind_Pkg p d -> ([((p,d),[m])],[] )
+                  FileLocKind_Dir	  -> ([           ], [m])
+                  FileLocKind_Pkg p d -> ([((p,d),[m])], [ ])
               where (ecu,_,_,_) = crBaseInfo m cr
 %%]
 
@@ -473,9 +498,10 @@ crSetAndCheckMain modNm
        ; let (crsi,opts) = crBaseInfo' cr
              mkerr lim ns = cpSetLimitErrs 1 "compilation run" [rngLift emptyRange Err_MayOnlyHaveNrMain lim ns modNm]
        ; case crsiMbMainNm crsi of
-           Just n | n /= modNm      -> mkerr 1 [n]
-           _ | ehcOptDoLinking opts -> cpUpdSI (\crsi -> crsi {crsiMbMainNm = Just modNm})
-             | otherwise            -> mkerr 0 []
+           Just n | n /= modNm          -> mkerr 1 [n]
+           _ | ehcOptDoExecLinking opts -> cpUpdSI (\crsi -> crsi {crsiMbMainNm = Just modNm})
+             | otherwise                -> return ()
+                                           -- mkerr 0 []
        }
 %%]
 

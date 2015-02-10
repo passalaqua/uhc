@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -466,7 +466,7 @@ ATTR TyExprAnn [ | | ann : TyAnn
 
 SEM TyExprAnn
   | Empty       lhs         .   ann         =   TyAnn_Empty
-%%[[(8 codegen)
+%%[[(8 codegen || hmtyinfer)
   | Strictness  lhs         .   ann         =   TyAnn_Strictness @strictness
 %%]]
 

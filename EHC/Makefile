@@ -57,7 +57,7 @@ include $(MK_PREFIX)shared.mk
 -include $(SRC_PREFIX)helium/files.mk
 -include $(SRC_PREFIX)lvm/files.mk
 -include $(SRC_PREFIX)text2text/files.mk
-include $(SRC_PREFIX)ruler2/files.mk
+#include $(SRC_PREFIX)ruler2/files.mk
 include $(SRC_PREFIX)ehc/variant.mk
 include $(SRC_PREFIX)gen/files.mk
 include $(SRC_PREFIX)ehc/files1.mk
@@ -136,6 +136,7 @@ explanation:
     echo  "EHC & tools" ; \
 	echo  "===========" ; \
 	echo  "make <n>/ehc             : make compiler variant <n> (in bin/, where <n> in {$(EHC_PUB_VARIANTS)})" ; \
+	echo  "make <n>/ehcr            : make runner (of CoreRun) variant <n> (in bin/, where <n> in {$(EHC_CODE_VARIANTS)})" ; \
 	echo  "make <n>/ehclib          : make ehc library (i.e. used to compile with ehc) variant <n> (in bin/, where <n> in {$(EHC_PREL_VARIANTS)})" ; \
 	echo  "make <n>/ehclibs         : make ehc libraries for all codegen targets" ; \
 	echo  "make <n>/rts             : make only the rts part of a library" ; \
@@ -164,7 +165,7 @@ explanation:
 	echo  "" ; \
     echo  "Distribution" ; \
 	echo  "===========" ; \
-	echo  "make uhc-dist            : make platform specific binary distribution from uhc build in $(DISTABS_PREFIX)" ; \
+	echo  "make uhc-light           : make cabal version of a light UHC variant in $(CABALDIST_UHCLIGHT_PREFIX)" ; \
 	echo  "" ; \
     echo  "Cleaning up" ; \
 	echo  "===========" ; \
@@ -186,6 +187,7 @@ explanation:
 	echo  "make <n>/grini           : make grin interpreter variant <n> (in bin/, where <n> in {$(GRIN_PUB_VARIANTS)}) (obsolete)" ; \
 	echo  "make <n>/hdoc            : make Haddock documentation for variant <n> (in hdoc/)" ; \
 	echo  "make grinis              : make all grin interpreter ($(GRINI_EXEC_NAME)) versions" ; \
+	echo  "make uhc-dist            : make platform specific binary distribution from uhc build in $(DISTABS_PREFIX)" ; \
 	echo  "" ; \
 
 ###########################################################################################
@@ -289,9 +291,27 @@ uhc-install-postprocess-jazy:
 	
 uhc-install-postprocess-js:
 	
+uhc-install-postprocess-cr:
+	
 uhc-install-postprocess-llvm:
 	
 # still to do: uhc --meta-export-env=$(INSTALL_UHC_LIB_PREFIX),$(UHC_EXEC_NAME)
+
+###########################################################################################
+# Target: UHC light, for installation as lib/cabal/package, Core only based subset
+###########################################################################################
+
+uhc-light:
+	$(MAKE) ENABLE_JS= EHC_VARIANT=$(EHC_UHCLIGHT_CABAL_VARIANT) uhc-light-dist
+	cd $(CABALDIST_UHCLIGHT_PREFIX) && cabal configure && cabal sdist
+
+uhc-light-tst:
+	$(MAKE) ENABLE_JS= EHC_VARIANT=$(EHC_UHCLIGHT_CABAL_VARIANT) INCLUDE_DERIVED_MK=yes uhc-light-cabal-dist
+
+uhc-light-dist:
+	$(MAKE) $(EHC_UHCLIGHT_CABAL_VARIANT)/ehc
+	$(MAKE) $(EHC_UHCLIGHT_CABAL_VARIANT)/ehclib
+	$(MAKE) INCLUDE_DERIVED_MK=yes uhc-light-cabal-dist
 
 ###########################################################################################
 # Target: UHC: binary distribution generation
@@ -362,6 +382,14 @@ install: uhc-install
 uninstall: uhc-uninstall
 
 ###########################################################################################
+# Target: UHC: partial uhc via cabal
+###########################################################################################
+
+uhc-pkg:
+	$(MAKE) 103/clean
+	$(MAKE) uhc-light
+
+###########################################################################################
 # Target: UHC: regression test
 ###########################################################################################
 
@@ -372,14 +400,40 @@ uhc-test: thaw-test-expect
 
 test: uhc-test
 
+# buildfarm like testing
+test-all:
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	make clean && \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	./configure && \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	make 100/ehc && \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	make 100/ehclibs && \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	make test-regress TEST_VARIANTS=100 ; \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	make test-regress TEST_VARIANTS=100 EHC_VARIANT_TARGET=js ; \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	make 100/clean && \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	./configure --with-aspects="base" && \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	make 100/ehc && \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	make clean && \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	./configure && \
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" && \
+	echo DONE
+
 ###########################################################################################
 # Target: clean build stuff
 ###########################################################################################
 
 clean:
 	$(MAKE) cleans
-	$(MAKE) ruler-clean
-	rm -rf $(DIST_PREFIX)
+	rm -rf $(DIST_PREFIX) $(CABALDIST_UHCLIGHT_PREFIX)
 
 #	$(MAKE) libutil-clean
 
@@ -394,16 +448,27 @@ clean-extlibs:
 ###########################################################################################
 
 bump-major:
-	@echo $$(($(EH_VERSION_MAJOR)+1)).0.0 > VERSION ; \
+	@echo $$(($(EH_VERSION_MAJOR)+1)).0.0.0 > VERSION ; \
 	echo "bumped version to `cat VERSION`"
 
 bump-minor:
-	@echo $(EH_VERSION_MAJOR).$$(($(EH_VERSION_MINOR)+1)).0 > VERSION ; \
+	@echo $(EH_VERSION_MAJOR).$$(($(EH_VERSION_MINOR)+1)).0.0 > VERSION ; \
 	echo "bumped version to `cat VERSION`"
 
 bump-minorminor:
-	@echo $(EH_VERSION_MAJOR).$(EH_VERSION_MINOR).$$(($(EH_VERSION_MINORMINOR)+1)) > VERSION ; \
+	@echo $(EH_VERSION_MAJOR).$(EH_VERSION_MINOR).$$(($(EH_VERSION_MINORMINOR)+1)).0 > VERSION ; \
 	echo "bumped version to `cat VERSION`"
+
+bump-minorminorminor:
+	@echo $(EH_VERSION_MAJOR).$(EH_VERSION_MINOR).$(EH_VERSION_MINORMINOR).$$(($(EH_VERSION_MINORMINORMINOR)+1)) > VERSION ; \
+	echo "bumped version to `cat VERSION`"
+
+# ... and shortcuts
+
+bump-M: bump-major
+bump-m: bump-minor
+bump-mm: bump-minorminor
+bump-mmm: bump-minorminorminor
 
 ###########################################################################################
 # Releasing, currently just svn copying
@@ -428,10 +493,7 @@ release-prepare:
 FUN_PREFIX2DIR			= $(patsubst %/,%,$(1))
 
 tst:
-	@echo $(INSTALL_LIB_JS)
-	@echo $(JSCRIPT_JS_JSCRIPT_DRV_JS)
-	@echo $(SRC_JSCRIPT_PREFIX)
-	@echo $(JSCRIPT_BLD_JSCRIPT_PREFIX)
+	@echo $(EHC_ALL_LIB_FROMAG_HS)
 
 tstv:
 	$(MAKE) INCLUDE_DERIVED_MK=yes EHC_VARIANT=100 tst

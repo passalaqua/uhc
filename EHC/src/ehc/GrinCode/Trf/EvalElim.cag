@@ -91,10 +91,10 @@ Note: when HPT analysis is done, in apply the name f is used instead of f'.
 %%[(8 codegen grin) hs import(qualified Data.Set as Set,qualified Data.Map as Map, Data.Maybe)
 %%]
 
-%%[(8 codegen grin) hs import({%{EH}Base.Builtin}, {%{EH}Base.Target}, {%{EH}Base.Common}, {%{EH}Opts}, {%{EH}GrinCode.Common}, {%{EH}GrinCode})
+%%[(8 codegen grin) hs import({%{EH}Base.HsName.Builtin}, {%{EH}Base.Target}, {%{EH}Base.Common}, {%{EH}Opts}, {%{EH}GrinCode})
 %%]
 
-%%[(8 codegen grin) hs import(qualified {%{EH}Config} as Cfg)
+%%[(8 codegen grin wholeprogAnal) hs import({%{EH}GrinCode.Common})
 %%]
 
 %%[(8 codegen grin) ag import({GrinCode/Trf/CommonAliasAG},{GrinCode/Trf/CommonFreeVar},{GrinCode/Trf/CommonWillEval})
@@ -130,7 +130,7 @@ WRAPPER GrAGItf
 
 %%[(8 codegen grin) hs
 optsAllowNodePtrMix :: EHCOpts -> Bool
-optsAllowNodePtrMix opts = targetIsGrinBytecode (ehcOptTarget opts)
+optsAllowNodePtrMix opts = targetAllowsGrinNodePtrMix (ehcOptTarget opts)
 %%]
 
 %%[(8 codegen grin)
@@ -233,7 +233,7 @@ SEM GrVal
                 lhs         .   isEval          =   IsEval_None
 %%]
 
-%%[99
+%%[(99 codegen grin)
 SEM GrExpr
   | FFI         lhs         .   isEval          =   if grFFIAnnotIsResEvaluated @ffiAnnot then IsEval_EvalToNode else IsEval_None
 %%]

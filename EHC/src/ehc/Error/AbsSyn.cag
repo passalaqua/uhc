@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -19,6 +19,12 @@ DATA Err
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Error structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[1
+DATA Err
+  | PP          		pp         : {PP_Doc}
+  | Str          		str        : {String}
+%%]
 
 %%[(1 hmtyinfer || hmtyast).UnifyClash
 DATA Err
@@ -48,6 +54,10 @@ DATA Err
 DATA Err
   | PatArity            ty         : {Ty}
                         arity      : {Int}
+%%]
+
+%%[1
+DATA Err
   | PatArity2           kind       : String
                         what       : {PP_Doc}
                         arity      : {Int}
@@ -140,7 +150,6 @@ DATA Err
 %%][99
                         entities   : {[ThingAndRange HsName]}
 %%]]
-  | PP                  pp         : {PP_Doc}
 %%]
 
 %%[(8 codegen)
@@ -200,7 +209,7 @@ DATA Err
 
 %%[50
 DATA Err
-  | MayOnlyHaveNrMain   nrAllowed  : Int        -- 0 or 1, depending on option ehcOptDoLinking
+  | MayOnlyHaveNrMain   nrAllowed  : Int        -- 0 or 1, depending on option ehcOptDoExecLinking
                         prevModNmL : {[HsName]} -- possible previous modules in which main was defined
                         modNm      : HsName
   | MayNotHaveMain      modNm      : HsName

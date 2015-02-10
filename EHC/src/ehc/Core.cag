@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -6,75 +6,129 @@
 %%[doesWhat doclatex
 Core AST as Haskell datatype.
 
-Datatype BindingInfo holds the implementation info to be exported from a module.
+Datatype LamInfo holds the implementation info to be exported from a module.
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Haskell importable interface to Code
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs module {%{EH}Core} import({%{EH}Base.Builtin},{%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Opts.Base})
+%%[(8 core) hs module {%{EH}Core} import({%{EH}Base.HsName.Builtin},{%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Opts.Base})
 %%]
 
-%%[(8 codegen) hs import({%{EH}AbstractCore}) export(module {%{EH}AbstractCore})
+%%[(8 core) hs import({%{EH}AbstractCore}) export(module {%{EH}AbstractCore})
 %%]
 
-%%[(8 codegen) hs import({%{EH}AnaDomain}) export (module {%{EH}AnaDomain})
+%%[(8 core) hs import({%{EH}AnaDomain}) export (module {%{EH}AnaDomain})
 %%]
 
-%%[(8 codegen) hs import ({%{EH}Base.Target}(FFIWay(..),TargetFlavor(..))) export(module {%{EH}Base.Target})
+%%[(8 core) hs import ({%{EH}Base.Target}(FFIWay(..),TargetFlavor(..))) export(module {%{EH}Base.Target})
 %%]
 
-%%[(8 codegen) hs import(Data.Maybe,Data.Char,Data.List,UHC.Util.Pretty,UHC.Util.Utils,Control.Applicative((<|>)))
+%%[(8 core) hs import(Data.Maybe,Data.Char,Data.List,UHC.Util.Utils,Control.Applicative((<|>)))
 %%]
 
-%%[(8 codegen) hs export(CodeAGItf(..), CModule(..), CExpr(..), MbCExpr, CBind(..), CBound(..), CMetaVal(..), CMetaBind(..), CMetas, CBindL, CBoundL, CPatRest(..), CAlt(..), CAltL, CPat(..), CPatFld(..), CPatFldL) 
+%%[(8 core) hs export(CodeAGItf(..), CModule(..), CExpr(..), CBind(..), CBound(..), CMetaVal(..), CMetaBind(..), CMetas, CBindL, CBoundL, CPatRest(..), CAlt(..), CAltL, CPat(..), CPatFld(..), CPatFldL) 
+%%]
+%%[(8888 core) hs export(MbCExpr) 
 %%]
 
-%%[(8 codegen) hs export(CExprAnn(..))
+%%[(8 core) hs export(CBindAnn(..), CBindAnnL, CExprAnn(..))
 %%]
 
-%%[(8 codegen) hs import(qualified Data.Map as Map,qualified Data.Set as Set)
+%%[(8 core) hs export(CExport(..), CExportL, CImport(..), CImportL)
 %%]
 
-%%[(8 codegen) hs import({%{EH}Ty})
+%%[(8 core) hs export(CDeclMeta(..), CDeclMetaL, CDataCon(..), CDataConL)
 %%]
 
-%%[(50 codegen) hs import(Data.Array)
-%%]
-%%[(50 codegen) hs import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
-%%]
-%%[(50 codegen) hs import(Data.Typeable(Typeable), Data.Generics(Data))
+%%[(8 core) hs import(qualified Data.Map as Map,qualified Data.Set as Set)
 %%]
 
-%%[(90 codegen) hs import({%{EH}Foreign}) export(module {%{EH}Foreign})
+%%[(8 core) hs import({%{EH}Ty})
 %%]
 
-%%[(9999 codegen) hs import({%{EH}Base.ForceEval})
+%%[(8888 core grin) hs import(qualified {%{EH}CodeGen.ValAccess} as VA)
 %%]
 
-%%[(8 codegen) ag import({Core/AbsSyn})
+%%[(50 core) hs import({%{EH}Module.Merge})
+%%]
+%%[(50 core) hs import(Data.Array)
+%%]
+%%[(50 core) hs import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
+%%]
+%%[(50 core) hs import(Data.Typeable(Typeable), Data.Generics(Data))
+%%]
+
+%%[(90 core) hs import({%{EH}Foreign}) export(module {%{EH}Foreign})
+%%]
+
+%%[(9999 core) hs import({%{EH}Base.ForceEval})
+%%]
+
+%%[(8 core) ag import({Core/AbsSyn})
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Derived instances
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 core).derivingShow ag
 DERIVING *
-  : Show, Eq
-%%[[50
-  , Typeable, Data
-%%]]
+  : Show
 %%]
 
-%%[(50 codegen) ag
+%%[(100 core) -8.derivingShow hs
+-- | Explicit dummy instances instead of derived ones which not really are used except as context for PP
+instance Show CExpr where
+  show _ = "CExpr"
+
+instance Show CBound where
+  show _ = "CBound"
+
+%%]
+instance Show CAlt where
+  show _ = "CAlt"
+
+instance Show CBind where
+  show _ = "CBind"
+
+instance Show CPat where
+  show _ = "CPat"
+
+instance Show CModule where
+  show _ = "CModule"
+
+
+%%[(8 core) ag
+DERIVING CImport CExport AllExpr
+  : Eq
+%%]
+
+%%[(8 core) ag
+DERIVING CImport CExport
+  : Ord
+%%]
+
+%%[(50 core) ag
+DERIVING *
+  : Typeable, Data
+%%]
+
+%%[(50 core) ag
 DERIVING CMetaBind
   : Enum
 %%]
 
 -- for debug only
-%%[(8 codegen) hs import({%{EH}Base.Debug})
+%%[(8 core) hs import({%{EH}Base.Debug})
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Abstract syntax for encoding case+pattern rewrite info
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(RAlt,RPat,RPatConBind,RPatFld)
+%%[(8 core) hs export(RAlt,RPat,RPatConBind,RPatFld)
 type RAlt           = RAlt'         CExpr CTy CBind CPatRest
 type RPat           = RPat'         CExpr CTy CBind CPatRest
 type RPatConBind    = RPatConBind'  CExpr CTy CBind CPatRest
@@ -82,10 +136,20 @@ type RPatFld        = RPatFld'      CExpr CTy CBind CPatRest
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Update CModule fields
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(50 core) hs export(cmodSetImports)
+-- | Set imports
+cmodSetImports :: [HsName] -> CModule -> CModule
+cmodSetImports imp m = m {imports_CModule_Mod = map CImport_Import imp}
+%%]]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Tuple operator info
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(10 codegen) hs export(cTupLbl)
+%%[(10 core) hs export(cTupLbl)
 cTupLbl :: CExpr -> HsName
 cTupLbl e
   =  case e of
@@ -94,7 +158,7 @@ cTupLbl e
          CExpr_TupDel _ _ l _   -> l
 %%]
 
-%%[(10 codegen) hs export(cTupTag)
+%%[(10 core) hs export(cTupTag)
 cTupTag :: CExpr -> CTag
 cTupTag e
   =  case e of
@@ -103,7 +167,7 @@ cTupTag e
          CExpr_TupDel _ t _ _   -> t
 %%]
 
-%%[(10 codegen) hs export(cTupOff)
+%%[(10 core) hs export(cTupOff)
 cTupOff :: CExpr -> CExpr
 cTupOff e
   =  case e of
@@ -116,17 +180,17 @@ cTupOff e
 %%% Utility functions for CMeta
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(cmetasDefault)
+%%[(8 core) hs export(cmetasDefault)
 cmetasDefault :: CMetas
 cmetasDefault = (CMetaBind_Plain,CMetaVal_Val)
 %%]
 
-%%[(8 codegen) hs export(cmetasVal)
+%%[(8 core) hs export(cmetasVal)
 cmetasVal :: CMetas -> CMetaVal
 cmetasVal (_,v) = v
 %%]
 
-%%[(8 codegen) hs export(cmetasMapVal)
+%%[(8 core) hs export(cmetasMapVal)
 cmetasMapVal :: (CMetaVal -> CMetaVal) -> CMetas -> CMetas
 cmetasMapVal f (b,v) = (b,f v)
 %%]
@@ -135,7 +199,7 @@ cmetasMapVal f (b,v) = (b,f v)
 %%% Binding category, per group of bindings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(CBindCateg(..))
+%%[(8 core) hs export(CBindCateg(..))
 data CBindCateg
   = CBindCateg_Rec              -- mutually recursive
   | CBindCateg_Strict           -- strictly evaluated
@@ -147,7 +211,7 @@ data CBindCateg
   deriving (Show,Eq,Enum)
 %%]
 
-%%[(50 codegen) hs
+%%[(50 core) hs
 deriving instance Typeable CBindCateg
 deriving instance Data CBindCateg
 %%]
@@ -156,36 +220,38 @@ deriving instance Data CBindCateg
 %%% Context: strictness as required by context
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(EvalCtx(..),isStrict)
+%%[(8 core) hs export(EvalCtx(..),evalCtxIsStrict)
 data EvalCtx
-  = EvalCtx_None         -- nothing known, no strictness required
+  = EvalCtx_None         -- nothing known, no strictness required, no thunking
+  | EvalCtx_Thunk        -- lazy/thunked representation required
+  | EvalCtx_PApp0        -- partial app of lam with 0 params
   | EvalCtx_Eval         -- strictness (thus eval) required
   | EvalCtx_EvalUnbox    -- strictness (thus eval) + unboxing required
   deriving Eq
 
-isStrict :: EvalCtx -> Bool
-isStrict EvalCtx_Eval        = True
-isStrict EvalCtx_EvalUnbox   = True
-isStrict _                   = False
+evalCtxIsStrict:: EvalCtx -> Bool
+evalCtxIsStrict EvalCtx_Eval        = True
+evalCtxIsStrict EvalCtx_EvalUnbox   = True
+evalCtxIsStrict _                   = False
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Properties
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(cexprIsLam)
+%%[(8 core) hs export(cexprIsLam)
 cexprIsLam :: CExpr -> Bool
 cexprIsLam (CExpr_Lam _ _) = True
 cexprIsLam _               = False
 %%]
 
-%%[(8 codegen) hs export(cbindNm)
+%%[(8 core) hs export(cbindNm)
 cbindNm :: CBind -> HsName
 cbindNm (CBind_Bind      n _) = n
 -- cbindNm (CBind_FFI _ _ _ n _  ) = n
 %%]
 
-%%[(50 codegen) hs export(cbindAspectMbExpr,cbindExprs)
+%%[(50 core) hs export(cbindAspectMbExpr,cbindExprs)
 -- | extract expr for aspect, relevant for later use/analysis/...
 cbindAspectMbExpr :: CBound -> Maybe CExpr
 cbindAspectMbExpr (CBound_Bind _     e) = Just e
@@ -197,7 +263,7 @@ cbindExprs :: CBind -> [CExpr]
 cbindExprs (CBind_Bind _ a) = catMaybes $ map cbindAspectMbExpr a
 %%]
 
-%%[(9797 codegen) hs export(cexprMbConst)
+%%[(9797 core) hs export(cexprMbConst)
 cexprMbConst :: CExpr -> Maybe Integer
 cexprMbConst e@(CExpr_Int     i) = Just $ toInteger i
 cexprMbConst e@(CExpr_Char    c) = Just $ toInteger $ ord c
@@ -211,7 +277,7 @@ cexprMbConst _                   = Nothing
 %%% Remove duplicate bindings
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(9 codegen) hs export(cbindLNub)
+%%[(9 core) hs export(cbindLNub)
 cbindLNub :: CBindL -> CBindL
 cbindLNub = nubBy (\b1 b2 -> cbindNm b1 == cbindNm b2)
 %%]
@@ -220,12 +286,12 @@ cbindLNub = nubBy (\b1 b2 -> cbindNm b1 == cbindNm b2)
 %%% Lifting to CMetaVal tupled
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8888 codegen) hs export(cmetaLift)
+%%[(8888 core) hs export(cmetaLift)
 cmetaLift :: Functor f => f x -> f (x,CMetaVal)
 cmetaLift = fmap2Tuple CMetaVal_Val
 %%]
 
-%%[(9999 codegen) hs export(cmetaLiftDict)
+%%[(9999 core) hs export(cmetaLiftDict)
 cmetaLiftDict :: Functor f => f x -> f (x,CMetaVal)
 cmetaLiftDict = fmap2Tuple CMetaVal_Dict
 %%]
@@ -234,9 +300,9 @@ cmetaLiftDict = fmap2Tuple CMetaVal_Dict
 %%% Construction
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(mkCMod,emptyCModule)
+%%[(8 core) hs export(mkCMod,emptyCModule)
 mkCMod :: CExpr -> CModule
-mkCMod e = CModule_Mod (hsnFromString "") e []
+mkCMod e = CModule_Mod (hsnFromString "") [] [] [] e -- []
 
 emptyCModule :: CModule
 emptyCModule = mkCMod (CExpr_Int 0)
@@ -246,7 +312,7 @@ emptyCModule = mkCMod (CExpr_Int 0)
 %%% Inspection/deconstruction
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(cexprMbVar,cexprVar)
+%%[(8 core) hs export(cexprMbVar,cexprVar)
 cexprMbVar :: CExpr -> Maybe HsName
 cexprMbVar (CExpr_Var r) = Just (acbrefNm r)
 cexprMbVar _             = Nothing
@@ -255,13 +321,13 @@ cexprVar :: CExpr -> HsName
 cexprVar = maybe hsnUnknown id . cexprMbVar
 %%]
 
-%%[(8 codegen) hs export(cexprTupFld)
+%%[(8 core) hs export(cexprTupFld)
 cexprTupFld :: CExpr -> CExpr
 cexprTupFld (CExpr_TupIns _ _ _ _ e) = e
 cexprTupFld _                        = panic "Core.cexprTupFld" -- acoreVar hsnUnknown
 %%]
 
-%%[(8 codegen) hs export(cexprIsEvaluated)
+%%[(8 core) hs export(cexprIsEvaluated)
 cexprIsEvaluated :: CExpr -> Bool
 cexprIsEvaluated (CExpr_Int  _) = True
 cexprIsEvaluated (CExpr_Char _) = True
@@ -272,7 +338,7 @@ cexprIsEvaluated _              = False
 %%% Integer construction
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(9797 codegen) hs export(cinteger)
+%%[(9797 core) hs export(cinteger)
 cinteger :: EHCOpts -> Integer -> CExpr
 cinteger opts i = acoreBuiltinApp opts ehbnPackedStringToInteger [CExpr_String $ show $ i]
 %%]
@@ -281,7 +347,7 @@ cinteger opts i = acoreBuiltinApp opts ehbnPackedStringToInteger [CExpr_String $
 %%% Name extraction (temporary, 20100330)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8888 codegen) hs export(cpatVarNm) 
+%%[(8888 core) hs export(cpatVarNm) 
 cpatVarNm :: CPat -> HsName
 cpatVarNm (CPat_Var n) = n
 %%]
@@ -290,7 +356,7 @@ cpatVarNm (CPat_Var n) = n
 %%% Tags, in general
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8888 codegen) hs export(caltIntTag) 
+%%[(8888 core) hs export(caltIntTag) 
 cpatConTag :: CPat -> CTag
 cpatConTag (CPat_Con    t _ _)  = t
 cpatConTag (CPat_Int    _    )  = ctagInt
@@ -314,7 +380,7 @@ caltConTag (CAlt_Alt p _) = cpatConTag p
 
 In the following, note the hardcodedness!!!!!
 
-%%[(9999 codegen) hs export(mkCListSingleton)
+%%[(9999 core) hs export(mkCListSingleton)
 mkCListSingleton :: EHCOpts -> CExpr -> CExpr
 mkCListSingleton opts e
   = acoreTagTup (ctagCons opts) [e,acoreTagTup (ctagNil opts) []]
@@ -324,7 +390,7 @@ mkCListSingleton opts e
 %%% Var introduction
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(CVarIntro(..),emptyCVarIntro)
+%%[(8 core) hs export(CVarIntro(..),emptyCVarIntro)
 data CVarIntro
   = CVarIntro
       { cviLev      :: Int      -- lexical level
@@ -336,7 +402,7 @@ emptyCVarIntro
   = CVarIntro cLevExtern CMetaVal_Val
 %%]
 
-%%[(8 codegen) hs export(CVarIntroMp,CVarIntroL,cviLookup)
+%%[(8 core) hs export(CVarIntroMp,CVarIntroL,cviLookup)
 type CVarIntroMp = Map.Map HsName CVarIntro
 type CVarIntroL  = AssocL  HsName CVarIntro
 
@@ -344,13 +410,13 @@ cviLookup :: HsName -> CVarIntroMp -> CVarIntro
 cviLookup n m = Map.findWithDefault emptyCVarIntro n m
 %%]
 
-%%[(8 codegen) hs export(cLevModule,cLevExtern)
+%%[(8 core) hs export(cLevModule,cLevExtern)
 cLevModule, cLevExtern :: Int
 cLevModule = 0
 cLevExtern = 0
 %%]
 
-%%[(50 codegen) hs export(cLevIntern)
+%%[(50 core) hs export(cLevIntern)
 cLevIntern :: Int
 cLevIntern = 1
 %%]
@@ -359,7 +425,7 @@ cLevIntern = 1
 %%% Replacement in general
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(CVarRepl(..))
+%%[(8 core) hs export(CVarRepl(..))
 data CVarRepl r
   = CVarRepl
       { cvrRepl     :: r        -- replacement
@@ -367,7 +433,7 @@ data CVarRepl r
       }
 %%]
 
-%%[(8 codegen) hs export(CVarReplMp)
+%%[(8 core) hs export(CVarReplMp)
 type CVarReplMp  r = Map.Map HsName (CVarRepl r)
 type CVarReplAsc r = AssocL  HsName (CVarRepl r)
 %%]
@@ -376,19 +442,19 @@ type CVarReplAsc r = AssocL  HsName (CVarRepl r)
 %%% Replacement with HsName
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(CVarReplNm,emptyCVarReplNm)
+%%[(8 core) hs export(CVarReplNm,emptyCVarReplNm)
 type CVarReplNm = CVarRepl HsName
 
 emptyCVarReplNm :: CVarReplNm
 emptyCVarReplNm = CVarRepl hsnUnknown CMetaVal_Val
 %%]
 
-%%[(8 codegen) hs export(CVarReplNmMp,CVarReplNmL)
+%%[(8 core) hs export(CVarReplNmMp,CVarReplNmL)
 type CVarReplNmMp = CVarReplMp  HsName
 type CVarReplNmL  = CVarReplAsc HsName
 %%]
 
-%%[(8 codegen) hs export(cvrFromCvi)
+%%[(8 core) hs export(cvrFromCvi)
 cvrFromCvi :: CVarIntro -> CVarReplNm
 cvrFromCvi i
   = emptyCVarReplNm
@@ -400,7 +466,7 @@ cvrFromCvi i
 %%% Support for transformations
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(fvLev,fvsLev)
+%%[(8 core) hs export(fvLev,fvsLev)
 fvLev :: HsName -> CVarIntroMp -> Int
 fvLev n m = cviLev $ cviLookup n m
 
@@ -409,54 +475,33 @@ fvsLev lm lDflt fvs = foldr (\n l -> fvLev n lm `max` l) lDflt $ Set.toList $ fv
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Name to offset (in a record)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%[(50 codegen) hs export(HsName2OffsetMp,HsName2OffsetMpMp)
-type HsNameOffset      = Int
-type HsName2OffsetMp   = Map.Map HsName HsNameOffset
-type HsName2OffsetMpMp = Map.Map HsName (Int,HsName2OffsetMp)
-%%]
-
-%%[(50 codegen) hs export(offMpKeysSorted,offMpMpKeysSet)
--- | Module names, sorted on import order, which is included as 0-based offset (used as index in import entry table)
-offMpKeysSorted :: HsName2OffsetMpMp -> AssocL HsName Int
-offMpKeysSorted m = sortOn snd [ (n,o) | (n,(o,_)) <- Map.toList m ]
-
-offMpMpKeysSet :: HsName2OffsetMpMp -> HsNameS
-offMpMpKeysSet m = Set.unions [ Map.keysSet m' | (_,m') <- Map.elems m ]
-%%]
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Module merge
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(50 codegen) hs export(cModMerge)
+%%[(50 core) hs export(cModMergeByConcat)
 -- | merge by concatenation
-cModMerge :: [CModule] -> CModule
-cModMerge mL
+cModMergeByConcat :: [CModule] -> CModule
+cModMergeByConcat mL
   = foldr1 cmb mL
   where get (CExpr_Let c b e) = CExpr_Let c b . get e
         get  _                = id
-        cmb (CModule_Mod m1 e1 t1) (CModule_Mod m2 e2 t2)
-          = CModule_Mod m2 (get e1 e2) (t1++t2)
+        cmb (CModule_Mod m1 ex1 im1 mt1 e1) (CModule_Mod m2 ex2 im2 mt2 e2)
+          = CModule_Mod m2 (ex1++ex2) (im1++im2) (mt1++mt2) (get e1 e2)
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Map/Database representation of a module
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(50 codegen) hs export(CDbBindLetInfo, CDbBindLetInfo'2)
+%%[(50 core) hs export(CDbBindLetInfo)
 -- | the binding info required for let bind
-type CDbBindLetInfo'' f cat bind = (cat,f bind)
-type CDbBindLetInfo'  f          = CDbBindLetInfo'' f  CBindCateg CBind
-type CDbBindLetInfo'2   cat bind = CDbBindLetInfo'' [] cat            bind
-type CDbBindLetInfo              = CDbBindLetInfo'  []
+type CDbBindLetInfo'  f            = ModDbBindLetInfo'' f  CBindCateg CBind
+type CDbBindLetInfo                = CDbBindLetInfo'  []
 %%]
 
-%%[(50 codegen) hs export(CDbBindArray, CDbBindRef, CDbModuleBindMp)
+%%[(50 core) hs export(CDbBindRef, CDbModuleBindMp)
 -- | actual bindings stored in separate array to allow for sharing
-type CDbBindArray = Array Int (CDbBindLetInfo' (Array Int))
+type CDbBindArray = ModDbBindArray' CBindCateg CBind
 
 -- | reference into database of bindings, agnostic of name given to it
 type CDbBindRef = (Int,Int)
@@ -465,7 +510,7 @@ type CDbBindRef = (Int,Int)
 type CDbModuleBindMp = Map.Map HsName CDbBindRef
 %%]
 
-%%[(50 codegen) hs export(CModuleDatabase(..), emptyCModuleDatabase)
+%%[(50 core) hs export(CModuleDatabase(..), emptyCModuleDatabase)
 -- | the full module represented in a map/database like format (20101004 AD: to be made into persistent db soon)
 data CModuleDatabase
   = CModuleDatabase
@@ -473,14 +518,16 @@ data CModuleDatabase
       , cmoddbBindArr       :: !CDbBindArray        -- bindings
       , cmoddbBindMp        :: !CDbModuleBindMp     -- map of name to bindings
       , cmoddbMainExpr      :: !CExpr               -- the final expr of the module's let expr
-      , cmoddbTagsMp        :: !CTagsMp             -- datatype info
+      , cmoddbExports       :: !CExportL            -- exports
+      , cmoddbImports       :: !CImportL            -- imports
+      , cmoddbMeta          :: !CDeclMetaL          -- meta info/decl
       }
 
 emptyCModuleDatabase :: CModuleDatabase
-emptyCModuleDatabase = CModuleDatabase hsnUnknown (array (1,0) []) Map.empty (CExpr_Int 0) emptyCTagsMp
+emptyCModuleDatabase = CModuleDatabase hsnUnknown (array (1,0) []) Map.empty (CExpr_Int 0) [] [] []
 %%]
 
-%%[(50 codegen) hs export(cmoddbLookup)
+%%[(50 core) hs export(cmoddbLookup)
 cmoddbLookup :: HsName -> CModuleDatabase -> Maybe CDbBindRef
 cmoddbLookup n db = Map.lookup n $ cmoddbBindMp db
 %%]
@@ -489,7 +536,7 @@ cmoddbLookup n db = Map.lookup n $ cmoddbBindMp db
 %%% SysF: Explicit name for SysF type
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(SysfTy,SysfTyBind,SysfTyBound,SysfTySeq,SysfTySeq1)
+%%[(8 core) hs export(SysfTy,SysfTyBind,SysfTyBound,SysfTySeq,SysfTySeq1)
 %%[[(8 coresysf)
 -- | SysF ty is also a Core term
 type SysfTy         = CExpr         -- base ty
@@ -505,7 +552,7 @@ type SysfTySeq      = SysfTy            -- sequence
 type SysfTySeq1     = SysfTy            -- singleton
 %%]
 
-%%[(8 codegen coresysf) hs export(tyToSysfTyBasePlainCases)
+%%[(8 core coresysf) hs export(tyToSysfTyBasePlainCases)
 -- | Simplistic (i.e. for simple types) conversion as conversion is mutually recursive with AbstractCore instance
 tyToSysfTyBasePlainCases :: Ty -> SysfTy
 tyToSysfTyBasePlainCases t
@@ -518,7 +565,7 @@ tyToSysfTyBasePlainCases t
 %%% SysF: The type representation used for AbstractCore
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs export(CTy,mkCTy,mkSTy,cty)
+%%[(8 core) hs export(CTy,mkCTy,mkSTy,cty)
 -- | In case of SysF isomorphic to Either 'old ty' 'sysf ty', to be chosen at a higher level
 %%[[(8 coresysf)
 data CTy
@@ -564,7 +611,7 @@ cty f _ t = f t
 %%% AbstractCore instance
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) hs
+%%[(8 core) hs
 instance AbstractCore CExpr CMetaVal CBind CBound ACoreAppLikeMetaBound CBindCateg CMetaBind CTy CPat CPatRest CPatFld CAlt where
   -- expr
   acore1AppBound   f a                  = CExpr_App f a
@@ -641,7 +688,7 @@ instance AbstractCore CExpr CMetaVal CBind CBound ACoreAppLikeMetaBound CBindCat
 %%]]
   
   -- patfld
-  acorePatFldBind (lbl,off) b           = CPatFld_Fld lbl off b
+  acorePatFldBind (lbl,off) b           = CPatFld_Fld lbl off b []
   -- acorePatFldTy _ (lbl,off) n            = CPatFld_Fld lbl off n []
 
   -- patrest
@@ -710,7 +757,7 @@ instance AbstractCore CExpr CMetaVal CBind CBound ACoreAppLikeMetaBound CBindCat
   acorePatMbChar _                      = Nothing
 
   acoreUnAlt (CAlt_Alt p e)             = (p,e)
-  acoreUnPatFld (CPatFld_Fld l o b)   = ((l,o),b)
+  acoreUnPatFld (CPatFld_Fld l o b _)   = ((l,o),b)
   acoreUnBind (CBind_Bind n as)         = (n,as)
 
   acoreBoundMbVal (CBound_Val a m l e)  = Just ((a,m,l),e)
@@ -730,13 +777,43 @@ instance AbstractCore CExpr CMetaVal CBind CBound ACoreAppLikeMetaBound CBindCat
 %%% Instances: Binary, Serialize, ForceEval
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(50 codegen) hs
+%%[(50 core) hs
 instance Serialize CModule where
-  sput (CModule_Mod   a b c   ) = sputWord8 0 >> sput a >> sput b >> sput c
+  sput (CModule_Mod   a b c d e) = {- sputWord8 0 >> -} sput a >> sput b >> sput c >> sput d >> sput e
+  sget
+    = do {- t <- sgetWord8
+         case t of
+            0 -> -} liftM5 CModule_Mod         sget sget sget sget sget
+
+instance Serialize CExport where
+  sput (CExport_Export     a  ) = sputWord8 0 >> sput a
+  sput (CExport_ExportData a b) = sputWord8 1 >> sput a >> sput b
   sget
     = do t <- sgetWord8
          case t of
-            0 -> liftM3 CModule_Mod         sget sget sget
+            0 -> liftM   CExport_Export       sget
+            1 -> liftM2  CExport_ExportData	  sget sget
+
+instance Serialize CImport where
+  sput (CImport_Import a  ) = {- sputWord8 0 >> -} sput a
+  sget
+    = do {- t <- sgetWord8
+         case t of
+            0 -> -} liftM   CImport_Import       sget
+
+instance Serialize CDeclMeta where
+  sput (CDeclMeta_Data   a b) = {- sputWord8 0 >> -} sput a >> sput b
+  sget
+    = do {- t <- sgetWord8
+         case t of
+            0 -> -} liftM2  CDeclMeta_Data         sget sget
+
+instance Serialize CDataCon where
+  sput (CDataCon_Con   a b c) = {- sputWord8 0 >> -} sput a >> sput b >> sput c
+  sget
+    = do {- t <- sgetWord8
+         case t of
+            0 -> -} liftM3  CDataCon_Con         sget sget sget
 
 instance Serialize CExpr where
   sput (CExpr_Let       a b c       ) = sputWord8  0 >> sput a >> sput b >> sput c
@@ -816,15 +893,22 @@ instance Serialize CMetaVal where
             4 -> liftM  CMetaVal_Track              sget
 
 instance Serialize CExprAnn where
-  sput (CExprAnn_Ty    a  ) = sputWord8 0 >> sput a
-  sput (CExprAnn_RelTy t e) = sputWord8 1 >> sput t >> sput e
-  sput (CExprAnn_Debug _  ) = sputWord8 2
+  sput (CExprAnn_Ty    a) = sputWord8 0 >> sput a
+  sput (CExprAnn_Coe   a) = sputWord8 1 >> sput a
+  sput (CExprAnn_Debug _) = sputWord8 2
   sget
     = do t <- sgetWord8
          case t of
-            0 -> liftM  CExprAnn_Ty        sget
-            1 -> liftM2 CExprAnn_RelTy sget sget
+            0 -> liftM  CExprAnn_Ty         sget            
+            1 -> liftM  CExprAnn_Coe        sget            
             2 -> return (CExprAnn_Debug     "")
+
+instance Serialize CBindAnn where
+  sput (CBindAnn_Coe   a) = sputWord8 0 >> sput a
+  sget
+    = do t <- sgetWord8
+         case t of
+            0 -> liftM  CBindAnn_Coe         sget            
 
 instance Serialize CBound where
   sput (CBound_Bind     a b      ) = sputWord8 0 >> sput a >> sput b
@@ -850,18 +934,18 @@ instance Serialize CBound where
             6 -> liftM2 CBound_Ty            sget sget
 
 instance Serialize CBind where
-  sput (CBind_Bind a b      ) = sputWord8 0 >> sput a >> sput b
+  sput (CBind_Bind a b      ) = {- sputWord8 0 >> -} sput a >> sput b
   sget
-    = do t <- sgetWord8
+    = do {- t <- sgetWord8
          case t of
-            0 -> liftM2 CBind_Bind          sget sget
+            0 -> -} liftM2 CBind_Bind          sget sget
 
 instance Serialize CAlt where
-  sput (CAlt_Alt   a b      ) = sputWord8 0 >> sput a >> sput b
+  sput (CAlt_Alt   a b      ) = {- sputWord8 0 >> -} sput a >> sput b
   sget
-    = do t <- sgetWord8
+    = do {- t <- sgetWord8
          case t of
-            0 -> liftM2 CAlt_Alt         sget sget         
+            0 -> -} liftM2 CAlt_Alt         sget sget         
 
 instance Serialize CPat where
   sput (CPat_Var       a        ) = sputWord8 0 >> sput a
@@ -892,11 +976,11 @@ instance Serialize CPatRest where
             1 -> return CPatRest_Empty  
 
 instance Serialize CPatFld where
-  sput (CPatFld_Fld   a b c) = sputWord8 0 >> sput a >> sput b >> sput c
+  sput (CPatFld_Fld   a b c d ) = {- sputWord8 0 >> -} sput a >> sput b >> sput c >> sput d
   sget
-    = do t <- sgetWord8
+    = do {- t <- sgetWord8
          case t of
-            0 -> liftM3 CPatFld_Fld         sget sget sget
+            0 -> -} liftM4 CPatFld_Fld         sget sget sget sget
 
 instance Serialize CBindCateg where
   sput = sputEnum8

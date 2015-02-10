@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -11,7 +11,7 @@
 %%% Let context
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%[(8 core)
 ATTR AllBind [ letBindingsCateg: CBindCateg | | ]
 
 SEM CExpr
@@ -30,7 +30,7 @@ SEM CPatFld
 %%% Is top App? Is top Tup adapt?
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%[(8 core)
 ATTR CExpr CBound [ isTopApp: Bool  isTopTup: Bool | | ]
 
 SEM CExpr
@@ -45,9 +45,6 @@ SEM CExpr
 
   | *           loc         .   isTopApp    :   Bool
 
-SEM MbCExpr
-  | Just        just        .   isTopApp    =   True
-                            .   isTopTup    =   True
 
 SEM CModule
   | Mod         expr        .   isTopApp    =   True
@@ -73,42 +70,59 @@ SEM CAlt
   | Alt         expr        .   isTopApp    =   True
                             .   isTopTup    =   True
 %%]
+SEM MbCExpr
+  | Just        just        .   isTopApp    =   True
+                            .   isTopTup    =   True
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Various contextual info, this should replace the above over time
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen)
+%%[(8 core)
 ATTR CExpr [ | | whatBelow: WhatExpr ]
 
 SEM CExpr
-  | Lam         loc         .   whatBelow       =   ExprIsLam
+  | Lam         loc         .   whatBelow       =   maybe (ExprIsLam 1 Nothing) (\a -> ExprIsLam (a + 1) Nothing) $ whatExprMbLam @body.whatBelow
   | Var         loc         .   whatBelow       =   ExprIsVar @nm
   | Int         loc         .   whatBelow       =   ExprIsInt @int
-  | App         loc         .   whatBelow       =   maybe (ExprIsApp 1) (\a -> ExprIsApp $ a + 1) $ whatExprMbApp @func.whatBelow
-  | * - Lam App Var Int Ann CaseAltFail
+  | App         loc         .   whatBelow       =   maybe (ExprIsApp 1 @func.whatBelow) (\(a,w) -> ExprIsApp (a + 1) w) $ whatExprMbApp @func.whatBelow
+  | Tup			loc			.	whatBelow       =   ExprIsTup @tag
+  | FFI			loc			.	whatBelow       =   ExprIsFFI
+  |	String Char
+%%[[97
+    Integer
+%%]]
+           		loc			.	whatBelow		=	ExprIsOtherWHNF
+  | * - Lam App Var Int Tup FFI
+        String Char
+%%[[97
+        Integer
+%%]]
+        Ann CaseAltFail
                 loc         .   whatBelow       =   ExprIsOther
-
-SEM CExpr
-  | App         loc         .   isTopApp'       =   isNothing $ whatExprMbApp @lhs.whatAbove
 %%]
 
-%%[(8 codegen)
+%%[(8 core)
 ATTR CExpr [ whatAbove: WhatExpr | | ]
 
 SEM CExpr
-  | Lam         loc         .   whatAbove       =   ExprIsLam
-  | App         loc         .   whatAbove       =   maybe (ExprIsApp 1) (\a -> ExprIsApp $ a + 1) $ whatExprMbApp @lhs.whatAbove
+  | Lam         loc         .   whatAbove       =   case @lhs.whatAbove of
+                                                        ExprIsLam a mbnm    -> ExprIsLam (a + 1) mbnm
+                                                        ExprIsBind nm       -> ExprIsLam 1       (Just nm)
+                                                        _                   -> ExprIsLam 1       Nothing
+  | App         loc         .   whatAbove       =   maybe (ExprIsApp 1 ExprIsOther) (\(a,w) -> ExprIsApp (a + 1) w) $ whatExprMbApp @lhs.whatAbove
   | * - Lam App Ann
                 loc         .   whatAbove       =   ExprIsOther
 
 SEM CExpr
-  | Let         loc         .   isTopLet        =   @lhs.whatAbove == ExprIsBind
+  | Let         loc         .   isTopLet        =   whatExprIsBind @lhs.whatAbove
+  | Lam         loc         .   isTopLam        =   not $ whatExprIsLam @lhs.whatAbove
+  | App         loc         .   isTopApp'       =   isNothing $ whatExprMbApp @lhs.whatAbove
 
 SEM CBound
-  | Bind Val    loc         .   whatAbove       =   ExprIsBind
+  | Bind Val    loc         .   whatAbove       =   ExprIsBind @lhs.nm
 %%[[90
-  | FFE         loc         .   whatAbove       =   ExprIsLam		-- the construction of a lambda is special for backend, to assume we are already in a lam
+  | FFE         loc         .   whatAbove       =   ExprIsLam 0	Nothing	-- the construction of a lambda is special for backend, to assume we are already in a lam, arity==0 indicating we do not know arity
 %%]]
 
 SEM CPatFld
@@ -120,40 +134,27 @@ SEM CAlt
 SEM CModule
   | Mod         loc         .   whatAbove       =   ExprIsOther
 
-SEM MbCExpr
-  | Just        loc         .   whatAbove       =   ExprIsOther
 
 SEM *
   | *           loc         .   whatAbove       :   WhatExpr
 %%]
+SEM MbCExpr
+  | Just        loc         .   whatAbove       =   ExprIsOther
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Context: strict yes/no, rhs of lam yes/no
+%%% Context: rhs of lam yes/no
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen grin)
-ATTR AllExprOnly AllAlt AllBind [ isStrict, isLamBody: Bool | | ]
+%%[(8 core grin)
+ATTR AllExprOnly AllAlt AllBind [ isLamBody: Bool | | ]
 
 SEM CModule
-  | Mod         expr        .   isStrict    =   True
-                            .   isLamBody   =   False
-
-SEM CBound
-  | Bind Val
-%%[[90
-    FFE
-%%]]
-                expr        .   isStrict    =   @lhs.isStrict || @expr.whatBelow == ExprIsLam
+  | Mod         expr        .   isLamBody   =   False
 
 SEM CPatFld
-  | Fld         offset      .   isStrict    =   True
-                            .   isLamBody   =   False
-                bind		.   isStrict    =   False
-                            .   isLamBody   =   False
-
-SEM CExpr
-  | Let         binds       .   isStrict    =   @isGlobal || @categ == CBindCateg_Strict
+  | Fld         offset      .   isLamBody   =   False
+                bind		.   isLamBody   =   False
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -162,7 +163,7 @@ SEM CExpr
 
 not used yet as it seems not to be equivalent to isStrict. Can't find out why...
 
-%%[(8 codegen)
+%%[(8 core)
 ATTR AllExprOnly AllAlt AllBind [ evalCtx: EvalCtx | | ]
 
 SEM CModule
@@ -172,15 +173,26 @@ SEM CPatFld
   | Fld         offset      .   evalCtx         =   EvalCtx_Eval
   				bind		.	evalCtx			=	EvalCtx_None
 
-
 SEM CExpr
   | Let         loc         .   evalCtx         =   if @categ == CBindCateg_Strict
                                                     then EvalCtx_Eval
-                                                    else EvalCtx_None
+                                                    -- else if @isGlobal
+                                                    -- then EvalCtx_Thunk
+                                                    -- else EvalCtx_None
+                                                    else EvalCtx_Thunk
+  | App         arg         .   evalCtx         =   EvalCtx_Thunk
+{-
+SEM CBind
+  | Bind Val	loc			.	evalCtx			=	case @lhs.evalCtx of
+  														EvalCtx_Eval -> EvalCtx_Eval
+  														EvalCtx_Thunk
+  														  | whatExprIsLam @expr.whatBelow
+  														      -> EvalCtx_PApp0
+-}
 %%]
 
 SEM CBound
   | Bind Val FFE
-                expr        .   evalCtx         =   if @expr.whatBelow == ExprIsLam
+                expr        .   evalCtx         =   if whatExprIsLam @expr.whatBelow
                                                     then EvalCtx_Eval
                                                     else @lhs.evalCtx

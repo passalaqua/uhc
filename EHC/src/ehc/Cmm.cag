@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -11,15 +11,19 @@ C subset, modelled after C--
 %%% Haskell importable interface to Cmm
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen cmm) hs module {%{EH}Cmm} import({%{EH}Base.Common} hiding (Range))
+%%[(8 codegen cmm) hs module {%{EH}Cmm} import({%{EH}Base.Common} hiding (Range), {%{EH}Base.HsName.Builtin})
 %%]
 
 %%[(8 codegen cmm) hs import(UHC.Util.Utils)
 %%]
 
-%%[(8 codegen cmm) hs import(qualified Data.Map as Map)
+%%[(8 codegen cmm) hs import(qualified Data.Map as Map, Data.Maybe, qualified UHC.Util.FastSeq as Seq)
 %%]
 %%[(8 codegen cmm) hs import(qualified {%{EH}Config} as Cfg)
+%%]
+%%[(8 codegen cmm) hs import({%{EH}CodeGen.Const}(ConstSt, emptyConstSt)) export(ConstSt)
+%%]
+%%[(8 codegen cmm) hs import({%{EH}Gam.DataGam})
 %%]
 
 %%[(8 codegen cmm) hs export(AGItf(..))
@@ -34,16 +38,24 @@ C subset, modelled after C--
 %%]
 %%[(8 codegen cmm) hs export(RetCont(..), MbRetCont, KindName(..), KindNameL, Arm(..), ArmL, Range(..), RangeL, LValue(..), LValueL)
 %%]
-%%[(8 codegen cmm) hs export(Flow(..), FlowL, Also(..), AlsoL, Alias(..), FlowAlias(..), FlowAliasL, Targets(..), Expr(..), ExprL, MbExpr, Ty(..), MbTy, Bits(..), GC(..), MbGC)
+%%[(8 codegen cmm) hs export(Flow(..), FlowL, Also(..), AlsoL, Alias(..), FlowAlias(..), FlowAliasL, Targets(..), FldExpr(..), FldExprL, CallExpr(..), Expr(..), ExprL, MbExpr, Ty(..), MbTy, Bits(..), GC(..), MbGC)
 %%]
-%%[(8 codegen cmm) hs export(String16(..), Assert(..), MbAssert, Op(..), Round(..), Lit(..))
+%%[(8 codegen cmm) hs export(String16(..), Assert(..), MbAssert, Op(..), OpCode(..), Round(..), Lit(..), Tag(..))
 %%]
 %%[(8 codegen cmm) hs export(StructFld(..), StructFldL)
 %%]
 
-%%[(50 codegen cmm) hs import(Control.Monad hiding(join), UHC.Util.Serialize, UHC.Util.Control.Monad(liftM6))
+%%[(50 codegen cmm) hs import(Control.Monad, UHC.Util.Serialize, UHC.Util.Control.Monad(liftM6))
 %%]
 %%[(50 codegen cmm) hs import(Data.Typeable(Typeable), Data.Generics(Data))
+%%]
+
+%%[(8 codegen cmm) hs import({%{EH}Foreign.Boxing}) export(module {%{EH}Foreign.Boxing})
+%%]
+
+%%[(8 codegen cmm) hs import({%{EH}CodeGen.RefGenerator}, {%{EH}CodeGen.CVar})
+%%]
+%%[(8888 codegen cmm) hs import({%{EH}CodeGen.ValAccess} as VA (Fld(..)))
 %%]
 
 %%[(8 codegen cmm) ag import({Cmm/AbsSyn})
@@ -60,6 +72,11 @@ DERIVING *
   : Eq, Ord
 %%]
 
+%%[(8 codegen cmm) ag
+DERIVING AllTy Tag
+  : Eq, Ord
+%%]
+
 -- debug only
 %%[(8888 codegen cmm) hs import({%{EH}Base.Debug},UHC.Util.Pretty)
 %%]
@@ -69,8 +86,96 @@ DERIVING *
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen cmm) hs export(Nm,NmL)
+-- | Name
 type Nm = HsName
 type NmL = [Nm]
+%%]
+
+%%[(8 codegen cmm) hs export(ConstKind(..))
+-- | Kind of const decls
+data ConstKind
+  = Const_CompileTime		-- ^ constant at compile time, ie also in the bound expr
+  | Const_SSA				-- ^ constant after init, not necessarily also in the bound expr
+  deriving Eq
+
+instance Show ConstKind where
+  show Const_CompileTime 	= "const"
+  show Const_SSA			= "ssa"
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% CVar instantiation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen cmm) hs export(CVarInfo, CVarMp)
+type CVarInfo = CVarInfo' Tag Ty Fld Nm Int
+type CVarMp   = CVarMp'   Tag Ty Fld Nm Int
+%%]
+
+%%[(8 codegen cmm) hs export(cvarToHsName)
+cvarToHsName :: CVarInfo -> HsName
+cvarToHsName 
+  = cvarToDef
+      ( \r -> mkHNm $ "cvarToDefHsName.mkErrorRef: " ++ show r
+      , \_ -> mkHNm
+      , \_ -> mkHNm
+      , \_ -> hsnSetQual
+      , \_ -> maybe id hsnSetQual
+      , \_ d _ f -> hsnSetQual d f -- mkHNm "cvarToHsName.mkDataFld"
+      , \_ _ -> mkHNm "cvarToHsName.mkDataTag"
+      , \_ _ -> mkHNm "cvarToHsName.mkTupFld"
+      , \_ -> mkHNm "cvarToHsName.mkOffset"
+      , \_ _ -> panic "cvarToHsName.mkTag"
+      , \_ _ r -> r
+      ) emptyCVarNmModuleCfg Map.empty
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Cmm types (only temporary place holders)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen cmm) hs export(tyNd, tyFn, tyStr8, tyInt, tyNone)
+mkTy :: String -> Ty
+mkTy = Ty_Nm . mkHNm
+
+tyNd :: Ty
+tyNd = mkTy "Nd"
+
+tyNone :: Ty
+tyNone = Ty_None
+
+tyFn :: Ty
+tyFn = mkTy "Fn"
+
+tyStr8 :: Ty
+tyStr8 = mkTy "Str8"
+
+tyInt :: Ty
+tyInt = Ty_Bits Bits_Word
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Constructing: CVar
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen cmm) hs export(cvargext,cvarloc, cvararg', cvararg)
+-- | basic construction: global external reference
+cvargext :: Ty -> Nm -> CVarInfo
+cvargext ty nm = CVar_GlobalExtern ty (fromMaybe hsnEmpty $ hsnQualifier nm) (hsnQualified nm)
+
+-- | basic construction: local reference
+cvarloc :: Ty -> Nm -> CVarInfo
+cvarloc ty nm = cvarLoc ty (mkFldNm nm)
+
+-- | basic construction: arg reference
+cvararg' :: Ty -> Fld -> CVarInfo
+cvararg' ty nm = cvarArg ty nm
+{-# INLINE cvararg' #-}
+
+-- | basic construction: arg reference
+cvararg :: Ty -> Nm -> CVarInfo
+cvararg ty nm = cvararg' ty (mkFldNm nm)
+
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -84,19 +189,36 @@ cmt = Decl_Comment
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Tag info
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen cmm) hs
+instance TagLike Tag where
+  tagIsTup  		t	= case t of {Tag_Tup     -> True  ; _ -> False}
+  tagMbDataInfo		t 	= case t of {Tag_Con _ i -> Just i; _ -> Nothing}
+  tagDataTag 		t	= case t of {Tag_Con t _ -> t}
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Constructing: module, toplevel
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen cmm) hs export(imp)
+%%[(8 codegen cmm) hs export(imp,impcvars)
 -- | Import
-imp :: NmL -> Decl
-imp ns = Decl_Import (map Import_Imp ns)
+imp :: Maybe Nm -> AssocL Nm Ty -> Decl
+imp mod ns = Decl_Import mod [ Import_Imp (Just t) Nothing n | (n,t) <- ns ]
+
+-- | Import external CVar_GlobalExtern, rest is ignored
+impcvars :: [CVarInfo] -> TopLevelL
+impcvars ns
+  = [ TopLevel_Decl $ imp (Just mod) [(cvarFldNm i, cvarType i) | i <- is] | (is@(CVar_GlobalExtern {cvarModNm=mod} :_)) <- exts ]
+  where exts = groupOn cvarModNm $ filter cvarIsGlobExt ns
 %%]
 
 %%[(8 codegen cmm) hs export(arr)
 -- | Array decl
 arr :: Ty -> Nm -> ExprL -> Decl
-arr t n es = Decl_ConstArray t n es
+arr t n es = Decl_ConstArray (Just t) n es
 %%]
 
 %%[(8 codegen cmm) hs export(top,topDecl,topProc)
@@ -111,6 +233,125 @@ topDecl = top TopLevel_Decl
 -- | lift procedures to top level
 topProc :: [Proc] -> TopLevelL
 topProc = top TopLevel_Proc
+%%]
+
+%%[(8 codegen cmm) hs export(emptyModule)
+emptyModule :: Module
+emptyModule = Module_Mod hsnUnknown [] Nothing emptyConstSt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Constructing: stmt
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen cmm) hs export(declLocalStackVar, declLocalRegVar, declLocalConst)
+-- | Declare & assign stack variable
+declLocalStackVar :: Ty -> Nm -> Maybe Expr -> Seq.Seq BodyDecl
+declLocalStackVar t nm me = Seq.fromList [BodyDecl_StackDecl [Datum_Nm nm, Datum_Ty t Nothing (fmap (\e -> Init_Seq [e]) me)]]
+
+-- | Declare & assign (register) variable
+declLocalRegVar :: Ty -> CVarInfo -> Maybe Expr -> Seq.Seq BodyDecl
+declLocalRegVar t nm me
+  = Seq.fromList [BodyDecl_Decl $ Decl_Regs False $ Regs_Regs Nothing t [RegNmInit_NmInit nm Nothing]]
+    `Seq.union` maybe Seq.empty (\e -> assign nm e) me
+
+-- | Locally declare & assign constant (or variation)
+declLocalConst :: ConstKind -> Ty -> CVarInfo -> Expr -> Seq.Seq BodyDecl
+declLocalConst k t nm e = Seq.fromList $
+     [BodyDecl_Decl $ Decl_Const k (Just t) nm e]
+%%]
+
+%%[(8 codegen cmm) hs export(declGlobalConst)
+-- | Globally declare & assign constant (or variation)
+declGlobalConst :: ConstKind -> Ty -> CVarInfo -> Expr -> Seq.Seq TopLevel
+declGlobalConst k t nm e = Seq.fromList $
+     [TopLevel_Decl $ Decl_Const k (Just t) nm e]
+%%]
+
+%%[(8 codegen cmm) hs export(call, ret)
+-- | Call (& assign)
+call :: Maybe Conv -> Maybe Nm -> CallExpr -> [Expr] -> Seq.Seq BodyDecl
+call mbconv mbnm f as = Seq.fromList [BodyDecl_Stmt $ Stmt_Call (maybe [] (\n -> [KindName_KindName Nothing n]) mbnm) mbconv f [Actual_Actual Nothing a | a <- as] (Targets_Targets []) []]
+
+-- | Return
+ret :: Maybe Expr -> Seq.Seq BodyDecl
+ret me = Seq.fromList [BodyDecl_Stmt $ Stmt_Ret Nothing Nothing $ maybe [] (\e -> [Actual_Actual Nothing e]) me]
+%%]
+
+%%[(8 codegen cmm) hs export(assign)
+-- | Assign
+assign :: CVarInfo -> Expr -> Seq.Seq BodyDecl
+assign cvi e = Seq.fromList [BodyDecl_Stmt $ Stmt_Assign [LValue_Nm cvi] [e]]
+
+-- | Assign
+assign' :: Nm -> Expr -> Seq.Seq BodyDecl
+assign' n e = assign (cvarLoc tyNd $ mkFldNm n) e
+%%]
+
+%%[(8 codegen cmm) hs export(switch)
+switch :: Expr -> [Arm] -> Seq.Seq BodyDecl
+switch e as = Seq.fromList [BodyDecl_Stmt $ Stmt_Switch e as]
+%%]
+
+%%[(8 codegen cmm) hs export(alloc, box, unbox)
+-- | Alloc
+alloc :: DataGam -> CVarInfo -> Tag -> [Expr] -> Seq.Seq BodyDecl
+alloc dataGam nm tag as = Seq.fromList [BodyDecl_Stmt $ Stmt_Alloc nm tag (zip (flds ++ (assocLElts $ refGen (length flds) 1 hsnLclSupply)) as)]
+  where flds  = maybe [] (\(_,dti) -> dtiFldRefL dti) $ dataGamTagLookup tag dataGam
+
+-- | Boxing
+box :: CVarInfo -> Boxing -> Expr -> Seq.Seq BodyDecl
+box nm bx e = Seq.fromList [BodyDecl_Stmt $ Stmt_Box nm bx e]
+
+-- | UnBoxing
+unbox :: CVarInfo -> Boxing -> Expr -> Seq.Seq BodyDecl
+unbox nm bx e = Seq.fromList [BodyDecl_Stmt $ Stmt_UnBox nm bx e]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Constructing: expr
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen cmm) hs export(var, ffivar)
+-- | Var ref
+var :: Nm -> Expr
+var = Expr_Nm
+{-# INLINE var #-}
+
+-- | Foreign var ref
+ffivar :: String -> Expr
+ffivar = Expr_NmForeign
+{-# INLINE ffivar #-}
+%%]
+
+%%[(8 codegen cmm) hs export(cvar)
+-- | Var ref
+cvar :: CVarInfo -> Expr
+cvar = Expr_CVar
+{-# INLINE cvar #-}
+%%]
+
+%%[(8 codegen cmm) hs export(undef)
+-- | Undefined
+undef :: Expr
+undef = var hsnUnknown
+{-# INLINE undef #-}
+%%]
+
+%%[(8 codegen cmm) hs export(str8)
+-- | String literal
+str8 :: String -> Expr
+str8 = flip Expr_Str (Just tyStr8)
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Constructing: debug aids
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen cmm) hs export(err)
+-- | Error
+err ::String -> Expr
+err = Expr_Err
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -188,64 +429,4 @@ ty2TargetTy env ty
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(5050 codegen cmm) hs
-instance Serialize RQuant where
-  sput = sputEnum8
-  sget = sgetEnum8
-
-instance Serialize RelevQual where
-  sput (RelevQual_SubEval a b        ) = sputWord8 0 >> sput a >> sput b
-  -- sput (RelevQual_Alt     a b c d e f) = sputWord8 1 >> sput a >> sput b >> sput c >> sput d >> sput e >> sput f
-  sget
-    = do t <- sgetWord8
-         case t of
-            0 -> liftM2 RelevQual_SubEval         sget sget
-            -- 1 -> liftM6 RelevQual_Alt             sget sget sget sget sget sget
-
-instance Serialize RelevTy where
-  sput (RelevTy_Ana   a        ) = sputWord8 0 >> sput a
-  sput (RelevTy_Fun   a b c d e) = sputWord8 1 >> sput a >> sput b >> sput c >> sput d >> sput e
-  sput (RelevTy_None           ) = sputWord8 2
-  sput (RelevTy_Err   a        ) = sputWord8 3 >> sput a
-  sget
-    = do t <- sgetWord8
-         case t of
-            0 -> liftM  RelevTy_Ana         sget
-            1 -> liftM5 RelevTy_Fun         sget sget sget sget sget
-            2 -> return RelevTy_None
-            3 -> liftM  RelevTy_Err         sget
-
-instance Serialize RelevCoe where
-  sput (RelevCoe_Id             ) = sputWord8 0
-  sput (RelevCoe_Err     a      ) = sputWord8 1 >> sput a
-  sput (RelevCoe_Comp    a b    ) = sputWord8 2 >> sput a >> sput b
-  sput (RelevCoe_Fun     a b    ) = sputWord8 3 >> sput a >> sput b
-  sput (RelevCoe_Cast    a      ) = sputWord8 4 >> sput a
-  sput (RelevCoe_Eval    a b    ) = sputWord8 5 >> sput a >> sput b
-  sput (RelevCoe_CastTy  a b    ) = sputWord8 6 >> sput a >> sput b
-  sget
-    = do t <- sgetWord8
-         case t of
-            0 -> return RelevCoe_Id
-            1 -> liftM  RelevCoe_Err         sget
-            2 -> liftM2 RelevCoe_Comp        sget sget
-            3 -> liftM2 RelevCoe_Fun         sget sget
-            4 -> liftM  RelevCoe_Cast        sget
-            5 -> liftM2 RelevCoe_Eval        sget sget
-            6 -> liftM2 RelevCoe_CastTy      sget sget
-
-instance Serialize AnaEval where
-  sput (AnaEval_Var   a      ) = sputWord8 0 >> sput a
-  sput (AnaEval_WHNF         ) = sputWord8 1
-  sput (AnaEval_Lazy         ) = sputWord8 2
-  sput (AnaEval_Meet  a      ) = sputWord8 3 >> sput a
-  sput (AnaEval_Join  a      ) = sputWord8 4 >> sput a
-  sget
-    = do t <- sgetWord8
-         case t of
-            0 -> liftM  AnaEval_Var         sget
-            1 -> return AnaEval_WHNF         
-            2 -> return AnaEval_Lazy         
-            3 -> liftM  AnaEval_Meet        sget
-            4 -> liftM  AnaEval_Join        sget
-
 %%]

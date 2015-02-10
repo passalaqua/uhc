@@ -1,3 +1,7 @@
+%%[0 hs
+{-# LANGUAGE CPP #-}
+%%]
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TreeTrie, variation which allows matching on subtrees marked as a variable (kind of unification)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -38,7 +42,7 @@ candidates is returned.
 %%[9 import(UHC.Util.Pretty hiding (empty), qualified UHC.Util.Pretty as PP)
 %%]
 
-%%[50 import(Data.Typeable(Typeable,Typeable1), Data.Generics(Data))
+%%[50 import(Data.Typeable, Data.Generics(Data))
 %%]
 %%[50 hs import(Control.Monad)
 %%]
@@ -85,8 +89,13 @@ mkTreeTrieKeys = Prelude.map (\k -> TTK (TT1K_One k) [])
 %%]
 
 %%[50
+#if __GLASGOW_HASKELL__ >= 708
+deriving instance Typeable  TreeTrie1Key
+deriving instance Typeable  TreeTrieMp1Key
+#else
 deriving instance Typeable1 TreeTrie1Key
 deriving instance Typeable1 TreeTrieMp1Key
+#endif
 deriving instance Data x => Data (TreeTrie1Key x) 
 deriving instance Data x => Data (TreeTrieMp1Key x) 
 %%]
@@ -254,7 +263,7 @@ ppTreeTrieAsIs t
     >-< "P:" >#< (ppSub $ ttriePartSubs t)
     >-< "N:" >#< (ppSub $ ttrieSubs t)
   where ppKV (k,v) = k >-< indent 2 (":" >#< ppTreeTrieAsIs v)
-        ppSub = ppBracketsCommasV . map ppKV . Map.toList
+        ppSub = ppBracketsCommasBlock . map ppKV . Map.toList
 %%]
 
 %%[9
@@ -262,7 +271,7 @@ instance (Show k, Show v) => Show (TreeTrie k v) where
   showsPrec _ t = showList $ toListByKey t
 
 instance (PP k, PP v) => PP (TreeTrie k v) where
-  pp t = ppBracketsCommasV $ map (\(a,b) -> ppTreeTrieKey a >#< ":" >#< b) $ toListByKey t
+  pp t = ppBracketsCommasBlock $ map (\(a,b) -> ppTreeTrieKey a >#< ":" >#< b) $ toListByKey t
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

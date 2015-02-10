@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -10,7 +10,7 @@
 %%[1 module {%{EH}Gam} import({%{EH}Gam.Base}) export(module {%{EH}Gam.Base})
 %%]
 
-%%[1 module {%{EH}Gam} import(Data.List,UHC.Util.Utils,{%{EH}Base.Builtin},{%{EH}Base.Common},{%{EH}NameAspect})
+%%[1 module {%{EH}Gam} import(Data.List,UHC.Util.Utils,{%{EH}Base.HsName.Builtin},{%{EH}Base.Common},{%{EH}NameAspect})
 %%]
 
 %%[(1 hmtyinfer || hmtyast).Ty import({%{EH}Ty})
@@ -141,7 +141,7 @@ type ErrGam = Gam HsName ErrL
 %%% "XX of sort" gam
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[8 export(SoGam, SoGamInfo(..))
+%%[(8 hmtyinfer) export(SoGam, SoGamInfo(..))
 data SoGamInfo
   = SoGamInfo
       { sgiSo :: Ty }
@@ -271,7 +271,7 @@ instance (Ord k, PP k, PP v) => PP (SGam k v) where
 %%% Init of soGam, only used by TyCore
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[8 export(initSoGam)
+%%[(8 hmtyinfer) export(initSoGam)
 initSoGam :: SoGam
 initSoGam
   = assocLToGam

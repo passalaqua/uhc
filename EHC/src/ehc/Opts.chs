@@ -1,5 +1,5 @@
 
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -29,7 +29,7 @@
 %%[7 import(qualified Data.Set as Set)
 %%]
 
-%%[8 import(Data.List,{%{EH}Base.Builtin})
+%%[8 import(Data.List,{%{EH}Base.HsName.Builtin})
 %%]
 
 %%[8 import(UHC.Util.FPath)
@@ -84,7 +84,7 @@ ehcOptUpdateWithPragmas pragmas opts
               Pragma_ExtensibleRecords  	-> Just $ opts { ehcOptExtensibleRecords    = True  }
               Pragma_Fusion             	-> Just $ opts { ehcOptFusion               = True  }
               Pragma_OptionsUHC o       	-> fmap (\o -> o {ehcOptCmdLineOptsDoneViaPragma = True}) mo
-                                        	where (mo,_,_) = ehcCmdLineOptsApply (words o) opts
+                                        	where (mo,_,_) = ehcCmdLineOptsApply [] (words o) opts
               _                         	-> Nothing
 %%]
 
@@ -104,29 +104,43 @@ mkFileLocPath = map mkDirFileLoc . mkStringPath
 %%% Option specific options
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[1 export(optOptsIsYes)
+%%[1 export(optOptsIsYes, showStr2stMp)
 optOpts :: Map.Map String opt -> String -> [opt]
 optOpts m s = catMaybes $ map (\os -> Map.lookup os m) $ wordsBy (==',') s
 
 optOptsIsYes :: Eq opt => Maybe [opt] -> opt -> Bool
 optOptsIsYes mos o = maybe False (o `elem`) mos
 
-optMp :: (Show opt, Enum opt, Bounded opt) => Map.Map String opt
-optMp = Map.fromList [ (show o, o) | o <- [minBound .. maxBound] ]
 %%]
 
 %%[(8 codegen)
 instance Show CoreOpt where
-  show CoreOpt_PPParseable      = "pp-parseable"
-%%[[(8 coresysf)
-  show CoreOpt_SysF             = "sysf"
-  show CoreOpt_SysFCheck        = "check"
-  show CoreOpt_SysFCheckOnlyVal = "checkonlyval"
-  show CoreOpt_SysFOnlyHi       = "onlyhi"
+%%[[(8 coreout)
+  -- show CoreOpt_PPParseable      = "pp-parseable"
+  show CoreOpt_Dump             	= "dump"
+%%[[50
+  show CoreOpt_DumpBinary	      	= "dump-binary"
 %%]]
+  show CoreOpt_DumpAlsoNonParseable	= "whendump-alsononparseable"
+%%]]
+%%[[(8 corerun)
+  show CoreOpt_Run            	    = "run"
+  show CoreOpt_RunDump            	= "dump-run"
+  show CoreOpt_RunTrace            	= "run-trace"
+  show CoreOpt_RunTraceExtensive	= "run-trace-extensive"
+  show CoreOpt_RunPPNames           = "run-ppnames"
+  show CoreOpt_RunPPVerbose         = "run-ppverbose"
+%%]]
+%%[[(8 coresysf)
+  show CoreOpt_SysF             	= "sysf"
+  show CoreOpt_SysFCheck        	= "check"
+  show CoreOpt_SysFCheckOnlyVal 	= "checkonlyval"
+  show CoreOpt_SysFOnlyHi       	= "onlyhi"
+%%]]
+  show _      						= "-"
 
 coreOptMp :: Map.Map String CoreOpt
-coreOptMp = optMp
+coreOptMp = str2stMpWithOmit [CoreOpt_NONE]
 %%]
 
 %%[(8 codegen tycore)
@@ -146,6 +160,22 @@ tycoreOptMp
       ]
 %%]
 
+%%[(8 codegen cmm)
+instance Show CmmOpt where
+  show CmmOpt_Check        = "check"
+
+cmmOpts :: [CmmOpt]
+cmmOpts = [CmmOpt_Check]
+
+cmmOptMp :: Map.Map String CmmOpt
+cmmOptMp = str2stMp
+%%]
+
+%%[(8 codegen javascript)
+javaScriptOptMp :: Map.Map String JavaScriptOpt
+javaScriptOptMp = str2stMp
+%%]
+
 %%[99
 instance Show PgmExec where
   show PgmExec_CPP      = "P"
@@ -153,7 +183,7 @@ instance Show PgmExec where
   show PgmExec_Linker	= "l"
 
 pgmExecMp :: Map.Map String PgmExec
-pgmExecMp = optMp
+pgmExecMp = str2stMp
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -166,7 +196,7 @@ Some are there for (temporary) backwards compatibility.
 -- do something with whole program
 ehcOptWholeProgOptimizationScope :: EHCOpts -> Bool
 ehcOptWholeProgOptimizationScope opts
-  = ehcOptOptimizationScope opts >= OptimizationScope_WholeGrin
+  = ehcOptOptimizationScope opts > OptimizationScope_PerModule
 %%]
 
 %%[(50 codegen) export(ehcOptEarlyModMerge)
@@ -176,13 +206,17 @@ ehcOptEarlyModMerge opts
   = ehcOptOptimizationScope opts >= OptimizationScope_WholeCore
 %%]
 
-%%[(8 codegen grin) export(ehcOptWholeProgHPTAnalysis)
+%%[8 export(ehcOptWholeProgHPTAnalysis)
 -- do whole program analysis, with HPT
 ehcOptWholeProgHPTAnalysis :: EHCOpts -> Bool
 ehcOptWholeProgHPTAnalysis opts
+%%[[(8 codegen grin)
   =  targetDoesHPTAnalysis (ehcOptTarget opts)
 %%[[50
   || ehcOptWholeProgOptimizationScope opts
+%%]]
+%%][8
+  = False
 %%]]
 %%]
 
@@ -249,6 +283,7 @@ ehcOptOptimizes o opts = o `Set.member` ehcOptOptimizations opts
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[1.defaultEHCOpts export(defaultEHCOpts)
+-- | The default EHC options.
 defaultEHCOpts
   = emptyEHCOpts
 %%[[99
@@ -260,13 +295,22 @@ defaultEHCOpts
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% Options as passed on the command line
+%%% Options as passed on the command line for EHC
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[1 export(ehcCmdLineOpts)
-ehcCmdLineOpts
-  =  [  Option "h"  ["help"]                (NoArg oHelp)                           "print this help (then stop)"
-     ,  Option ""   ["version"]             (NoArg oVersion)                        "print version info (then stop)"
+-- | Commandline opts for ehc/uhc (EHC)
+ehcCmdLineOpts :: GetOptCmdLineOpts
+ehcCmdLineOpts = sharedCmdLineOpts ++
+     [
+%%[[1
+        Option "t"  ["target"]              (OptArg oTarget "")                     "code generation not available"
+%%][(8 codegen)
+        Option "t"  ["target"]              (ReqArg oTarget (showSupportedTargets'  "|"))
+                                                                                    ("generate code for target, default=" ++ show defaultTarget)
+     ,  Option ""   ["target-flavor"]       (ReqArg oTargetFlavor (showAllTargetFlavors' "|"))
+                                                                                    ("generate code for target flavor, default=" ++ show defaultTargetFlavor)
+%%]]
 %%[[99
      ,  Option ""   ["version-dotted"]      (NoArg oNumVersion)                     ("print version in \"x.y.z\" style (then stop)")
      ,  Option ""   ["version-asnumber"]    (NoArg oVersionAsNumber)                ("print version in \"xyz\" style (then stop)")
@@ -280,14 +324,6 @@ ehcCmdLineOpts
                                                                                     ++ "default=1"
 %%]]
                                                                                     )
-%%]]
-%%[[1
-     ,  Option "t"  ["target"]              (OptArg oTarget "")                     "code generation not available"
-%%][(8 codegen)
-     ,  Option "t"  ["target"]              (ReqArg oTarget (showSupportedTargets'  "|"))
-                                                                                    ("generate code for target, default=" ++ show defaultTarget)
-     ,  Option ""   ["target-flavor"]       (ReqArg oTargetFlavor (showAllTargetFlavors' "|"))
-                                                                                    ("generate code for target flavor, default=" ++ show defaultTargetFlavor)
 %%]]
 %%[[1
      ,  Option "p"  ["pretty"]              (OptArg oPretty "hs|eh|ast|-")          "show pretty printed source or EH abstract syntax tree, default=eh, -=off, (downstream only)"
@@ -319,23 +355,47 @@ ehcCmdLineOpts
 %%]]
 %%[[(8 codegen)
      ,  Option "O"  ["optimise"]            (OptArg oOptimization ("0|1|2|3|<opt>[=" ++ boolArgStr ++ "]"))
-                                                                                    "optimise with level or specific by name, default=1"
+                                                                                    ("optimise with level or specific <opt> by optim name: "
+                                                                                     ++ showStr2stMp allOptimizeMp
+                                                                                     ++ ", or by scope name: "
+                                                                                     ++ showStr2stMp allOptimScopeMp
+                                                                                     ++ ", default=1")
 %%]]
 %%[[(8 codegen)
      ,  Option ""   ["code"]                (OptArg oCode "hs|eh|exe[c]|lexe[c]|bexe[c]|-")
                                                                                     "write code to file, default=bexe (will be obsolete and/or changed, use --target)"
-     ,  Option ""   ["dump-core-stages"]    (boolArg optDumpCoreStages)             "dump intermediate Core transformation stages (no)"
 %%][100
 %%]]
 %%[[(8 codegen grin)
      ,  Option ""   ["time-compilation"]    (NoArg oTimeCompile)                    "show grin compiler CPU usage for each compilation phase (only with -v2)"
-     ,  Option ""   ["gen-casedefault"]     (boolArg optSetGenCaseDefault)          "trap wrong casedistinction in C (no)"
-     ,  Option ""   ["gen-cmt"]             (boolArg optSetGenCmt)                  "include comment about code in generated code"
-     ,  Option ""   ["gen-debug"]           (boolArg optSetGenDebug)                "include debug info in generated code (yes)"
-     ,  Option ""   ["gen-trace"]           (boolArg optSetGenTrace)                "trace functioncalls in C (no)"
-     ,  Option ""   ["gen-trace-assign"]    (boolArg optSetGenTrace2)               "trace assignments in C (no)"
-     ,  Option ""   ["gen-rtsinfo"]         (ReqArg oRTSInfo "<nr>")                "flags for rts info dumping (default=0)"
-     ,  Option ""   ["dump-grin-stages"]    (boolArg optDumpGrinStages)             "dump intermediate Grin and Silly transformation stages (no)"
+     ,  Option ""   ["gen-casedefault"]     (boolArg optSetGenCaseDefault)          "codegen: trap wrong casedistinction in C (no)"
+     ,  Option ""   ["gen-cmt"]             (boolArg optSetGenCmt)                  "codegen: include comment about code in generated code"
+     ,  Option ""   ["gen-debug"]           (boolArg optSetGenDebug)                "codegen: include debug info in generated code (yes)"
+     ,  Option ""   ["gen-trace"]           (boolArg optSetGenTrace)                "codegen: trace functioncalls in C (no)"
+     ,  Option ""   ["gen-trace-assign"]    (boolArg optSetGenTrace2)               "codegen: trace assignments in C (no)"
+     ,  Option ""   ["gen-rtsinfo"]         (ReqArg oRTSInfo "<nr>")                "codegen: flags for rts info dumping (default=0)"
+%%][100
+%%]]
+%%[[(8 codegen)
+     ,  Option ""   ["gen-trampoline"]      (boolArg oSetGenTrampoline)             "codegen: use trampoline mechanism (development/internal use only)"
+%%]]
+%%[[(8 grin)
+     ,  Option ""   ["gen-boxgrin"]      	(boolArg oSetGenBoxGrin)             	"codegen: generate simplified grin wrt boxing (development/internal use only)"
+%%]]
+%%[[(8 codegen)
+     ,  Option ""   ["dump-core-stages"]    (boolArg optDumpCoreStages)             "dump: intermediate Core transformation stages (no)"
+%%][100
+%%]]
+%%[[(8 codegen grin)
+     ,  Option ""   ["dump-grin-stages"]    (boolArg optDumpGrinStages)             "dump: intermediate Grin and Silly transformation stages (no)"
+%%][100
+%%]]
+%%[[(8 codegen cmm)
+     ,  Option ""   ["dump-cmm-stages"]     (boolArg optDumpCmmStages)              "dump: intermediate Cmm stages (no)"
+%%][100
+%%]]
+%%[[(8 javascript)
+     ,  Option ""   ["dump-js-stages"]      (boolArg optDumpJavaScriptStages)       "dump: intermediate JavaScript transformation stages (no)"
 %%][100
 %%]]
 %%[[(8 codegen java)
@@ -357,7 +417,7 @@ ehcCmdLineOpts
 %%]]
 %%[[(50 codegen)
      ,  Option ""   ["debug-stopat-core-error"]
-                                            (boolArg oStopAtCoreError)              "debug: stop at .core parse error (default=off)"
+                                            (boolArg oStopAtCoreError)              "debug: stop at .cr parse error (default=off)"
 %%][100
 %%]]
 %%[[99
@@ -365,8 +425,8 @@ ehcCmdLineOpts
      ,  Option "L"  ["lib-search-path"]     (ReqArg oLibFileLocPath "path")         "search path for library files, see also --import-path"
      ,  Option ""   ["cpp"]                 (NoArg oCPP)                            "preprocess source with CPP"
      ,  Option ""   ["limit-tysyn-expand"]  (intArg oLimitTyBetaRed)                "type synonym expansion limit"     
-     ,  Option ""   ["odir"]                (ReqArg oOutputDir "dir")               "base directory for generated files. Implies --compile-only"
-     ,  Option "o"  ["output"]              (ReqArg oOutputFile "file")             "file to generate executable to"
+     ,  Option ""   ["odir"]                (ReqArg oOutputDir "dir")               "base directory for generated files"
+     ,  Option "o"  ["output"]              (ReqArg oOutputFile "file")             "file to generate executable to (implies --compile-only off)"
      ,  Option ""   ["keep-intermediate-files"] (NoArg oKeepIntermediateFiles)      "keep intermediate files (default=off)"
 %%]]
 %%[[(99 hmtyinfer tyderivtree)
@@ -385,11 +445,15 @@ ehcCmdLineOpts
      ,  Option ""   ["meta-pkgdir-user"]    (NoArg oMetaPkgdirUser)                 "meta: print user package dir (then stop)"
      ,  Option ""   ["package"]             (ReqArg oExposePackage "package")       "see --pkg-expose"
      ,  Option ""   ["hide-all-packages"]   (NoArg oHideAllPackages)                "see --pkg-hide-all"
-     ,  Option ""   ["pkg-build"]           (ReqArg oPkgBuild "package")            "pkg: build package from files. Implies --compile-only"
      ,  Option ""   ["pkg-expose"]          (ReqArg oExposePackage "package")       "pkg: expose/use package"
      ,  Option ""   ["pkg-hide"]            (ReqArg oHidePackage   "package")       "pkg: hide package"
      ,  Option ""   ["pkg-hide-all"]        (NoArg oHideAllPackages)                "pkg: hide all (implicitly) assumed/used packages"
      ,  Option ""   ["pkg-searchpath"]      (ReqArg oPkgdirLocPath "path")          "pkg: package search directories, each dir has <pkg>/<variant>/<target>/<flavor>"
+     ,  Option ""   ["pkg-build"]           (ReqArg oPkgBuild "package")            "pkg build: build package from files. Implies --compile-only"
+     ,  Option ""   ["pkg-build-exposed"]   (ReqArg oPkgBuildExposedModules "modules")
+     																				"pkg build: for package building, exposed modules (blank separated)"
+     ,  Option ""   ["pkg-build-depends"]   (ReqArg oPkgBuildBuildDepends "packages")
+     																				"pkg build: for package building, depended on packages (blank separated)"
      ,  Option ""   ["cfg-install-root"]    (ReqArg oCfgInstallRoot "dir")          "cfg: installation root (to be used only by wrapper script)"
      ,  Option ""   ["cfg-install-variant"] (ReqArg oCfgInstallVariant "variant")   "cfg: installation variant (to be used only by wrapper script)"
      ,  Option ""   ["optP"]                (ReqArg (oCmdLineOpts Cmd_CPP_Preprocessing) "opt for cmd")
@@ -398,10 +462,17 @@ ehcCmdLineOpts
                                                                                     "pgm: alternate executable used by compiler, currently only P (preprocessing)"
 %%]]
 %%[[(8 codegen)
-     ,  Option ""   ["coreopt"]             (ReqArg oOptCore "opt[,...]")           ("core opts: " ++ (concat $ intersperse " " $ Map.keys coreOptMp))
+     ,  Option ""   ["coreopt"]             (ReqArg oOptCore "opt[,...]")           ("opts (specific) for core: " ++ showStr2stMp coreOptMp)
 %%]]
 %%[[(8 codegen tycore)
-     ,  Option ""   ["tycore"]              (OptArg oUseTyCore "opt[,...]")         ("temporary/development: use typed core. opts: " ++ (concat $ intersperse " " $ Map.keys tycoreOptMp))
+     ,  Option ""   ["tycore"]              (OptArg oUseTyCore "opt[,...]")         ("temporary/development: use (specific) typed core. opts: " ++ showStr2stMp tycoreOptMp)
+%%]]
+%%[[(8 codegen cmm)
+     ,  Option ""   ["cmm"]                 (OptArg oUseCmm "opt[,...]")            ("temporary/development: use (specific) cmm. opts: " ++ showStr2stMp cmmOptMp)
+     ,  Option ""   ["cmmopt"]              (ReqArg oOptCmm "opt[,...]")            ("opts (specific) for cmm: " ++ showStr2stMp cmmOptMp)
+%%]]
+%%[[(8 codegen javascript)
+     ,  Option ""   ["js"]                  (ReqArg oOptJavaScript "opt[,...]")     ("opts (specific) for javascript: " ++ showStr2stMp javaScriptOptMp)
 %%]]
      ]
 %%]
@@ -426,8 +497,6 @@ ehcCmdLineOpts
                                 Just "yes"  -> o { ehcOptShowTopTyPP   = True      }
                                 _           -> o
 %%]]
-         oHelp           o =  o { ehcOptImmQuit       = Just ImmediateQuitOption_Help    }
-         oVersion        o =  o { ehcOptImmQuit       = Just ImmediateQuitOption_Version }
          oVariant        o =  o { ehcOptImmQuit       = Just ImmediateQuitOption_Meta_Variant }
          oDebug          o =  o { ehcOptDebug         = True
 %%[[1
@@ -449,11 +518,17 @@ ehcCmdLineOpts
 %%[[7_2
          oUnique         o =  o { ehcOptUniqueness    = False   }
 %%]]
-%%[[(8 codegen)
-         oTimeCompile    o =  o { ehcOptTimeCompile       = True    }
+%%[[(8 grin)
+         oTimeCompile    o =  o { ehcOptTimeGrinCompile       = True    }
 %%]]
 %%[[(8 codegen)
-         oOptCore    s   o =  o { ehcOptCoreOpts = optOpts coreOptMp s }
+         oOptCore    s   o =  o { ehcOptCoreOpts = optOpts coreOptMp s ++ ehcOptCoreOpts o}
+%%]]
+%%[[(8 codegen cmm)
+         oOptCmm     s   o =  o { ehcOptCmmOpts = optOpts cmmOptMp s }
+%%]]
+%%[[(8 codegen javascript)
+         oOptJavaScript s o = o { ehcOptJavaScriptOpts = optOpts javaScriptOptMp s }
 %%]]
 %%[[(8 codegen tycore)
          oUseTyCore ms   o =  case ms of
@@ -462,13 +537,20 @@ ehcCmdLineOpts
                                              opts2 = if TyCoreOpt_Unicode `elem` opts1 then ([TyCoreOpt_Sugar] ++ opts1) else opts1
                                 _      -> o { ehcOptUseTyCore = Just [] }
 %%]]
+%%[[(8 codegen cmm)
+         oUseCmm ms   o =  case ms of
+                                Just s -> o { ehcOptUseCmm = Just opts1 }
+                                       where opts1 = optOpts cmmOptMp s
+                                             -- opts2 = if TyCoreOpt_Unicode `elem` opts1 then ([TyCoreOpt_Sugar] ++ opts1) else opts1
+                                _      -> o { ehcOptUseCmm = Just [] }
+%%]]
 %%[[1
          oTarget        _ o =  o
 %%][(8 codegen)
          oTarget        s o =  o { ehcOptMbTarget          = mbtarget
 %%[[50
                                  , ehcOptOptimizationScope = if isJustOk mbtarget && targetDoesHPTAnalysis (fromJustOk mbtarget)
-                                                             then max oscope OptimizationScope_WholeGrin
+                                                             then max oscope (maxBound :: OptimizationScope)
                                                              else oscope
 %%]]
                                  }
@@ -488,7 +570,7 @@ ehcCmdLineOpts
                                 Just "eh"    -> o { ehcOptEmitEH           = True   }
 %%[[(8 codegen)
                                 Just "-"     -> o -- { ehcOptEmitCore         = False  }
-                                Just "core"  -> o { ehcOptMbTarget         = JustOk Target_None_Core_None
+                                Just "core"  -> o { ehcOptMbTarget         = JustOk Target_None_Core_AsIs
                                                   }
                                 Just "tycore"-> o { ehcOptMbTarget         = JustOk Target_None_TyCore_None
                                                   }
@@ -565,7 +647,7 @@ ehcCmdLineOpts
                                 Just "4"    -> o { ehcOptVerbosity     = VerboseDebug       }
                                 Nothing     -> o { ehcOptVerbosity     = succ (ehcOptVerbosity o)}
                                 _           -> o
-%%[[(8 codegen grin)
+%%[[(8 codegen)
          oOptimization ms o
                            = o' {ehcOptOptimizations = optimizeRequiresClosure os}
                            where (o',doSetOpts)
@@ -583,6 +665,12 @@ ehcCmdLineOpts
                                                )
                                           where l = read olevel :: Int
                                                 (sc,lev) = quotRem l maxlev
+                                        Just scpname@(_:_)
+                                          | isJust mbScp
+                                            -> ( o { ehcOptOptimizationScope = sc }
+                                               , True
+                                               )
+                                          where mbScp@(~(Just sc)) = Map.lookup scpname allOptimScopeMp
                                         Just optname@(_:_)
                                           -> case break (== '=') optname of
                                                (nm, yesno)
@@ -623,7 +711,7 @@ ehcCmdLineOpts
 %%]]
 %%[[50
          oNoRecomp              o   = o { ehcOptCheckRecompile              = False    }
-         oCompileOnly           o   = o { ehcOptDoLinking                   = False    }
+         oCompileOnly           o   = o { ehcOptLinkingStyle                = LinkingStyle_None }
 %%]]
 %%[[99
          oNoHiCheck             o   = o { ehcOptHiValidityCheck             = False    }
@@ -638,8 +726,8 @@ ehcCmdLineOpts
          oLimitCtxtRed          o l = o { ehcOptPrfCutOffAt                 = l }
          oMetaPkgdirSys         o   = o { ehcOptImmQuit                     = Just ImmediateQuitOption_Meta_Pkgdir_System }
          oMetaPkgdirUser        o   = o { ehcOptImmQuit                     = Just ImmediateQuitOption_Meta_Pkgdir_User }
-         oExposePackage       s o   = o { ehcOptLibPackages                 = ehcOptLibPackages   o ++ [s]
-                                        , ehcOptPackageSearchFilter         = ehcOptPackageSearchFilter o ++ pkgSearchFilter parsePkgKey PackageSearchFilter_ExposePkg [s]
+         oExposePackage       s o   = o { ehcOptPackageSearchFilter         = ehcOptPackageSearchFilter o ++ pkgSearchFilter parsePkgKey PackageSearchFilter_ExposePkg [s]
+                                        -- , ehcOptLibPackages                 = ehcOptLibPackages   o ++ [s]
                                         }
          oHidePackage         s o   = o { ehcOptPackageSearchFilter         = ehcOptPackageSearchFilter o ++ pkgSearchFilter parsePkgKey PackageSearchFilter_HidePkg [s]
                                         }
@@ -648,14 +736,20 @@ ehcCmdLineOpts
                                         }
          oOutputDir           s o   = o { ehcOptOutputDir                   = Just s
                                           -- no linking when no output file is generated. This is not failsafe, requires better solution as now no executable is generated when no --output is specified. Should depend on existence of main.
-                                        , ehcOptDoLinking                   = isJust (ehcOptMbOutputFile o)
+                                        -- , ehcOptDoExecLinking                   = isJust (ehcOptMbOutputFile o)
                                         }
          oOutputFile          s o   = o { ehcOptMbOutputFile                = Just (mkFPath s)
-                                        , ehcOptDoLinking                   = True
+                                        , ehcOptLinkingStyle                = LinkingStyle_Exec
                                         }
          oKeepIntermediateFiles o   = o { ehcOptKeepIntermediateFiles       = True }
-         oPkgBuild            s o   = o { ehcOptPkg                         = Just (PkgOption_Build s)
-                                        , ehcOptDoLinking                   = False
+         oPkgBuild            s o   = o { ehcOptPkgOpt                      = Just ((maybe emptyPkgOption id $ ehcOptPkgOpt o) {pkgoptName=s})
+                                        , ehcOptLinkingStyle                = LinkingStyle_Pkg
+                                        }
+         oPkgBuildExposedModules
+                              s o   = o { ehcOptPkgOpt                      = Just ((maybe emptyPkgOption id $ ehcOptPkgOpt o) {pkgoptExposedModules = words s})
+                                        }
+         oPkgBuildBuildDepends
+                              s o   = o { ehcOptPkgOpt                      = Just ((maybe emptyPkgOption id $ ehcOptPkgOpt o) {pkgoptBuildDepends = words s})
                                         }
          oCfgInstallRoot      s o   = o { ehcOptCfgInstallRoot              = Just s }
          oCfgInstallVariant   s o   = o { ehcOptCfgInstallVariant           = Just s }
@@ -677,9 +771,64 @@ ehcCmdLineOpts
 %%]]
 %%]
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Options as passed on the command line for EHCRun
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[1 export(ehcrunCmdLineOpts)
+-- | Commandline opts for ehcr/uhcr (EHCRun)
+ehcrunCmdLineOpts :: GetOptCmdLineOpts
+ehcrunCmdLineOpts
+     =  sharedCmdLineOpts
+%%[[(8 corerun)
+     ++ [  Option ""   ["trace"]               (boolArg optTrace)                      "corerun: trace execution"
+        ]
+%%]]
+  where
+%%[[(8 corerun)
+        optTrace o b = o { ehcOptCoreOpts = upd $ ehcOptCoreOpts o }
+          where upd | b         = (CoreOpt_RunTrace :)
+                    | otherwise = (\\ [CoreOpt_RunTrace])
+%%]]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Options (shared) as passed on the command line for EHCRun and EHC
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[1 export(GetOptCmdLineOpts)
+-- | The description for GetOpt
+type GetOptCmdLineOpts = [OptDescr (EHCOpts -> EHCOpts)]
+
+-- | Commandline opts shared between main invocations
+sharedCmdLineOpts :: GetOptCmdLineOpts
+sharedCmdLineOpts
+  =  [  Option "h"  ["help"]                (NoArg oHelp)                           "print this help (then stop)"
+     ,  Option ""   ["version"]             (NoArg oVersion)                        "print version info (then stop)"
+     ]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Factored out EHCOpts updaters
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[1
+-- | Help
+oHelp           o =  o { ehcOptImmQuit       = Just ImmediateQuitOption_Help    }
+
+--  Version
+oVersion        o =  o { ehcOptImmQuit       = Just ImmediateQuitOption_Version }
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Utiltities for commandline options
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %%[99
+-- | Int option
 intArg  tr = ReqArg (optInt tr) "<nr>"
 
+-- | EHCOpts updater for Int option
 optInt :: (EHCOpts -> Int -> EHCOpts) -> String -> EHCOpts -> EHCOpts
 optInt tr s o
  = tr o $ read s
@@ -754,6 +903,14 @@ oPriv                o b = o { ehcOptPriv           = b }
 optDumpCoreStages    o b = o { ehcOptDumpCoreStages = b }
 %%]
 
+%%[(8 javascript)
+optDumpJavaScriptStages o b = o { ehcOptDumpJavaScriptStages = b }
+%%]
+
+%%[(8 codegen)
+oSetGenTrampoline	 o b = o { ehcOptGenTrampoline_ = b }
+%%]
+
 %%[(8 codegen grin)
 optSetGenTrace       o b = o { ehcOptGenTrace       = b }
 optSetGenTrace2      o b = o { ehcOptGenTrace2      = b }
@@ -761,8 +918,13 @@ optSetGenRTSInfo     o b = o { ehcOptGenRTSInfo     = b }
 optSetGenCaseDefault o b = o { ehcOptGenCaseDefault = b }
 optSetGenCmt         o b = o { ehcOptGenCmt         = b }
 optSetGenDebug       o b = o { ehcOptGenDebug       = b }
+oSetGenBoxGrin		 o b = o { ehcOptGenBoxGrin_    = b }
 optDumpGrinStages    o b = o { ehcOptDumpGrinStages = b {-, ehcOptEmitGrin = b -} }
 -- optEarlyModMerge     o b = o { ehcOptEarlyModMerge  = b }
+%%]
+
+%%[(8 codegen cmm)
+optDumpCmmStages     o b = o { ehcOptDumpCmmStages = b }
 %%]
 
 %%[(50 codegen)
@@ -777,12 +939,21 @@ oStopAtHIError       o b = o { ehcDebugStopAtHIError       = b }
 %%% Apply the options
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[1 export(ehcCmdLineOptsApply)
+%%[1 export(ehcCmdLineOptsApply, ehcrunCmdLineOptsApply)
 -- | Apply the cmdline opts description to a EHCOpts, returning Nothing when there were no options
-ehcCmdLineOptsApply :: [String] -> EHCOpts -> (Maybe EHCOpts, [String], [String])
-ehcCmdLineOptsApply args opts
-  = (if null o then Nothing else Just (foldl (flip ($)) opts o),n,errs)
-  where oo@(o,n,errs)  = getOpt Permute ehcCmdLineOpts args
+cmdlineOptsApply :: [OptDescr (EHCOpts -> EHCOpts)] -> [EHCOpts -> EHCOpts] -> [String] -> EHCOpts -> (Maybe EHCOpts, [String], [String])
+cmdlineOptsApply cmdlopts postopts args opts
+  = (if null o' then Nothing else Just (foldl (flip ($)) opts o'),n,errs)
+  where oo@(o,n,errs)  = getOpt Permute cmdlopts args
+        o' = o ++ postopts
+
+-- | Apply the cmdline opts description for 'EHC' to a EHCOpts, returning Nothing when there were no options
+ehcCmdLineOptsApply :: [EHCOpts -> EHCOpts] -> [String] -> EHCOpts -> (Maybe EHCOpts, [String], [String])
+ehcCmdLineOptsApply = cmdlineOptsApply ehcCmdLineOpts
+
+-- | Apply the cmdline opts description for 'EHCRun' to a EHCOpts, returning Nothing when there were no options
+ehcrunCmdLineOptsApply :: [String] -> EHCOpts -> (Maybe EHCOpts, [String], [String])
+ehcrunCmdLineOptsApply = cmdlineOptsApply ehcrunCmdLineOpts []
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

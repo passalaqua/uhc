@@ -13,6 +13,9 @@ XXX
 %%[92 import(qualified UHC.Util.FastSeq as Seq)
 %%]
 
+%%[8 import(Control.Monad.State)
+%%]
+
 %%[8 import({%{EH}EHC.Common})
 %%]
 %%[8 import({%{EH}EHC.CompileUnit})
@@ -21,9 +24,9 @@ XXX
 %%]
 
 -- module related
-%%[50 import({%{EH}Module})
+%%[50 import({%{EH}Module.ImportExport}, {%{EH}EHC.CompilePhase.Module})
 %%]
-%%[92 import({%{EH}EHC.CompilePhase.Module(cpUpdHiddenExports)})
+%%[(92 codegen) import({%{EH}EHC.CompilePhase.Module(cpUpdHiddenExports)})
 %%]
 
 -- EH semantics
@@ -35,9 +38,13 @@ XXX
 %%]
 
 -- Core semantics
-%%[(8 codegen grin) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%[(8 core) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%]
+%%[(50 codegen) import({%{EH}Core})
 %%]
 %%[(50 codegen) import({%{EH}Core.UsedModNms})
+%%]
+%%[(50 codegen corein) import(qualified {%{EH}Core.Check} as Core2ChkSem)
 %%]
 
 -- HI syntax and semantics
@@ -52,8 +59,8 @@ XXX
 %%[9999 import({%{EH}Base.ForceEval})
 %%]
 
--- Misc info: BindingInfo/BindingMp
-%%[(8 codegen) hs import({%{EH}BindingInfo})
+-- Misc info: LamInfo/LamMp
+%%[(8 codegen) hs import({%{EH}LamInfo})
 %%]
 
 -- for debug
@@ -149,14 +156,18 @@ cpFlowEHSem1 modNm
                  dfg      = prepFlow $! EHSem.gathClDfGam_Syn_AGItf    ehSem
                  cs       = prepFlow $! EHSem.gathChrStore_Syn_AGItf   ehSem
 %%]]
-%%[[(50 hmtyinfer)
-                 lm       = prepFlow $! EHSem.gathBindingMp_Syn_AGItf      ehSem
+%%[[(50 codegen)
+                 lm       = prepFlow $! EHSem.gathLamMp_Syn_AGItf      ehSem
 %%]]
 %%[[50
                  mmi      = panicJust "cpFlowEHSem1.crsiModMp" $ Map.lookup modNm $ crsiModMp crsi
                  hii      = ecuHIInfo ecu
                  mentrelFilterMp
+%%[[(8 codegen hmtyinfer)
                           = mentrelFilterMpUnions [ EHSem.gathMentrelFilterMp_Syn_AGItf ehSem, mentrelToFilterMp' False [modNm] (mmiExps mmi) ]
+%%][8
+                          = mentrelToFilterMp' False [modNm] (mmiExps mmi)
+%%]]
                  usedImpS = mentrelFilterMpModuleNames mentrelFilterMp
                  ehInh'   = ehInh
 %%[[(50 hmtyinfer)
@@ -174,7 +185,9 @@ cpFlowEHSem1 modNm
                  hii'     = hii
                               { -- 20100717 AD: redundant because later extracted from Core because of inlining etc, TBD
                                 HI.hiiHIUsedImpModS = usedImpS
+%%[[(50 codegen hmtyinfer)
                               , HI.hiiMbOrphan      = EHSem.mbOrphan_Syn_AGItf ehSem
+%%]]
 %%[[(50 hmtyinfer)
                               , HI.hiiValGam        = vg
                               , HI.hiiTyGam     	= tg
@@ -184,18 +197,18 @@ cpFlowEHSem1 modNm
                               , HI.hiiClGam         = clg
                               , HI.hiiClDfGam       = dfg
                               , HI.hiiCHRStore      = {- HI.hiiScopedPredStoreToList -} cs
-                              -- , HI.hiiBindingMp         = lm
+                              -- , HI.hiiLamMp         = lm
 %%]]
                               }
 %%]]
 %%[[(8 codegen)
                  coreInh' = coreInh
 %%[[8
-                              { Core2GrSem.dataGam_Inh_CodeAGItf   = EHSem.gathDataGam_Syn_AGItf ehSem
-                              , Core2GrSem.bindingMp_Inh_CodeAGItf = EHSem.gathBindingMp_Syn_AGItf   ehSem
+                              { Core2GrSem.dataGam_Inh_CodeAGItf = EHSem.gathDataGam_Syn_AGItf ehSem
+                              , Core2GrSem.lamMp_Inh_CodeAGItf   = EHSem.gathLamMp_Syn_AGItf   ehSem
 %%][50
-                              { Core2GrSem.dataGam_Inh_CodeAGItf   = EHSem.dataGam_Inh_AGItf     ehInh'
-                              , Core2GrSem.bindingMp_Inh_CodeAGItf = lm `bindingMpUnionBindAspMp` Core2GrSem.bindingMp_Inh_CodeAGItf coreInh		-- assumption: no duplicates, otherwise merging as done later has to be done
+                              { Core2GrSem.dataGam_Inh_CodeAGItf = EHSem.dataGam_Inh_AGItf     ehInh'
+                              , Core2GrSem.lamMp_Inh_CodeAGItf   = lm `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh		-- assumption: no duplicates, otherwise merging as done later has to be done
 %%]]
                               }
 %%]]
@@ -218,7 +231,7 @@ cpFlowEHSem1 modNm
 %%]]
                                      )
 %%]]
-%%[[92
+%%[[(92 codegen)
                      -- put back additional hidden exports
                      ; cpUpdHiddenExports modNm $ Seq.toList $ EHSem.gathHiddenExports_Syn_AGItf ehSem
 %%]]
@@ -256,7 +269,7 @@ cpFlowHISem modNm
 %%[[(50 codegen)
                  coreInh  = crsiCoreInh crsi
                  coreInh' = coreInh
-                              { Core2GrSem.bindingMp_Inh_CodeAGItf   = (HI.hiiBindingMp hiInfo) `bindingMpUnionBindAspMp` Core2GrSem.bindingMp_Inh_CodeAGItf coreInh
+                              { Core2GrSem.lamMp_Inh_CodeAGItf   = (HI.hiiLamMp hiInfo) `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh
                               }
 %%]]
                  optim    = crsiOptim crsi
@@ -277,51 +290,93 @@ cpFlowHISem modNm
          }
 %%]
 
-%%[(50 codegen) export(cpFlowCoreSem)
-cpFlowCoreSem :: HsName -> EHCompilePhase ()
-cpFlowCoreSem modNm
+%%[(50 codegen corein) export(cpFlowCoreModSem)
+-- | Flow info after Core source check
+cpFlowCoreModSem :: HsName -> EHCompilePhase ()
+cpFlowCoreModSem modNm
   =  do  {  cr <- get
          ;  let  (ecu,crsi,opts,_) = crBaseInfo modNm cr
-                 coreSem  = panicJust "cpFlowCoreSem.coreSem" $ ecuMbCoreSem ecu
-                 core     = panicJust "cpFlowCoreSem.core"    $ ecuMbCore    ecu
-                 
-                 -- 20100717 AD: required here because of inlining etc, TBD
-                 usedImpS = cmodUsedModNms core
-                 
+                 -- ehInh        = crsiEHInh crsi
                  coreInh  = crsiCoreInh crsi
-                 hii      = ecuHIInfo ecu
-                 am       = prepFlow $! Core2GrSem.gathBindingMp_Syn_CodeAGItf coreSem
-                 coreInh' = coreInh
-                              { Core2GrSem.bindingMp_Inh_CodeAGItf   = am `bindingMpUnionBindAspMp` Core2GrSem.bindingMp_Inh_CodeAGItf coreInh	-- assumption: old info can be overridden, otherwise merge should be done here
-                              }
-                 hii'     = hii
-%%[[(50 codegen grin)
-                              { -- 20100717 AD: required here because of inlining etc, TBD
-                                {- -} HI.hiiHIUsedImpModS = usedImpS
-                              , {- -} HI.hiiBindingMp         = am
-                              }
-%%]]
-         ;  when (isJust (ecuMbCoreSem ecu))
-                 (do { cpUpdSI (\crsi -> crsi {crsiCoreInh = coreInh'})
-                     ; cpUpdCU modNm ( ecuStoreHIInfo hii'
-                                     -- 
-                                     -- 20100717 AD: required here because of inlining etc, TBD
-                                     . ecuStoreHIUsedImpS usedImpS
-                                     )
-                     })
+                 mbCoreModSem = ecuMbCoreSemMod ecu
+         ;  when (isJust mbCoreModSem) $ do
+              { let coreModSem = fromJust mbCoreModSem
+                    -- ehInh' = ehInh
+                    --   { EHSem.dataGam_Inh_AGItf    = EHSem.dataGam_Inh_AGItf ehInh `gamUnionFlow` Core2ChkSem.gathDataGam_Syn_CodeAGItf coreModSem
+                    --   }
+                    coreInh' = coreInh
+                      { Core2GrSem.dataGam_Inh_CodeAGItf = Core2GrSem.dataGam_Inh_CodeAGItf coreInh `gamUnionFlow` Core2ChkSem.gathDataGam_Syn_CodeAGItf coreModSem
+                      }
+              -- ; lift $ putStrLn $ "cpFlowCoreModSem" ++ (show $ gamKeys $ Core2ChkSem.gathDataGam_Syn_CodeAGItf coreModSem)
+              -- ; cpUpdSI (\crsi -> crsi { crsiEHInh = ehInh' })
+              ; cpUpdSI (\crsi -> crsi { crsiCoreInh = coreInh' })
+              }
          }
 %%]
 
-%%[(50 codegen) export(cpFlowHIBindingMp)
-cpFlowHIBindingMp :: HsName -> EHCompilePhase ()
-cpFlowHIBindingMp modNm
+The following flow functions probably can be merged with the semantics itself, TBD & sorted out, 20140407
+
+%%[(50 codegen) export(cpFlowCoreSemAfterFold, cpFlowCoreSemBeforeFold)
+cpFlowCoreSemAfterFold :: HsName -> EHCompilePhase ()
+cpFlowCoreSemAfterFold modNm
+  =  do  {  cr <- get
+         ;  let  (ecu,crsi,opts,_) = crBaseInfo modNm cr
+                 coreSem  = panicJust "cpFlowCoreSemAfterFold.coreSem" $ ecuMbCoreSem ecu
+                 
+                 coreInh  = crsiCoreInh crsi
+                 hii      = ecuHIInfo ecu
+                 am       = prepFlow $! Core2GrSem.gathLamMp_Syn_CodeAGItf coreSem
+                 coreInh' = coreInh
+                              { Core2GrSem.lamMp_Inh_CodeAGItf   = am `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh	-- assumption: old info can be overridden, otherwise merge should be done here
+                              }
+                 hii'     = hii
+                              { HI.hiiLamMp         = am
+                              }
+         ;  when (isJust (ecuMbCoreSem ecu))
+                 (do { cpUpdSI (\crsi -> crsi {crsiCoreInh = coreInh'})
+                     ; cpUpdCU modNm ( ecuStoreHIInfo hii'
+                                     )
+                     })
+         }
+
+cpFlowCoreSemBeforeFold :: HsName -> EHCompilePhase ()
+cpFlowCoreSemBeforeFold modNm
+  =  do  {  cr <- get
+         ;  let  (ecu,crsi,opts,_) = crBaseInfo modNm cr
+                 core     = panicJust "cpFlowCoreSemBeforeFold.core" $ ecuMbCore ecu
+                 
+                 -- 20100717 AD: required here because of inlining etc, TBD
+                 (usedImpS, introdModS) = cmodUsedModNms core
+                 
+                 hii      = ecuHIInfo ecu
+                 hii'     = hii
+                              { -- 20100717 AD: required here because of inlining etc, TBD
+                                HI.hiiHIUsedImpModS = usedImpS
+                              }
+         -- ;  lift $ putStrLn $ "cpFlowCoreSemBeforeFold usedImpS " ++ show usedImpS
+         -- ;  lift $ putStrLn $ "cpFlowCoreSemBeforeFold introdModS " ++ show introdModS
+         ;  cpUpdCU modNm ( ecuStoreHIInfo hii'
+                          -- 
+                          -- 20100717 AD: required here because of inlining etc, TBD
+                          . ecuStoreHIUsedImpS usedImpS
+                          . ecuStoreIntrodModS introdModS
+                          )
+         ;  impNmL <- cpGenImpNmInfo modNm
+         ;  cpUpdCU modNm ( ecuStoreCore $ cmodSetImports impNmL core
+                          )
+         }
+%%]
+
+%%[(50 codegen) export(cpFlowHILamMp)
+cpFlowHILamMp :: HsName -> EHCompilePhase ()
+cpFlowHILamMp modNm
   = do { cr <- get
        ; let  (ecu,crsi,opts,_) = crBaseInfo modNm cr
               coreInh  = crsiCoreInh crsi
               hii      = ecuHIInfo ecu
 
          -- put back result: call info map (lambda arity, ...), overwriting previous entries
-       ; cpUpdSI (\crsi -> crsi {crsiCoreInh = coreInh {Core2GrSem.bindingMp_Inh_CodeAGItf = HI.hiiBindingMp hii `bindingMpUnionBindAspMp` Core2GrSem.bindingMp_Inh_CodeAGItf coreInh}})
+       ; cpUpdSI (\crsi -> crsi {crsiCoreInh = coreInh {Core2GrSem.lamMp_Inh_CodeAGItf = HI.hiiLamMp hii `lamMpUnionBindAspMp` Core2GrSem.lamMp_Inh_CodeAGItf coreInh}})
        }
 %%]
 

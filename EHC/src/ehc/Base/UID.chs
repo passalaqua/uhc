@@ -13,11 +13,13 @@
 
 %%[1 import(qualified Data.Set as Set, Data.List)
 %%]
+%%[1 import(Control.Monad.State, Control.Monad.Identity)
+%%]
 
 %%[7 export(mkNewLevUIDL,mkInfNewLevUIDL)
 %%]
 
-%%[50 import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
+%%[50 import(Control.Monad, UHC.Util.Binary as B, UHC.Util.Serialize)
 %%]
 
 %%[99 import(Data.Hashable)
@@ -26,6 +28,52 @@
 %%]
 %%[9999 import({%{EH}Base.ForceEval})
 %%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Monadic interface to Unique id
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[1 export(FreshUidT, FreshUid, runFreshUidT, runFreshUid, evalFreshUid)
+type FreshUidT m   = StateT UID m
+type FreshUid      = FreshUidT Identity
+
+{-
+freshUID :: MonadState UID m => m UID
+freshUID = state $ \x -> (x, uidNext x)
+-}
+
+runFreshUidT :: Monad m => FreshUidT m a -> UID -> m (a,UID)
+runFreshUidT f u = runStateT f u
+{-# INLINE runFreshUidT #-}
+
+runFreshUid :: FreshUid a -> UID -> (a,UID)
+runFreshUid f u = runIdentity $ runFreshUidT f u
+{-# INLINE runFreshUid #-}
+
+evalFreshUid :: FreshUid a -> UID -> a
+evalFreshUid f u = fst $ runIdentity $ runFreshUidT f u
+{-# INLINE evalFreshUid #-}
+%%]
+
+%%[1 export(MonadFreshUID(..))
+class Monad m => MonadFreshUID m where
+  -- | Fresh single UID
+  freshUID :: m UID
+  freshUID = freshInfUID
+
+  -- | Fresh infinite range of UID 
+  freshInfUID :: m UID
+  freshInfUID = freshUID
+
+-- TBD: flip results of mkNewLevUID (etc) to be in agreement with behavior of state
+instance Monad m => MonadFreshUID (FreshUidT m) where
+  freshUID = state $ \x -> (x, uidNext x)
+  {-# INLINE freshUID #-}
+
+  freshInfUID = state $ \x -> (uidChild x, uidNext x)
+  {-# INLINE freshInfUID #-}
+%%]
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Unique id's
@@ -135,9 +183,15 @@ instance PP UID where
   pp = text . show
 %%]
 
-%%[8 export(ppUID')
-ppUID' :: UID -> PP_Doc
-ppUID' uid = ppCurlysCommas $ uidInts uid
+%%[8 export(showUIDParseable, ppUIDParseable)
+-- | Inverse of pUID
+showUIDParseable :: UID -> String
+-- showUIDParseable uid = "%[" ++ (concat $ intersperse "/" $ map show $ uidInts uid) ++ "]"
+showUIDParseable uid = "`{" ++ (concat $ intersperse "," $ map show $ uidInts uid) ++ "}"
+
+-- | Inverse of pUID
+ppUIDParseable :: UID -> PP_Doc
+ppUIDParseable = pp . showUIDParseable
 %%]
 
 %%[7
@@ -146,6 +200,16 @@ mkInfNewLevUIDL = mkInfNewUIDL' mkNewLevUID
 
 mkNewLevUIDL :: Int -> UID -> [UID]
 mkNewLevUIDL = mkNewUIDL' mkNewLevUID
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Simplifications, used by codegen
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[8 export(uidSimplifications)
+-- | Simplifications obtained by omitting all but 1 of the Int's, then re-adding one by one, omitting the original
+uidSimplifications :: UID -> [UID]
+uidSimplifications = map (mkUID . reverse) . drop 1 . init . inits . reverse . uidInts
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -181,11 +245,11 @@ instance Hashable UID where
 %%[50
 instance Binary UID where
 %%[[50
-  put (UID a) = put a
-  get = liftM UID get
+  put (UID a) = B.put a
+  get = liftM UID B.get
 %%][99
-  put (UID a b) = put a >> put b
-  get = liftM2 UID get get
+  put (UID a b) = B.put a >> B.put b
+  get = liftM2 UID B.get B.get
 %%]]
 
 instance Serialize UID where

@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -21,7 +21,7 @@ structures for fitsIn and related functions.
 %%[(4 hmtyinfer) import(qualified Data.Set as Set)
 %%]
 
-%%[(8 codegen) import({%{EH}AbstractCore})
+%%[(8 hmtyinfer) import({%{EH}AbstractCore})
 %%]
 
 For debug/trace:

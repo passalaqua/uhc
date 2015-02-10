@@ -4,21 +4,24 @@
 
 Grin transformation
 
-%%[8 module {%{EH}EHC.CompilePhase.TransformGrin}
+%%[(8 codegen grin) module {%{EH}EHC.CompilePhase.TransformGrin}
 %%]
 
-%%[8 import({%{EH}Base.Target})
+%%[(8 codegen grin) import({%{EH}Base.Target})
 %%]
 
 -- general imports
-%%[8 import(qualified Data.Map as Map)
+%%[(8 codegen grin) import(qualified Data.Map as Map)
 %%]
 
-%%[8 import({%{EH}EHC.Common})
+%%[(8 codegen grin) import(Control.Monad.State)
 %%]
-%%[8 import({%{EH}EHC.CompileUnit})
+
+%%[(8 codegen grin) import({%{EH}EHC.Common})
 %%]
-%%[8 import({%{EH}EHC.CompileRun})
+%%[(8 codegen grin) import({%{EH}EHC.CompileUnit})
+%%]
+%%[(8 codegen grin) import({%{EH}EHC.CompileRun})
 %%]
 
 -- Language syntax: Grin
@@ -64,17 +67,23 @@ cpFromGrinTrf modNm trf m
 cpTransformGrin :: HsName -> EHCompilePhase ()
 cpTransformGrin modNm
   =  do  {  cr <- get
+         ;  cpMsg modNm VerboseDebug "cpTransformGrin"         
          ;  let  (ecu,_,opts,_) = crBaseInfo modNm cr
-                 forBytecode = targetIsGrinBytecode (ehcOptTarget opts)
+                 forBytecode          = targetIsGrinBytecode (ehcOptTarget opts)
+                 forBytecodeOrSimilar = not doesHPT -- targetIsGrinBytecode (ehcOptTarget opts)
+                 doesHPT     = targetDoesHPTAnalysis (ehcOptTarget opts)
+                 needMetaInfo= doesHPT
                  optimizing  = ehcOptOptimizes Optimize_GrinLocal opts
          
 {- for debugging 
                  trafos  =     mk [mte,unb,flt,cpr,nme]
 -}
                  trafos  =     (                                  mk [flt,bae]                             )
-                           ++  (if forBytecode               then mk [mte,unb]                else []      )
-                           ++  (if optimizing                then mk evel1                    else []      )
-                           ++  (if forBytecode && optimizing then inline ++ mk (evel2++[cpr]) else []      )
+                           ++  (if not needMetaInfo          then mk [mte]                    else []      )
+                           ++  (if forBytecode               then mk [unb]                    else []      )
+                           ++  (if optimizing                then mk evel1                    else mk evel0)
+                           ++  (if forBytecodeOrSimilar && optimizing
+                                                             then inline ++ mk (evel2++[cpr]) else []      )
                            ++  (if optimizing                then mk [nme]                    else []      )
 
                    where mk   = map (\(trf,msg) -> (cpFromGrinTrf modNm trf msg,msg))
@@ -89,7 +98,8 @@ cpTransformGrin modNm
                          unb  = ( grMayLiveUnboxed (Bytecode.tagAllowsUnboxedLife opts)
                                                                  , "unbox"            )
 %%[[8
-                         evel1 = [ ale, eve, flt, ale ]
+                         evel0 = [ ale ] --, eve, flt, ale ]
+                         evel1 = evel0 ++ [ eve, flt, ale ]
                          evel2 = [ flt ] ++ evel1
 %%]]
 %%[[8                              
@@ -97,9 +107,9 @@ cpTransformGrin modNm
 %%][50                                
                          inline = [ ( do { cr <- get
                                          ; let (ecu,crsi,_,_) = crBaseInfo modNm cr
-                                               expNmOffMp     = crsiExpNmOffMp modNm crsi
+                                               expNmFldMp     = crsiExpNmOffMp modNm crsi
                                                optim          = crsiOptim crsi
-                                               (g,gathInlMp)  = grInline True (Map.keysSet expNmOffMp) (optimGrInlMp optim) $ fromJust $ ecuMbGrin ecu
+                                               (g,gathInlMp)  = grInline True (Map.keysSet expNmFldMp) (optimGrInlMp optim) $ fromJust $ ecuMbGrin ecu
                                          ; cpMsgGrinTrf modNm "inline"
                                          ; cpUpdCU modNm (ecuStoreOptim (defaultOptim {optimGrInlMp = gathInlMp}) . ecuStoreGrin g)
                                          }
@@ -110,7 +120,7 @@ cpTransformGrin modNm
                               
                  optGrinNormal = map fst trafos
                  optGrinDump   = out 0 "from core" : concat [ [o,out n nm] | (n,(o,nm)) <- zip [1..] trafos ]
-                        where out n nm = cpOutputGrin False ("-0" ++ show (10+n) ++ "-" ++ filter isAlpha nm) modNm
+                        where out n nm = void $ cpOutputGrin False ("-0" ++ show (10+n) ++ "-" ++ filter isAlpha nm) modNm
          ;  when (isJust $ ecuMbGrin ecu)
                  (cpSeq (if ehcOptDumpGrinStages opts then optGrinDump else optGrinNormal))
          }

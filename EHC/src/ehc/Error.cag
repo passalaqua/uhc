@@ -1,4 +1,4 @@
-%%[0
+%%[0 lhs2tex
 %include lhs2TeX.fmt
 %include afp.fmt
 %%]
@@ -16,6 +16,9 @@
 %%[1 hs import(UHC.Util.Pretty,qualified UHC.Util.FastSeq as Seq)
 %%]
 
+%%[1 hs import(Control.Monad.Error.Class)
+%%]
+
 %%[1 ag import({Error/AbsSyn})
 %%]
 
@@ -30,7 +33,7 @@
 %%[9999 hs import({%{EH}Base.ForceEval})
 %%]
 
-%%[9
+%%[8
 DERIVING *     : Show
 %%]
 
@@ -51,6 +54,15 @@ type ErrSq = Seq.FastSeq Err
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Instances: Error
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[1 hs
+instance Error Err where
+  strMsg m = rngLift emptyRange Err_Str m
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Fatality of error
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -58,10 +70,14 @@ type ErrSq = Seq.FastSeq Err
 errIsFatal :: Err -> Bool
 %%[[8
 errIsFatal (Err_MissingDataFields   		_ _			) = False
+%%[[(8 codegen)
 errIsFatal (Err_TyCoreMatchClash    		_ _ _ _		) = False
+%%]]
 %%][99
 errIsFatal (Err_MissingDataFields   	_ 	_ _			) = False
+%%[[(99 codegen)
 errIsFatal (Err_TyCoreMatchClash   		_ 	_ _ _ _		) = False
+%%]]
 %%]]
 errIsFatal _                             				  = True
 %%]

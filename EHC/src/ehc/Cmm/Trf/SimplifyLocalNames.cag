@@ -1,0 +1,149 @@
+%%[0 lhs2tex
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Attempt to make a more compact representation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen cmm) hs module {%{EH}Cmm.Trf.SimplifyLocalNames}
+%%]
+
+%%[(8 codegen cmm) hs import(Data.Maybe,{%{EH}Base.Common} hiding (Range),{%{EH}Cmm})
+%%]
+
+%%[(8 codegen cmm) hs import(UHC.Util.Utils)
+%%]
+
+%%[(8 codegen cmm) hs import(qualified Data.Map as Map, qualified Data.Set as Set, Control.Monad.State)
+%%]
+
+%%[(8 codegen cmm).WRAPPER ag import({Cmm/AbsSyn})
+WRAPPER AGItf
+%%]
+
+%%[(8 codegen cmm) ag import({Cmm/CommonNm})
+%%]
+
+%%[(8 codegen cmm)
+%%]
+PRAGMA nocycle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Haskell itf
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen cmm) hs export(cmmModTrfSimplifyLocalNames)
+cmmModTrfSimplifyLocalNames :: Module -> Module
+cmmModTrfSimplifyLocalNames cmmmod
+  = trf_Syn_AGItf t
+  where t = wrap_AGItf (sem_AGItf (AGItf_AGItf cmmmod)) Inh_AGItf
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Simplification
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 cmm) hs
+-- | Simplify a cvar, only if not yet defined elsewhere
+cvarSimplifyM :: HsName -> CVarInfo -> State NmEnv CVarInfo
+cvarSimplifyM nm cvar = do
+    env <- get
+    case concat $ map (\s -> maybe [s] (const []) $ envLookup s env) $ hsnSimplifications $ hsnQualified nm of
+      (simpnm:_) | cvarIsLocOrArg cvar -> do
+           let simpcvar = cvar {cvarOffset = fldMapNm (const simpnm) $ cvarOffset cvar}
+           put $ envAdd simpnm simpcvar $ envAlter (const $ Just simpcvar) nm env
+           return simpcvar
+      _ -> return cvar
+%%]
+
+%%[(8 cmm) hs
+-- | Simplify a cvar, only if not yet defined elsewhere
+cvarSimplify :: NmEnv -> HsName -> CVarInfo -> (CVarInfo, NmEnv)
+cvarSimplify env nm cvar = runState (cvarSimplifyM nm cvar) env
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Hooks provided to Cmm/CommonNm
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 cmm) hs
+-- | Type of info bound to a name
+type NmInfo = CVarInfo
+%%]
+
+%%[(8 cmm) hs
+-- | Type synonym and functions for env
+type Env k v = Map.Map k v
+
+-- required, following Data.Map
+emptyEnv				= Map.empty
+envSingleton 	k v   	= Map.singleton k v
+envAdd 			k v e 	= Map.insert k v e
+envUnion 		e1 e2 	= Map.union e1 e2
+envAddEnv 		e1 e2 	= envUnion e1 e2
+envLookup 		k e   	= Map.lookup k e
+envToList		e		= Map.toList e
+envFromList		l		= Map.fromList l
+-- stacklike behavior, additional functionality not existing in Data.Map
+envLeave		e		= (emptyEnv,e)
+envEnter		e		= e
+
+-- optional
+envAlter		f k e	= Map.alter f k e
+%%]
+
+%%[(8 cmm) hs import({%{EH}Base.Common} hiding (Range),{%{EH}CodeGen.CVar})
+%%]
+
+%%[(8 cmm) ag
+SEM Import
+  | Imp			loc		.	nmInfo			=	@cvar
+
+SEM Decl
+  | Const		(loc.nmInfo,lhs.nmEnvGath)	:=	cvarSimplify @lhs.nmEnvGath @envnm @cvar
+
+SEM RegNmInit
+  | NmInit		(loc.nmInfo,lhs.nmEnvGath)	:=	cvarSimplify @lhs.nmEnvGath @envnm @cvar
+
+SEM Proc
+  | Proc		loc		.	nmInfo			=	@cvar
+
+SEM Formal
+  | Formal		(loc.nmInfo,lhs.nmEnvGath)	:=	cvarSimplify @lhs.nmEnvGath @envnm @cvar
+
+SEM Datum
+  | Nm			loc		.	nmInfo			=	@cvar
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Transformation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 codegen cmm) ag
+ATTR AllNT [ | | trf: SELF ]
+ATTR AGItf [ | | trf: Module ]
+
+SEM Decl
+  | Const		lhs		.	trf			=	@trf {cvar_Decl_Const = @nmInfo}
+
+SEM Formal
+  | Formal		lhs		.	trf			=	@trf {cvar_Formal_Formal = @nmInfo}
+
+SEM RegNmInit
+  | NmInit		lhs		.	trf			=	@trf {cvar_RegNmInit_NmInit = @nmInfo}
+
+SEM LValue
+  | Nm			lhs		.	trf			=	maybe @trf (\i -> @trf {cvar_LValue_Nm = i}) @mbNmInfo
+
+SEM Stmt
+  | Alloc		lhs		.	trf			=	maybe @trf (\i -> @trf {cvar_Stmt_Alloc = i}) @mbNmInfo
+  | Box			lhs		.	trf			=	maybe @trf (\i -> @trf {cvar_Stmt_Box = i}) @mbNmInfo
+  | UnBox		lhs		.	trf			=	maybe @trf (\i -> @trf {cvar_Stmt_UnBox = i}) @mbNmInfo
+
+SEM Expr
+  | CVar		lhs		.	trf			=	maybe @trf (\i -> @trf {cvar_Expr_CVar = i}) @mbNmInfo
+  | Nm  		lhs		.	trf			=	maybe @trf (\i -> @trf {nm_Expr_Nm = cvarToHsName i}) @mbNmInfo
+%%]
+
